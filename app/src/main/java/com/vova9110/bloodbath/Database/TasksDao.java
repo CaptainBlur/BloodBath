@@ -11,17 +11,14 @@ import java.util.List;
 @Dao
 public interface TasksDao {
     @Insert (onConflict = OnConflictStrategy.IGNORE)
-    void insert (Tasks task);
+    void insert (Tasks task); // В таблицу заносятся целые экземпляры Tasks
 
     @Query("DELETE FROM tasks_table")
     void deleteAll();
 
-    @Query("SELECT * FROM tasks_table WHERE task = :selTask")
-    Tasks selectByTask (String selTask);
+    @Query("DELETE FROM tasks_table WHERE task = :delTask")
+    void deleteOne (String delTask);
 
-    @Query("DELETE FROM tasks_table WHERE id = :did")
-    void deleteById (int did);
-
-    @Query("SELECT * FROM tasks_table ORDER BY id ASC")
+    @Query("SELECT * FROM tasks_table ORDER BY task ASC")
     LiveData<List<Tasks>> getAllTasks();
 }

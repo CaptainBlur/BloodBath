@@ -13,8 +13,8 @@ public class TaskViewModel extends ViewModel {
     private TaskRepo repo; // Создаём переменную, представляющую репозиторий
     private final LiveData<List<Tasks>> allTasks; // Уже во время инициализации у нас есть список всех задач
 
-    public TaskViewModel(Application application) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
-        repo = new TaskRepo(application);
+    public TaskViewModel() { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
+        repo = new TaskRepo();
         allTasks = repo.getAllTasks();
     }
     LiveData<List<Tasks>> getAllTasks() {return allTasks;}// Методы, котоыре доступны при обращении к классу TaskViewModel

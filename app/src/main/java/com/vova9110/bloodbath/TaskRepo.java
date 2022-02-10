@@ -1,6 +1,7 @@
 package com.vova9110.bloodbath;
 
 import android.app.Application;
+import android.content.Context;
 
 import androidx.lifecycle.LiveData;
 
@@ -14,8 +15,8 @@ public class TaskRepo { // Репозиторий предоставляет а�
     private TasksDao TasksDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
     private LiveData<List<Tasks>> allTasks; // Это поле будет представлять список всех задач
 
-    TaskRepo (Application app){ // При создании экземпляра этого репозитория (через конструктор),
-        TaskDatabase db = TaskDatabase.getDatabase (app); // сразу же создаётся БД и передаётся в него,
+    TaskRepo (){ // При создании экземпляра этого репозитория (через конструктор),
+        TaskDatabase db = TaskDatabase.getDatabase (App.getAppContext()); // сразу же создаётся БД и передаётся в него,
         TasksDao = db.tasksDao(); // переменной сразу же присваивается интерфейс Дао,
         allTasks = TasksDao.getAllTasks(); // сразу же запрашиваются все задачи из БД и также присваиваются полю
     }
@@ -38,5 +39,19 @@ public class TaskRepo { // Репозиторий предоставляет а�
                 TasksDao.insert(task);
             }
         });
+    }
+    void delTask (String task){
+        TaskDatabase.databaseWriteExecutor.execute(()-> TasksDao.deleteOne(task));
+    }
+    public static class App extends Application {
+        private static Context context;
+
+        public void onCreate(){
+            super.onCreate();
+            App.context = getApplicationContext();
+        }
+        public static Context getAppContext(){
+            return App.context;
+        }
     }
 }
