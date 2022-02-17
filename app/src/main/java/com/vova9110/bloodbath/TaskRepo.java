@@ -15,16 +15,18 @@ public class TaskRepo { // Репозиторий предоставляет а�
     private TasksDao TasksDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
     private LiveData<List<Tasks>> allTasks; // Это поле будет представлять список всех задач
 
-    TaskRepo (){ // При создании экземпляра этого репозитория (через конструктор),
-        TaskDatabase db = TaskDatabase.getDatabase (App.getAppContext()); // сразу же создаётся БД и передаётся в него,
+    TaskRepo(Application app) { //TODO фигануть инстанс Application через DI
+        TaskDatabase db = TaskDatabase.getDatabase(app); // сразу же создаётся БД и передаётся в него,
         TasksDao = db.tasksDao(); // переменной сразу же присваивается интерфейс Дао,
         allTasks = TasksDao.getAllTasks(); // сразу же запрашиваются все задачи из БД и также присваиваются полю
     }
+
     // Room executes all queries on a separate thread.
     // Observed LiveData will notify the observer when the data has changed.
-    LiveData<List<Tasks>> getAllTasks(){
+    LiveData<List<Tasks>> getAllTasks() {
         return allTasks;
     }
+
     // You must call this on a non-UI thread or your app will throw an exception. Room ensures
     // that you're not doing any long running operations on the main thread, blocking the UI.
 /*    void insert (Tasks task){
@@ -32,7 +34,7 @@ public class TaskRepo { // Репозиторий предоставляет а�
             TasksDao.insert(task);
         });
     }*/
-    void insert (Tasks task){
+    void insert(Tasks task) {
         TaskDatabase.databaseWriteExecutor.execute(new Runnable() {
             @Override
             public void run() {
@@ -40,18 +42,12 @@ public class TaskRepo { // Репозиторий предоставляет а�
             }
         });
     }
-    void delTask (String task){
-        TaskDatabase.databaseWriteExecutor.execute(()-> TasksDao.deleteOne(task));
-    }
-    public static class App extends Application {
-        private static Context context;
 
-        public void onCreate(){
-            super.onCreate();
-            App.context = getApplicationContext();
-        }
-        public static Context getAppContext(){
-            return App.context;
-        }
+    void delTask(String task) {
+        TaskDatabase.databaseWriteExecutor.execute(() -> TasksDao.deleteOne(task));
+    }
+    public interface DeleteClick{
+        void deleteClick (int position);
     }
 }
+

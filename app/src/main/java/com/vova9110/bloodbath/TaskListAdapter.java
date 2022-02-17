@@ -10,13 +10,15 @@ import com.vova9110.bloodbath.Database.Tasks;
 
 public class TaskListAdapter extends ListAdapter<Tasks, TaskViewHolder> {
 
-    public TaskListAdapter(@NonNull DiffUtil.ItemCallback<Tasks> diffCallback) {
-        super(diffCallback);
-    }
+    private TaskRepo.DeleteClick deleteClick;
 
+    public TaskListAdapter(@NonNull DiffUtil.ItemCallback<Tasks> diffCallback, TaskRepo.DeleteClick deleteClick) {
+        super(diffCallback);
+        this.deleteClick = deleteClick;
+    }
     @Override
     public TaskViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        return TaskViewHolder.create(parent);
+        return TaskViewHolder.create(parent, deleteClick);
     }
 
     @Override
@@ -25,7 +27,7 @@ public class TaskListAdapter extends ListAdapter<Tasks, TaskViewHolder> {
         holder.bind(current.getTask());
     }
 
-    static class WordDiff extends DiffUtil.ItemCallback<Tasks> {
+    static class TaskDiff extends DiffUtil.ItemCallback<Tasks> {
 
         @Override
         public boolean areItemsTheSame(@NonNull Tasks oldItem, @NonNull Tasks newItem) {
