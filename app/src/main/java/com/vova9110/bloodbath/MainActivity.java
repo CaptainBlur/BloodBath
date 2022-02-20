@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
 
@@ -28,15 +29,15 @@ public class MainActivity extends AppCompatActivity implements TaskRepo.DeleteCl
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Get a new or existing ViewModel from the ViewModelProvider.
+        mTaskViewModel = new ViewModelProvider(this).get(TaskViewModel.class);
+
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
         final TaskListAdapter adapter = new TaskListAdapter(new TaskListAdapter.TaskDiff(),this);
         recyclerView.setAdapter(adapter);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setLayoutManager(new RawLayoutManager(mTaskViewModel));
 
         mRepo = new TaskRepo(getApplication());
-
-        // Get a new or existing ViewModel from the ViewModelProvider.
-        mTaskViewModel = new ViewModelProvider(this).get(TaskViewModel.class);
 
         // Add an observer on the LiveData returned by getAlphabetizedTasks.
         // The onChanged() method fires when the observed data changes and the activity is
@@ -44,6 +45,7 @@ public class MainActivity extends AppCompatActivity implements TaskRepo.DeleteCl
         mTaskViewModel.getAllTasks().observe(this, tasks -> {//TODO подробно расписать метод
             // Update the cached copy of the tasks in the adapter.
             adapter.submitList(tasks);
+            Log.d("TAG", "Time to call adapter!");
         });
 
         FloatingActionButton fab = findViewById(R.id.fab);

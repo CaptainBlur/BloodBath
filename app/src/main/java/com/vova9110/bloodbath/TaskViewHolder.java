@@ -12,13 +12,11 @@ import androidx.recyclerview.widget.RecyclerView;
 
 public class TaskViewHolder extends RecyclerView.ViewHolder implements View.OnLongClickListener{
 private final TextView taskItemView;
-private final ImageView randomPic;
 private static TaskRepo.DeleteClick clickHandler;
 
         private TaskViewHolder(View itemView, TaskRepo.DeleteClick deleteClick) {
             super(itemView);
             taskItemView = itemView.findViewById(R.id.textView);
-            randomPic = itemView.findViewById(R.id.imageView);
 
             this.clickHandler = deleteClick;
             taskItemView.setClickable(true);
@@ -27,7 +25,6 @@ private static TaskRepo.DeleteClick clickHandler;
 
         public void bind(String text) {
             taskItemView.setText(text);
-            randomPic.setImageResource(R.drawable.photo);
         }
 
         static TaskViewHolder create(ViewGroup parent, TaskRepo.DeleteClick deleteClick) {
