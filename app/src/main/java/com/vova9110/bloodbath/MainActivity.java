@@ -1,14 +1,17 @@
-package com.vova9110.bloodbath;
+ package com.vova9110.bloodbath;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -29,13 +32,15 @@ public class MainActivity extends AppCompatActivity implements TaskRepo.DeleteCl
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        ImageView imageView = findViewById(R.id.imageView);
+
         // Get a new or existing ViewModel from the ViewModelProvider.
         mTaskViewModel = new ViewModelProvider(this).get(TaskViewModel.class);
-
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
         final TaskListAdapter adapter = new TaskListAdapter(new TaskListAdapter.TaskDiff(),this);
         recyclerView.setAdapter(adapter);
-        recyclerView.setLayoutManager(new RawLayoutManager(mTaskViewModel));
+        //recyclerView.setLayoutManager(new GridLayoutManager(this,1, RecyclerView.VERTICAL, false));
+        recyclerView.setLayoutManager(new RowLayoutManager(mTaskViewModel));
 
         mRepo = new TaskRepo(getApplication());
 
@@ -50,6 +55,9 @@ public class MainActivity extends AppCompatActivity implements TaskRepo.DeleteCl
 
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> {
+            if (imageView.getVisibility() == View.INVISIBLE)
+                imageView.setVisibility(View.VISIBLE);
+            else imageView.setVisibility(View.INVISIBLE);
             Intent intent = new Intent(MainActivity.this, NewTaskActivity.class);
             startActivityForResult(intent, NEW_TASK_ACTIVITY_REQUEST_CODE);
         });
@@ -70,11 +78,13 @@ public class MainActivity extends AppCompatActivity implements TaskRepo.DeleteCl
     }
 
     @Override
-    public void deleteClick(int position) {
+    public void deleteClick(int position) {//TODO перенести функционал в LM
         mList = mTaskViewModel.getAllTasks().getValue();
-        delTask = mList.get(position);
+        if (!mList.isEmpty()) {
+            delTask = mList.get(position);
 
-        mRepo.delTask(delTask.getTask());
+            mRepo.delTask(delTask.getTask());
+        }
     }
 
     @Override

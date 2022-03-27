@@ -29,23 +29,18 @@ public class TaskRepo { // Репозиторий предоставляет а�
 
     // You must call this on a non-UI thread or your app will throw an exception. Room ensures
     // that you're not doing any long running operations on the main thread, blocking the UI.
-/*    void insert (Tasks task){
+    void insert (Tasks task){
         TaskDatabase.databaseWriteExecutor.execute(() -> {
             TasksDao.insert(task);
-        });
-    }*/
-    void insert(Tasks task) {
-        TaskDatabase.databaseWriteExecutor.execute(new Runnable() {
-            @Override
-            public void run() {
-                TasksDao.insert(task);
-            }
         });
     }
 
     void delTask(String task) {
         TaskDatabase.databaseWriteExecutor.execute(() -> TasksDao.deleteOne(task));
     }
+
+
+
     public interface DeleteClick{
         void deleteClick (int position);
     }

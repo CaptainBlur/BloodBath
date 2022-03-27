@@ -19,6 +19,8 @@ public class TaskViewModel extends AndroidViewModel {
         repo = new TaskRepo(app);
         allTasks = repo.getAllTasks();
     }
-    LiveData<List<Tasks>> getAllTasks() {return allTasks;}// Методы, котоыре доступны при обращении к классу TaskViewModel
-    public void insert (Tasks task) {repo.insert(task);}
+    LiveData<List<Tasks>> getAllTasks() { return allTasks;}// Методы, котоыре доступны при обращении к классу TaskViewModel
+    void insert (Tasks task) { repo.insert(task);}
+
+
 }

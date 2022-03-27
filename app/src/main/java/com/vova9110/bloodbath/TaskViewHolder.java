@@ -1,5 +1,6 @@
 package com.vova9110.bloodbath;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -36,6 +37,7 @@ private static TaskRepo.DeleteClick clickHandler;
     @Override
     public boolean onLongClick(View v) {
         clickHandler.deleteClick(getAdapterPosition());
+        Log.d("TAG", "Adapter pos: " + getAdapterPosition());
         return true;
     }
 }

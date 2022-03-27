@@ -21,4 +21,5 @@ public interface TasksDao {
 
     @Query("SELECT * FROM tasks_table ORDER BY task ASC")
     LiveData<List<Tasks>> getAllTasks();
+
 }

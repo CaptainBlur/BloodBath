@@ -17,7 +17,7 @@ public abstract class TaskDatabase extends RoomDatabase {
     public static final ExecutorService databaseWriteExecutor = Executors.newFixedThreadPool(NUMBER_OF_THREADS); // создаём executor service с фиксированным пулом потоков
 // для  работы с базой данных. Как я понимаю, его можно создать и в другом месте, но тут для него наиболее подходящее место, плюс его удобно вызывать как статическое поле через обращение к БД
     public static TaskDatabase getDatabase(final Context context){// при обращении к методу getDatabase, он работает как singleton и в любом случае возвращает объект БД.
-// вопрос в том, кто будет хранить эту переменную.
+
         if (INSTANCE == null){ // проверяем, не записывалась ли эта переменная прежде
             synchronized (TaskDatabase.class){ // запускаем создание базы данных
                 if (INSTANCE == null) { // провереяем, не записалась ли эта переменная в период после предыдущей проверки
