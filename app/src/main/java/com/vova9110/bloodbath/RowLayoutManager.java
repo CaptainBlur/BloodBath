@@ -16,11 +16,11 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
     private int mBaseHorizontalPadding;// in pixels
     private int mBaseVerticalPadding;
-    private int mVisibleRows;
+    private int mVisibleRows;//Реальное значение отрисованных строк всгда на 1 больше
     private int mAvailableRows;
 
-    private int mAnchorRowPos;//Принимает нулевое значение только в случае, когда первая строка является первой видимой. Во всех остальных случаях, у якорной строки виден только нижний отступ
-    private int mLastVisibleRow;
+    private int mAnchorRowPos;//У первой строки всегда как минимум виден нижний отступ
+    private int mLastVisibleRow;//При первоначальном заполнении выходит, что эта строка отрисовывается невидимой
     private int mBottomBound;//Значение нижней выложенной границы
     private int mTopBound;
     private int mBottomBaseline;//Значение нижней видимой линии
@@ -88,9 +88,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
         if (getChildCount() == 0){
             Log.d("TAG", "Empty layout detected. Views to be laid out: " + state.getItemCount());
-            mAnchorRowPos = 0; mTopBound = mTopBaseline = mTopShift = 0;//Устанавливаем начальные значения на пустую выкладку. Якорная строка нулевая
+            mAnchorRowPos = 1; mTopBound = mTopBaseline = mTopShift = 0;//Устанавливаем начальные значения на пустую выкладку. Якорная строка нулевая
 
-            for (int i = 0; i < getItemCount() && rowCount <= mVisibleRows; i++) { //Главный цикл, который заполняет разметку по одной Вьюшке до последней видимой строки
+            for (int i = 0; i < getItemCount() && rowCount <= mVisibleRows + 1; i++) { //Главный цикл. Выкладываемых строк больше, чем видимых
                 int p = i + 1;
                 if (i < 0 || i >= state.getItemCount()) { //Метод из класса State возвращает количество оставшихся Вьюшек, доступных для выкладки
                     //С его помощью будем выкладывать, пока не кончатся
@@ -158,13 +158,13 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                     mBottomBaseline += dy; mTopBaseline += dy;
                 }
                 //Если дельта меньше или равна скроллу и есть ещё как минимум строка для выкладывания,
-                //То мы допускаем скролл на ряд, который будет выложен сейчас, и обновляем значение нижней границы,
-                //Однако скролл не будет больше дельты, которая считается в самом начале.
+                //то мы допускаем скролл на ряд, который будет выложен сейчас, и обновляем значение нижней границы,
+                //однако скролл не будет больше дельты, которая считается в самом начале.
                 //Мы обновляем координаты нижней границы и верхней (если за ней есть хоть ещё одна)
                 else if (delta <= dy && mLastVisibleRow < mAvailableRows)  {
-                    mBottomBound += mDecoratedChildHeight; if (mAnchorRowPos != 0) mTopBound += mDecoratedChildHeight;
+                    mBottomBound += mDecoratedChildHeight; mTopBound += mDecoratedChildHeight;//Даём первой строке стать частично невидимой и держим границу по ней
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
-                    Log.d ("TAG", "AddNRecycle UP, former pos:" + mAnchorRowPos + " " + mLastVisibleRow);
+                    Log.d ("TAG", "AddNRecycle DOWN, former pos: " + mAnchorRowPos + " " + mLastVisibleRow);
                     /*
                     Переменная Стыка введена, потому что метод layoutDecorated выкладывает дочерние вьюшки в координатах, относительно начала RV.
                     Мы передаём это смещение для выкладки, когда нужно выложить новую строку,
@@ -189,7 +189,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
             if (!topBoundReached){
                 delta = mTopBound - mTopBaseline;//Дельта отрицательная
-                Log.d ("TAG", " " + delta);
+                //Log.d ("TAG", " " + delta);
 
                 if (delta < dy) {
                     offset = dy;
@@ -197,13 +197,18 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                     //Log.d ("TAG", "Baseline down");
                 }
 
-                else if (delta >= dy && mAnchorRowPos > 1)  { //Меньше первой строки у нас нет
-                    mBottomBound -= mDecoratedChildHeight; mTopBound -= mDecoratedChildHeight;
+                else if (delta >= dy && mAnchorRowPos > 1) { //Меньше первой строки у нас нет
+                    mBottomBound -= mDecoratedChildHeight; mTopBound -= mDecoratedChildHeight;//Даём последней строке стать частично невидимой и держим границу по ней
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
-                    Log.d ("TAG", "AddNRecycle UP, former pos:" + mAnchorRowPos + " " + mLastVisibleRow);
 
                     joint = getPaddingTop() + delta;//Берём нижнюю границу RV (0), прибавляем отступ разметки и вычитаем дельту
                     addNRecycle (recycler, DIR_UP, joint);
+                    Log.d ("TAG", "AddNRecycle UP, new pos: " + mAnchorRowPos + " " + mLastVisibleRow);
+                }
+
+                else if (delta >= dy && mAnchorRowPos > 0) {
+                    offset = delta;
+                    mBottomBaseline += delta; mTopBaseline += delta;
                 }
 
                 else {
@@ -218,7 +223,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
         }
 
         //Log.d("TAG", dy + " " + delta + " " + offset + " ");
-        //Log.d("TAG", "Bottom: " + mBottomBaseline + " Top: " + mTopBaseline + ", Top bound: " + mTopBound);
+        //Log.d("TAG", "Bottom: " + mBottomBaseline + " Top: " + mTopBaseline + ", Bottom bound: " + mBottomBound + ", Top bound: " + mTopBound);
         return offset;
     }
 /*
@@ -227,20 +232,20 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
     void addNRecycle (RecyclerView.Recycler recycler, int direction, int joint){
 
         int leftOffset = getPaddingLeft();
-        int topOffset = 0;
+        int topOffset;
 
         switch (direction){
             case (DIR_DOWN):
 
                 topOffset = joint;
+                mAnchorRowPos++; mLastVisibleRow++;
 
-                if (mAnchorRowPos > 0) {//Мы не перерабатываем невидимую верхнюю строку
+                if (mAnchorRowPos > 1) {//Мы не перерабатываем первую верхнюю строку
                     for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {
                         Log.d("TAG", i + " recycling, row: " + mAnchorRowPos);
                         removeAndRecycleViewAt(0, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
                     }
                 }
-                mAnchorRowPos++; mLastVisibleRow++;
 
                 for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount(); i++){
                     Log.d ("TAG", i + " adding row: " + mLastVisibleRow);
@@ -260,11 +265,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
                 topOffset = joint - mDecoratedChildHeight;
 
-//                for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3; i++) {
-//                    Log.d("TAG", i + " recycling, row: " + mLastVisibleRow);
-//                    removeAndRecycleViewAt(getChildCount() - 1, recycler);//Берём индекс последней выложенной вьюшки
-//                }
-                mAnchorRowPos--; mLastVisibleRow--;
+                for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount(); i++) {//TODO Не правильно выбирает строку для переработки. С крайней нижней позиции уже нужное количество строк, но разница между первой и последней позицией равна количеству видимых строк. Значит, где-то при начале скроллинга вверх нужно втиснуть декримент нижней позиции
+                    Log.d("TAG", i + " recycling, row: " + mLastVisibleRow);
+                    removeAndRecycleViewAt(getChildCount() - 1, recycler);//Берём индекс последней выложенной вьюшки
+                }
 
                 for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++){
                     Log.d ("TAG", i + " adding row: " + mAnchorRowPos);
@@ -278,7 +282,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
                     leftOffset += mDecoratedChildWidth;
                 }
-                break;
+                mAnchorRowPos--; mLastVisibleRow--;
+                    break;
         }
     }
     @Override
