@@ -22,6 +22,8 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity implements TaskRepo.DeleteClick, View.OnClickListener {
 
     public static final int NEW_TASK_ACTIVITY_REQUEST_CODE = 1;
+    public static final int FILL_DB = 3;
+    public static final int CLEAR_DB = 4;
     private TaskViewModel mTaskViewModel;
     private TaskRepo mRepo;
     private List<Tasks> mList;
@@ -69,7 +71,10 @@ public class MainActivity extends AppCompatActivity implements TaskRepo.DeleteCl
         if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == RESULT_OK) {
             Tasks task = new Tasks(data.getStringExtra(NewTaskActivity.EXTRA_REPLY));
             mTaskViewModel.insert(task);
-        } else {
+        }
+        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == FILL_DB) mTaskViewModel.fill();
+        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == CLEAR_DB) mTaskViewModel.clear();
+        else {
             Toast.makeText(
                     getApplicationContext(),
                     R.string.empty_not_saved,

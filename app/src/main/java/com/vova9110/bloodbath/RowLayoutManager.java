@@ -164,6 +164,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                 else if (delta <= dy && mLastVisibleRow < mAvailableRows)  {
                     mBottomBound += mDecoratedChildHeight; if (mAnchorRowPos != 0) mTopBound += mDecoratedChildHeight;
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
+                    Log.d ("TAG", "AddNRecycle UP, former pos:" + mAnchorRowPos + " " + mLastVisibleRow);
                     /*
                     Переменная Стыка введена, потому что метод layoutDecorated выкладывает дочерние вьюшки в координатах, относительно начала RV.
                     Мы передаём это смещение для выкладки, когда нужно выложить новую строку,
@@ -188,7 +189,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
             if (!topBoundReached){
                 delta = mTopBound - mTopBaseline;//Дельта отрицательная
-                //Log.d ("TAG", " " + delta);
+                Log.d ("TAG", " " + delta);
 
                 if (delta < dy) {
                     offset = dy;
@@ -196,13 +197,18 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                     //Log.d ("TAG", "Baseline down");
                 }
 
-                else if (delta <= dy && mAnchorRowPos > 1)  {
-                    mBottomBound += mDecoratedChildHeight; mTopBound -= mDecoratedChildHeight;
+                else if (delta >= dy && mAnchorRowPos > 1)  { //Меньше первой строки у нас нет
+                    mBottomBound -= mDecoratedChildHeight; mTopBound -= mDecoratedChildHeight;
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
-                    Log.d ("TAG", "RECYCLING STARTED");
+                    Log.d ("TAG", "AddNRecycle UP, former pos:" + mAnchorRowPos + " " + mLastVisibleRow);
 
                     joint = getPaddingTop() + delta;//Берём нижнюю границу RV (0), прибавляем отступ разметки и вычитаем дельту
                     addNRecycle (recycler, DIR_UP, joint);
+                }
+
+                else {
+                    offset = delta;
+                    mBottomBaseline += delta; mTopBaseline += delta;
                 }
             }
 
@@ -211,8 +217,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
             offsetChildrenVertical(-offset);
         }
 
-//        Log.d("TAG", dy + " " + delta + " " + offset + " ");
-//        Log.d("TAG", "Bottom: " + mBottomBaseline + " Top: " + mTopBaseline);
+        //Log.d("TAG", dy + " " + delta + " " + offset + " ");
+        //Log.d("TAG", "Bottom: " + mBottomBaseline + " Top: " + mTopBaseline + ", Top bound: " + mTopBound);
         return offset;
     }
 /*
@@ -221,7 +227,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
     void addNRecycle (RecyclerView.Recycler recycler, int direction, int joint){
 
         int leftOffset = getPaddingLeft();
-        int topOffset;
+        int topOffset = 0;
 
         switch (direction){
             case (DIR_DOWN):
@@ -254,10 +260,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
                 topOffset = joint - mDecoratedChildHeight;
 
-                for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3; i++) {
-                    Log.d("TAG", i + " recycling, row: " + mLastVisibleRow);
-                    removeAndRecycleViewAt(getChildCount() - 1, recycler);//Берём индекс последней выложенной вьюшки
-                }
+//                for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3; i++) {
+//                    Log.d("TAG", i + " recycling, row: " + mLastVisibleRow);
+//                    removeAndRecycleViewAt(getChildCount() - 1, recycler);//Берём индекс последней выложенной вьюшки
+//                }
                 mAnchorRowPos--; mLastVisibleRow--;
 
                 for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++){
@@ -286,7 +292,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
     @Override
     public void onScrollStateChanged (int state){
         if (state == RecyclerView.SCROLL_STATE_IDLE){//Заполняем кэш при остановке скроллинга и считаем верхний сдвиг
-            Log.d ("TAG", " " + mTopShift);
+            //Log.d ("TAG", " " + mTopShift);
         }
     }
 }
