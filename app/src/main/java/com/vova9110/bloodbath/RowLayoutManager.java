@@ -7,6 +7,8 @@ import android.widget.TextView;
 
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.util.ArrayList;
+
 
 public class RowLayoutManager extends RecyclerView.LayoutManager {
 
@@ -25,10 +27,15 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
     private int mTopBound;
     private int mBottomBaseline;//Значение нижней видимой линии
     private int mTopBaseline;
-    private int mTopShift;//Значение сдвига относительно начала первой видимой строки, для сохнанения позиции скролинга при выкладке
-    //При отрицательном значении, верхняя базовая линия находится на позиции topEdgeRow, то есть строки, которая уже была переработана при скроллинге вниз
+    /*Значение сдвига относительно начала первой видимой строки, для сохнанения позиции скролинга при выкладке.
+    При отрицательном значении, верхняя базовая линия находится на позиции topEdgeRow, то есть строки, которая уже была переработана при скроллинге вниз*/
+    private int mTopShift;
+    /*Используется для определения направления последней выкладки при скроллинге,
+    для выбора правильной строки для переработки при скроллинге вверх*/
+    private boolean mLayoutDown;
     private final int DIR_DOWN = 0;
     private final int DIR_UP = 1;
+    private ArrayList<View> mAdapterCache;
     private SparseArray<View> mViewCache;
 
 
@@ -43,6 +50,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
     @Override
     public void onLayoutChildren (RecyclerView.Recycler recycler, RecyclerView.State state) {
+
+        mAdapterCache = new ArrayList<>();
+        for (int i = 0; i < state.getItemCount(); i++) mAdapterCache.add(recycler.getViewForPosition(i));
+        Log.d ("TAG", "Adapter cache created, size: " + mAdapterCache.size());
 
         if (mViewCache == null) mViewCache = new SparseArray<>(getChildCount());
 
@@ -88,7 +99,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
         if (getChildCount() == 0){
             Log.d("TAG", "Empty layout detected. Views to be laid out: " + state.getItemCount());
-            mAnchorRowPos = 1; mTopBound = mTopBaseline = mTopShift = 0;//Устанавливаем начальные значения на пустую выкладку. Якорная строка нулевая
+            mAnchorRowPos = 1; mTopBound = mTopBaseline = mTopShift = 0; mLayoutDown = true;//Устанавливаем начальные значения на пустую выкладку
 
             for (int i = 0; i < getItemCount() && rowCount <= mVisibleRows + 1; i++) { //Главный цикл. Выкладываемых строк больше, чем видимых
                 int p = i + 1;
@@ -97,7 +108,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                     continue;
                 }
 
-                View view = recycler.getViewForPosition(i);
+                View view = mAdapterCache.get(i);
                 mViewCache.put(i, view);//Наполняем кэш по пути
 
                 addView(view);
@@ -203,6 +214,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
                     joint = getPaddingTop() + delta;//Берём нижнюю границу RV (0), прибавляем отступ разметки и вычитаем дельту
                     addNRecycle (recycler, DIR_UP, joint);
+                    if (mLayoutDown) mLayoutDown = false;
                     Log.d ("TAG", "AddNRecycle UP, new pos: " + mAnchorRowPos + " " + mLastVisibleRow);
                 }
 
@@ -238,19 +250,17 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
             case (DIR_DOWN):
 
                 topOffset = joint;
-                mAnchorRowPos++; mLastVisibleRow++;
+                mLastVisibleRow++;
 
-                if (mAnchorRowPos > 1) {//Мы не перерабатываем первую верхнюю строку
-                    for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {
-                        Log.d("TAG", i + " recycling, row: " + mAnchorRowPos);
-                        removeAndRecycleViewAt(0, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
-                    }
+                for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {
+                    Log.d("TAG", i + " recycling, row: " + mAnchorRowPos);
+                    removeAndRecycleViewAt(0, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
                 }
 
                 for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount(); i++){
                     Log.d ("TAG", i + " adding row: " + mLastVisibleRow);
 
-                    View view  = recycler.getViewForPosition(i);
+                    View view  = mAdapterCache.get(i);
                     addView (view);
                     measureChild (view, 0, 0);
                     layoutDecorated (view, leftOffset, topOffset,
@@ -259,21 +269,32 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
                     leftOffset += mDecoratedChildWidth;
                 }
+                mAnchorRowPos++;
                 break;
 
             case (DIR_UP):
 
-                topOffset = joint - mDecoratedChildHeight;
+                for (int i = 0; i < getChildCount(); i++){//Для правельной переработки и добавления строк,
+                    //сначала нам нужно переназначить индексы дочерних вьюшек внутри разметки
+                    int v = (mAnchorRowPos - 1) * 3 + i;
+                    Log.d ("TAG", "Row " + mAnchorRowPos +", taking " + v + ", setting " + i);
 
-                for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount(); i++) {//TODO Не правильно выбирает строку для переработки. С крайней нижней позиции уже нужное количество строк, но разница между первой и последней позицией равна количеству видимых строк. Значит, где-то при начале скроллинга вверх нужно втиснуть декримент нижней позиции
-                    Log.d("TAG", i + " recycling, row: " + mLastVisibleRow);
-                    removeAndRecycleViewAt(getChildCount() - 1, recycler);//Берём индекс последней выложенной вьюшки
+                    View view = mAdapterCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной
+                    detachView(view); attachView(view, i);
                 }
+
+                topOffset = joint - mDecoratedChildHeight;
+                mAnchorRowPos--;
+
+                    for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount(); i++) {
+                        Log.d("TAG", i + " recycling, row: " + mLastVisibleRow);
+                        removeAndRecycleViewAt(getChildCount() - 1, recycler);//Берём индекс последней выложенной вьюшки
+                    }
 
                 for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++){
                     Log.d ("TAG", i + " adding row: " + mAnchorRowPos);
 
-                    View view  = recycler.getViewForPosition(i);
+                    View view  = mAdapterCache.get(i);
                     addView (view);
                     measureChild (view, 0, 0);
                     layoutDecorated (view, leftOffset, topOffset,
@@ -282,7 +303,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
                     leftOffset += mDecoratedChildWidth;
                 }
-                mAnchorRowPos--; mLastVisibleRow--;
+                mLastVisibleRow--;
                     break;
         }
     }
@@ -297,6 +318,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
     @Override
     public void onScrollStateChanged (int state){
         if (state == RecyclerView.SCROLL_STATE_IDLE){//Заполняем кэш при остановке скроллинга и считаем верхний сдвиг
+
             //Log.d ("TAG", " " + mTopShift);
         }
     }

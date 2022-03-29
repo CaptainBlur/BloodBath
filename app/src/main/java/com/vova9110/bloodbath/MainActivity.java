@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity implements TaskRepo.DeleteCl
         mTaskViewModel.getAllTasks().observe(this, tasks -> {//TODO подробно расписать метод
             // Update the cached copy of the tasks in the adapter.
             adapter.submitList(tasks);
-            Log.d("TAG", "Time to call adapter!");
+            Log.d("TAG", "Time to layout!");
         });
 
         FloatingActionButton fab = findViewById(R.id.fab);
