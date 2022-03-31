@@ -10,7 +10,7 @@ import com.vova9110.bloodbath.Database.Tasks;
 
 import java.util.List;
 
-public class TaskViewModel extends AndroidViewModel {
+public class  TaskViewModel extends AndroidViewModel {
     private TaskRepo repo; //TODO фигануть весь репозиторий через DI
     private final LiveData<List<Tasks>> allTasks; // Уже во время инициализации у нас есть список всех задач
 
