@@ -1,9 +1,8 @@
 package com.vova9110.bloodbath;
 
+import android.util.ArrayMap;
 import android.util.Log;
-import android.util.SparseArray;
 import android.view.View;
-import android.widget.TextView;
 
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -36,7 +35,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
     private final int DIR_DOWN = 0;
     private final int DIR_UP = 1;
     private ArrayList<View> mAdapterCache;
-    private SparseArray<View> mViewCache;
+    private ArrayMap<FAK,View> mViewCache;
+    private FAK key = new FAK();
 
 
     public RowLayoutManager (TaskViewModel VM){
@@ -55,9 +55,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
         for (int i = 0; i < state.getItemCount(); i++) mAdapterCache.add(recycler.getViewForPosition(i));
         Log.d ("TAG", "Adapter cache created, size: " + mAdapterCache.size());
 
-        if (mViewCache == null) mViewCache = new SparseArray<>(getChildCount());
+        if (mViewCache == null) mViewCache = new ArrayMap<>();
 
-        if (getChildCount()==0 && 0 != state.getItemCount()){//Первоначальное измерение, если есть что измерять
+        if (getChildCount()==0 && 0 != state.getItemCount()){//Первоначальное измерение, если есть что измерять и ничего ещё не выложено
             //Здесь необходимо высчитать и задать стандартные размеры боковых и вертикальных отступов для всех дочерних вьюшек,
             //Рассчитать максимальное количество строк, основываясь на высоте RV
             View sample = recycler.getViewForPosition(0);
@@ -79,7 +79,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
             Log.d("TAG", "Simple layout started");
             fillRows (recycler, state);
         }
-        else if (getChildCount()!=0) removeAndRecycleAllViews(recycler);
+        else if (getItemCount()==0) removeAndRecycleAllViews(recycler);//Если адаптер пустой, то очищаем разметку
 
     }
     /*
@@ -109,7 +109,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                 }
 
                 View view = mAdapterCache.get(i);
-                mViewCache.put(i, view);//Наполняем кэш по пути
+                mViewCache.put(new FAK(i), view);//Наполняем кэш по пути
 
                 addView(view);
                 measureChild(view, 0, 0);
@@ -131,7 +131,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
             Log.d("TAG", "Row count: " + mLastVisibleRow + ", bottom bound: " + mBottomBound + ", bottom baseline: " + mBottomBaseline);
         }
         /*
-        После первой выкладки или скролла уже в любом случае будет кэш. Вопрос в том, изменился ли список
+        После первой выкладки или скролла уже в любом случае будет кэш. Если сет данных не изменился, то просто берём из кэша и выкладываем на прежнюю позицию
          */
         else{
             removeAndRecycleAllViews(recycler);
@@ -236,6 +236,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
         //Log.d("TAG", dy + " " + delta + " " + offset + " ");
         //Log.d("TAG", "Bottom: " + mBottomBaseline + " Top: " + mTopBaseline + ", Bottom bound: " + mBottomBound + ", Top bound: " + mTopBound);
+        mTopShift += offset;
         return offset;
     }
 /*
@@ -245,6 +246,15 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
         int leftOffset = getPaddingLeft();
         int topOffset;
+
+        for (int i = 0; i < getChildCount(); i++){//Для правельной переработки и добавления строк,
+            //сначала нам нужно переназначить индексы дочерних вьюшек, которые уже выложены
+            int v = (mAnchorRowPos - 1) * 3 + i;
+            Log.d ("TAG", "Row " + mAnchorRowPos +", taking " + v + ", setting " + i);
+
+            View view = mAdapterCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной
+            detachView(view); attachView(view, i);
+        }
 
         switch (direction){
             case (DIR_DOWN):
@@ -273,15 +283,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                 break;
 
             case (DIR_UP):
-
-                for (int i = 0; i < getChildCount(); i++){//Для правельной переработки и добавления строк,
-                    //сначала нам нужно переназначить индексы дочерних вьюшек внутри разметки
-                    int v = (mAnchorRowPos - 1) * 3 + i;
-                    Log.d ("TAG", "Row " + mAnchorRowPos +", taking " + v + ", setting " + i);
-
-                    View view = mAdapterCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной
-                    detachView(view); attachView(view, i);
-                }
 
                 topOffset = joint - mDecoratedChildHeight;
                 mAnchorRowPos--;
@@ -319,7 +320,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
     public void onScrollStateChanged (int state){
         if (state == RecyclerView.SCROLL_STATE_IDLE){//Заполняем кэш при остановке скроллинга и считаем верхний сдвиг
 
-            //Log.d ("TAG", " " + mTopShift);
+            mViewCache.clear();
+            for (int i = 0; i < getChildCount(); i++){//Определяем индексы выложенных вьюшек и берём их из кэша адаптера
+
+                int v = (mAnchorRowPos - 1) * 3 + i;
+                View view = mAdapterCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной
+                mViewCache.put(new FAK(i), view);
+            }
+            Log.d ("TAG", "Cache filled: " + mViewCache.size() + ", Row " + mAnchorRowPos + ", Top shift: " + mTopShift);
         }
     }
 }
