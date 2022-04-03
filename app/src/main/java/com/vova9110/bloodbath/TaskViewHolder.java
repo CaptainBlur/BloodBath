@@ -11,33 +11,32 @@ import android.widget.TextView;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-public class TaskViewHolder extends RecyclerView.ViewHolder implements View.OnLongClickListener{
-private final TextView taskItemView;
-private static TaskRepo.DeleteClick clickHandler;
+import javax.inject.Inject;
 
-        private TaskViewHolder(View itemView, TaskRepo.DeleteClick deleteClick) {
+public class TaskViewHolder extends RecyclerView.ViewHolder{
+private final TextView taskItemView;
+@Inject
+public TaskRepo repo;
+
+        private TaskViewHolder(View itemView, AppComponent component) {
             super(itemView);
+            component.inject(this);
             taskItemView = itemView.findViewById(R.id.textView);
 
-            this.clickHandler = deleteClick;
             taskItemView.setClickable(true);
-            taskItemView.setOnLongClickListener(this);
+            taskItemView.setOnLongClickListener(view -> {
+                repo.delTask(getAdapterPosition());
+                return true;
+            });
         }
 
         public void bind(String text) {
             taskItemView.setText(text);
         }
 
-        static TaskViewHolder create(ViewGroup parent, TaskRepo.DeleteClick deleteClick) {
+        static TaskViewHolder create(ViewGroup parent, AppComponent component) {
             View view = LayoutInflater.from(parent.getContext())
                     .inflate(R.layout.recyclerview_item, parent, false);
-            return new TaskViewHolder(view, deleteClick);
+            return new TaskViewHolder(view, component);
         }
-
-    @Override
-    public boolean onLongClick(View v) {
-        clickHandler.deleteClick(getAdapterPosition());
-        Log.d("TAG", "Adapter pos: " + getAdapterPosition());
-        return true;
-    }
 }

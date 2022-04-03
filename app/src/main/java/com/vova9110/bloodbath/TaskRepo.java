@@ -2,6 +2,7 @@ package com.vova9110.bloodbath;
 
 import android.app.Application;
 import android.content.Context;
+import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 
@@ -11,26 +12,27 @@ import com.vova9110.bloodbath.Database.TasksDao;
 
 import java.util.List;
 
+import javax.inject.Inject;
+
 public class TaskRepo { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
     private TasksDao TasksDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
     private LiveData<List<Tasks>> allTasks; // Это поле будет представлять список всех задач
+    private List<Tasks> mList;
 
-    TaskRepo(Application app) { //TODO фигануть инстанс Application через DI
-        TaskDatabase db = TaskDatabase.getDatabase(app); // сразу же создаётся БД и передаётся в него,
-        TasksDao = db.tasksDao(); // переменной сразу же присваивается интерфейс Дао,
-        allTasks = TasksDao.getAllTasks(); // сразу же запрашиваются все задачи из БД и также присваиваются полю
+
+
+    TaskRepo(TasksDao Dao){//Можно и здесь добавить аннотацию Inject, чтобы Даггер обращался к этому конструктору для создания и сам передавал в него Дао
+        TasksDao = Dao;
+        allTasks = TasksDao.getAllTasks();
+        Log.d("TAG", "Repo instance created");
     }
 
-    // Room executes all queries on a separate thread.
-    // Observed LiveData will notify the observer when the data has changed.
     LiveData<List<Tasks>> getAllTasks() {
         return allTasks;
     }
 
-    // You must call this on a non-UI thread or your app will throw an exception. Room ensures
-    // that you're not doing any long running operations on the main thread, blocking the UI.
     void insert (Tasks task){
-        TaskDatabase.databaseWriteExecutor.execute(() -> TasksDao.insert(task));
+        TaskDatabase.databaseWriteExecutor.execute(() -> TasksDao.insert(task));//ExecutorService - это статичная константа внутри DB класса
     }
 
     void fill (){
@@ -41,17 +43,12 @@ public class TaskRepo { // Репозиторий предоставляет а�
             }
         });
     }
-    void delTask(String task) {
-        TaskDatabase.databaseWriteExecutor.execute(() -> TasksDao.deleteOne(task));
+    void delTask(int pos) {
+        mList = allTasks.getValue();
+        if (!mList.isEmpty()) TaskDatabase.databaseWriteExecutor.execute(() -> TasksDao.deleteOne(mList.get(pos).getTask()));
     }
     void clear () {
         TaskDatabase.databaseWriteExecutor.execute(() -> TasksDao.deleteAll());
-    }
-
-
-
-    public interface DeleteClick{
-        void deleteClick (int position);
     }
 }
 

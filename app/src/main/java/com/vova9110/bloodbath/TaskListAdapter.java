@@ -10,15 +10,15 @@ import com.vova9110.bloodbath.Database.Tasks;
 
 public class TaskListAdapter extends ListAdapter<Tasks, TaskViewHolder> {
 
-    private TaskRepo.DeleteClick deleteClick;
+    private AppComponent component;
 
-    public TaskListAdapter(@NonNull DiffUtil.ItemCallback<Tasks> diffCallback, TaskRepo.DeleteClick deleteClick) {
+    public TaskListAdapter(@NonNull DiffUtil.ItemCallback<Tasks> diffCallback, AppComponent component) {
         super(diffCallback);
-        this.deleteClick = deleteClick;
+        this.component = component;
     }
     @Override
     public TaskViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        return TaskViewHolder.create(parent, deleteClick);
+        return TaskViewHolder.create(parent, component);
     }
 
     @Override

@@ -6,33 +6,24 @@ import android.view.View;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.util.ArrayList;
-import java.util.List;
-
 
 public class RowLayoutManager extends RecyclerView.LayoutManager {
 
-    private final TaskViewModel ViewModel;
     private int mDecoratedChildWidth;
     private int mDecoratedChildHeight;
 
     private int mBaseHorizontalPadding;// in pixels
     private int mBaseVerticalPadding;
-    private int mVisibleRows;//Реальное значение отрисованных строк всгда на 1 больше
+    private int mVisibleRows;//Значение отрисованных строк всгда на 1 больше
     private int mAvailableRows;
-
     private int mAnchorRowPos;//У первой строки всегда как минимум виден нижний отступ
     private int mLastVisibleRow;//При первоначальном заполнении выходит, что эта строка отрисовывается невидимой
     private int mBottomBound;//Значение нижней выложенной границы
     private int mTopBound;
     private int mBottomBaseline;//Значение нижней видимой линии
     private int mTopBaseline;
-    /*Значение сдвига относительно начала первой видимой строки, для сохнанения позиции скролинга при выкладке.
-    При отрицательном значении, верхняя базовая линия находится на позиции topEdgeRow, то есть строки, которая уже была переработана при скроллинге вниз*/
+    //Значение сдвига относительно начала первой видимой строки, для сохнанения позиции скролинга при выкладке.
     private int mTopShift;
-    /*Используется для определения направления последней выкладки при скроллинге,
-    для выбора правильной строки для переработки при скроллинге вверх*/
-    private boolean mLayoutDown;
     private final int DIR_DOWN = 0;
     private final int DIR_UP = 1;
     /*Кэш, который полностью дублирует выложенный сет вьюшек,
@@ -43,8 +34,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
     private SparseArray<View> mViewCache = new SparseArray<>();
 
 
-    public RowLayoutManager (TaskViewModel VM){
-        ViewModel = VM;
+    public RowLayoutManager (){
+        super();
     }
 
     @Override
@@ -82,12 +73,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
     }
     /*
-    Метод выкладывает дочерние вьюшки. Если в разметке уже есть - кэширует и использует заново
+    Метод выкладывает и кэширует дочерние вьюшки. Если в разметке уже есть - использует кэшированные заново
     Он сам определяет требуемое количество строк и стартовую позицию,
     Производит выкладку на пустую, уже заполненную и проскроленную разметку,
-    При первоначальной выкладке устанавливает значения границ и оффсетов для скроллинга
+    При первоначальной выкладке устанавливает стартовые значения границ и оффсетов для скроллинга
      */
-    private void fillRows (RecyclerView.Recycler recycler,//TODO добавить инструменты выкладки на заполненный и проскроленный списки
+    private void fillRows (RecyclerView.Recycler recycler,
                            RecyclerView.State state){
 
         int paddingLeft = getPaddingLeft();
@@ -98,7 +89,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
         if (getChildCount() == 0){
             Log.d("TAG", "Empty layout detected. Views to be laid out: " + state.getItemCount());
-            mAnchorRowPos = 1; mTopBound = mTopBaseline = mTopShift = 0; mLayoutDown = true;//Устанавливаем начальные значения на пустую выкладку
+            mAnchorRowPos = 1; mTopBound = mTopBaseline = mTopShift = 0;
 
             for (int index = 0; index < getItemCount() && rowCount <= mVisibleRows + 1; index++) { //Главный цикл. Выкладываемых строк больше, чем видимых
                 int p = index + 1;
@@ -214,7 +205,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
                     joint = getPaddingTop() + delta;//Берём нижнюю границу RV (0), прибавляем отступ разметки и вычитаем дельту
                     addNRecycle (recycler, DIR_UP, joint);
-                    if (mLayoutDown) mLayoutDown = false;
                     Log.d ("TAG", "AddNRecycle UP, new pos: " + mAnchorRowPos + " " + mLastVisibleRow);
                 }
 
