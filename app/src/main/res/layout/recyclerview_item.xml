@@ -14,4 +14,30 @@
         android:background="@android:color/holo_orange_light"
         android:paddingHorizontal="10dp"
         android:text="00:00" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <NumberPicker
+            android:id="@+id/picker_h"
+            android:layout_width="match_parent"
+            android:layout_height="96dp"
+            android:visibility="gone"/>
+        <NumberPicker
+            android:id="@+id/picker_m"
+            android:layout_width="match_parent"
+            android:layout_height="96dp"
+            android:visibility="gone"/>
+
+        <Switch
+            android:id="@+id/switcher"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:visibility="gone" />
+    </LinearLayout>
+
+
 </LinearLayout>

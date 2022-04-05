@@ -3,14 +3,24 @@ package com.vova9110.bloodbath;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
+import android.widget.NumberPicker;
+import android.widget.Switch;
+import android.widget.TextView;
 
 import androidx.recyclerview.widget.RecyclerView;
 
 
 public class RowLayoutManager extends RecyclerView.LayoutManager {
-
-    private int mDecoratedChildWidth;
-    private int mDecoratedChildHeight;
+    private TextView mTimeView;
+    private NumberPicker mHourPicker;
+    private NumberPicker mMinutePicker;
+    private Switch mSwitcher;
+    //Размеры окошка с временем в пикселях
+    private int mDecoratedTimeWidth;
+    private int mDecoratedTimeHeight;
+    //Размеры прямоугольника с пикерами времени и кнопкой
+    private int mDecoratedPreferencesWidth;
+    private int mDecoratedPreferencesHeight;
 
     private int mBaseHorizontalPadding;// in pixels
     private int mBaseVerticalPadding;
@@ -49,20 +59,37 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
         if (getChildCount()==0 && 0 != state.getItemCount()){//Первоначальное измерение, если есть что измерять и ничего ещё не выложено
             //Здесь необходимо высчитать и задать стандартные размеры боковых и вертикальных отступов для всех дочерних вьюшек,
-            //Рассчитать максимальное количество строк, основываясь на высоте RV
             View sample = recycler.getViewForPosition(0);
+            mTimeView = sample.findViewById(R.id.textView);
+            mHourPicker = sample.findViewById(R.id.picker_h);
+            mMinutePicker = sample.findViewById(R.id.picker_m);
+            mSwitcher = sample.findViewById(R.id.switcher);
             mBaseHorizontalPadding = 130;
             mBaseVerticalPadding = 150;
             sample.setPadding(0, 0, mBaseHorizontalPadding, mBaseVerticalPadding);
             addView(sample);
+
+            //Сначала для окошка со временем
             measureChild(sample, 0,0);
-            mDecoratedChildWidth = getDecoratedMeasuredWidth(sample);
-            mDecoratedChildHeight = getDecoratedMeasuredHeight(sample);
+            mDecoratedTimeWidth = getDecoratedMeasuredWidth(sample);
+            mDecoratedTimeHeight = getDecoratedMeasuredHeight(sample);
+            //Потом для прямоугольника настроек
+            mTimeView.setVisibility(View.GONE);
+            mHourPicker.setVisibility(View.VISIBLE);
+            mMinutePicker.setVisibility(View.VISIBLE);
+            mSwitcher.setVisibility(View.VISIBLE);
+            measureChild(sample, 0, 0);
+            mDecoratedPreferencesWidth = getDecoratedMeasuredWidth(sample);
+            mDecoratedPreferencesHeight = getDecoratedMeasuredHeight(sample);
+            mTimeView.setVisibility(View.VISIBLE);
             detachAndScrapView(sample, recycler);
 
-            mVisibleRows = getHeight() / mDecoratedChildHeight + 1;
+            //Рассчитать максимальное количество строк, основываясь на высоте RV
+            mVisibleRows = getHeight() / mDecoratedTimeHeight + 1;
             mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++;
-            Log.d("TAG", "Visible rows: " + mVisibleRows + ", Available rows: " + mAvailableRows);
+            Log.d("TAG", "Visible rows: " + mVisibleRows + ", Available rows: " + mAvailableRows +
+                    "\n Time Height: " + mDecoratedTimeHeight + ", Pref Weight: " + mDecoratedTimeWidth +
+                    "\n Pref Height: " + mDecoratedPreferencesHeight + ", Pref Weight: " + mDecoratedPreferencesWidth);
         }
 
         if (0 != state.getItemCount()){ //Выкладывать, если есть что выкладывать
@@ -104,12 +131,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                 addView(view);
                 measureChild(view, 0, 0);
                 layoutDecorated(view, leftOffset, topOffset,
-                        leftOffset + mDecoratedChildWidth,
-                        topOffset + mDecoratedChildHeight);
+                        leftOffset + mDecoratedTimeWidth,
+                        topOffset + mDecoratedTimeHeight);
 
-                if (p < 3 || p % 3 != 0) leftOffset += mDecoratedChildWidth;
+                if (p < 3 || p % 3 != 0) leftOffset += mDecoratedTimeWidth;
                 else if (p % 3 == 0) {
-                    topOffset += mDecoratedChildHeight;
+                    topOffset += mDecoratedTimeHeight;
                     leftOffset = paddingLeft;
                     rowCount++;
                 }
@@ -117,7 +144,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
             mBottomBound = topOffset + getPaddingBottom();//Берём сумму всех сдвигов в процессе выкладки плюс нижний отступ так, чтобы получалось вплотную до следующей строки
             mLastVisibleRow = rowCount - 1;
             mBottomBaseline = getHeight();//Для первого раза достаточно просто присвоить высоту RV. Это высота с учётом отступов
-            Log.d("TAG", "Child height: " + mDecoratedChildHeight);
+            Log.d("TAG", "Child height: " + mDecoratedTimeHeight);
             Log.d("TAG", "Row count: " + mLastVisibleRow + ", bottom bound: " + mBottomBound + ", bottom baseline: " + mBottomBaseline);
         }
         /*
@@ -142,7 +169,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                                    RecyclerView.State state) {
         if (getChildCount() == 0) return 0;
 
-        if (mAvailableRows * mDecoratedChildHeight <= getHeight()) return 0;
+        if (mAvailableRows * mDecoratedTimeHeight <= getHeight()) return 0;
 
         int delta;
         int offset = 0;
@@ -164,7 +191,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                 //однако скролл не будет больше дельты, которая считается в самом начале.
                 //Мы обновляем координаты нижней границы и верхней (если за ней есть хоть ещё одна)
                 else if (delta <= dy && mLastVisibleRow < mAvailableRows)  {
-                    mBottomBound += mDecoratedChildHeight; mTopBound += mDecoratedChildHeight;//Даём первой строке стать частично невидимой и держим границу по ней
+                    mBottomBound += mDecoratedTimeHeight; mTopBound += mDecoratedTimeHeight;//Даём первой строке стать частично невидимой и держим границу по ней
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
                     Log.d ("TAG", "AddNRecycle DOWN, former pos: " + mAnchorRowPos + " " + mLastVisibleRow);
                     /*
@@ -200,7 +227,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                 }
 
                 else if (delta >= dy && mAnchorRowPos > 1) { //Меньше первой строки у нас нет
-                    mBottomBound -= mDecoratedChildHeight; mTopBound -= mDecoratedChildHeight;//Даём последней строке стать частично невидимой и держим границу по ней
+                    mBottomBound -= mDecoratedTimeHeight; mTopBound -= mDecoratedTimeHeight;//Даём последней строке стать частично невидимой и держим границу по ней
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
 
                     joint = getPaddingTop() + delta;//Берём нижнюю границу RV (0), прибавляем отступ разметки и вычитаем дельту
@@ -266,10 +293,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                     addView (view);
                     measureChild (view, 0, 0);
                     layoutDecorated (view, leftOffset, topOffset,
-                            leftOffset + mDecoratedChildWidth,
-                            topOffset + mDecoratedChildHeight);
+                            leftOffset + mDecoratedTimeWidth,
+                            topOffset + mDecoratedTimeHeight);
 
-                    leftOffset += mDecoratedChildWidth;
+                    leftOffset += mDecoratedTimeWidth;
 
                     mViewCache.put(i, view);
                 }
@@ -278,7 +305,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
             case (DIR_UP):
 
-                topOffset = joint - mDecoratedChildHeight;
+                topOffset = joint - mDecoratedTimeHeight;
                 mAnchorRowPos--;
 
                     for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount(); i++) {
@@ -294,10 +321,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                     addView (view);
                     measureChild (view, 0, 0);
                     layoutDecorated (view, leftOffset, topOffset,
-                            leftOffset + mDecoratedChildWidth,
-                            topOffset + mDecoratedChildHeight);
+                            leftOffset + mDecoratedTimeWidth,
+                            topOffset + mDecoratedTimeHeight);
 
-                    leftOffset += mDecoratedChildWidth;
+                    leftOffset += mDecoratedTimeWidth;
 
                     mViewCache.put(i, view);
                 }
