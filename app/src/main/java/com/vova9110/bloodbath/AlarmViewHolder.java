@@ -21,7 +21,7 @@ private NumberPicker mHourPicker;
 private NumberPicker mMinutePicker;
 private Switch mSwitcher;
 @Inject
-public AlarmRepo repo;
+public TaskRepo repo;
 
 private AlarmViewHolder(View itemView, AppComponent component) {
     super(itemView);
@@ -29,7 +29,7 @@ private AlarmViewHolder(View itemView, AppComponent component) {
 
     mTimeView = itemView.findViewById(R.id.textView);
     mTimeView.setOnLongClickListener(view -> {
-        repo.delAlarm(getAdapterPosition());
+        repo.delTask(getAdapterPosition());
         return true;
     });
 

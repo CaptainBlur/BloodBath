@@ -8,7 +8,7 @@ import androidx.recyclerview.widget.ListAdapter;
 
 import com.vova9110.bloodbath.Database.Tasks;
 
-public class TaskListAdapter extends ListAdapter<Tasks, TaskViewHolder> {
+public class TaskListAdapter extends ListAdapter<Tasks, AlarmViewHolder> {
 
     private AppComponent component;
 
@@ -17,12 +17,12 @@ public class TaskListAdapter extends ListAdapter<Tasks, TaskViewHolder> {
         this.component = component;
     }
     @Override
-    public TaskViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        return TaskViewHolder.create(parent, component);
+    public AlarmViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        return AlarmViewHolder.create(parent, component);
     }
 
     @Override
-    public void onBindViewHolder(TaskViewHolder holder, int position) {
+    public void onBindViewHolder(AlarmViewHolder holder, int position) {
         Tasks current = getItem(position);
         holder.bind(current.getTask());
     }

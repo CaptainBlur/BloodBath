@@ -45,7 +45,7 @@ public class  TaskViewModel extends AndroidViewModel {
 interface AppComponent {
     void inject (MainActivity MA);
     void inject (TaskViewModel VM);
-    void inject (TaskViewHolder VH);
+    void inject (AlarmViewHolder VH);
 }
 
 @Module
