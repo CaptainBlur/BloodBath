@@ -1,34 +1,35 @@
  package com.vova9110.bloodbath;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.Observer;
 import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.vova9110.bloodbath.Database.Tasks;
+import com.vova9110.bloodbath.Database.Alarm;
+import com.vova9110.bloodbath.RecyclerView.RowLayoutManager;
 
 import java.util.List;
 
 import javax.inject.Inject;
 
- public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+ public class MainActivity extends AppCompatActivity{
 
     public static final int NEW_TASK_ACTIVITY_REQUEST_CODE = 1;
     public static final int FILL_DB = 3;
     public static final int CLEAR_DB = 4;
-    private TaskViewModel mTaskViewModel;
+    private AlarmViewModel mAlarmViewModel;
+    private static TaskListAdapter adapter;
+    LDObserver ldObserver;
     @Inject
-    public TaskRepo mRepo;
+    public AlarmRepo mRepo;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,20 +37,18 @@ import javax.inject.Inject;
         setContentView(R.layout.activity_main);
 
         // Get a new or existing ViewModel from the ViewModelProvider.
-        mTaskViewModel = new ViewModelProvider(this).get(TaskViewModel.class);
+        mAlarmViewModel = new ViewModelProvider(this).get(AlarmViewModel.class);
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
-        final TaskListAdapter adapter = new TaskListAdapter(new TaskListAdapter.TaskDiff(),mTaskViewModel.getComponent());
+        adapter = new TaskListAdapter(new TaskListAdapter.AlarmDiff(),mAlarmViewModel.getComponent());
         recyclerView.setAdapter(adapter);
+
         //recyclerView.setLayoutManager(new GridLayoutManager(this,1, RecyclerView.VERTICAL, false));
         recyclerView.setLayoutManager(new RowLayoutManager());
+        ldObserver = new LDObserver();
 
-        mTaskViewModel.getComponent().inject(this);
-
-        mTaskViewModel.getAllTasks().observe(this, tasks -> {//TODO подробно расписать метод
-            // Update the cached copy of the tasks in the adapter.
-            adapter.submitList(tasks);
-            Log.d("TAG", "Time to layout!");
-        });
+        mAlarmViewModel.getComponent().inject(this);
+        mRepo.getInitialList().observe(this, ldObserver);
+        mRepo.passAdapterNObserver(adapter, ldObserver);
 
         ImageView imageView = findViewById(R.id.imageView);
         FloatingActionButton fab = findViewById(R.id.fab);
@@ -60,17 +59,18 @@ import javax.inject.Inject;
             Intent intent = new Intent(MainActivity.this, NewTaskActivity.class);
             startActivityForResult(intent, NEW_TASK_ACTIVITY_REQUEST_CODE);
         });
+
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == RESULT_OK) {
-            Tasks task = new Tasks(data.getStringExtra(NewTaskActivity.EXTRA_REPLY));
-            mTaskViewModel.insert(task);
+            //Alarm alarm = new Alarm(data.getStringExtra(NewTaskActivity.EXTRA_REPLY));
+            //mRepo.insert(alarm);
         }
-        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == FILL_DB) mTaskViewModel.fill();
-        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == CLEAR_DB) mTaskViewModel.clear();
+        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == FILL_DB) mRepo.fill();
+        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == CLEAR_DB) mRepo.clear();
         else {
             Toast.makeText(
                     getApplicationContext(),
@@ -79,8 +79,12 @@ import javax.inject.Inject;
         }
     }
 
-    @Override
-    public void onClick(View v) {
-        return;
+    static class LDObserver implements Observer<List<Alarm>> {
+        @Override
+        public void onChanged(List<Alarm> alarms) {
+            adapter.submitList(alarms);
+            Log.d("TAG", "Time to initial layout! List size: " + alarms.size());
+            return;
+        }
     }
 }

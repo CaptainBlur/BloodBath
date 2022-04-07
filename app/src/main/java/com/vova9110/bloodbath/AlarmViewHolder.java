@@ -21,7 +21,7 @@ private NumberPicker mHourPicker;
 private NumberPicker mMinutePicker;
 private Switch mSwitcher;
 @Inject
-public TaskRepo repo;
+public AlarmRepo repo;
 
 private AlarmViewHolder(View itemView, AppComponent component) {
     super(itemView);
@@ -29,7 +29,7 @@ private AlarmViewHolder(View itemView, AppComponent component) {
 
     mTimeView = itemView.findViewById(R.id.textView);
     mTimeView.setOnLongClickListener(view -> {
-        repo.delTask(getAdapterPosition());
+        //repo.delTask(getAdapterPosition());
         return true;
     });
 
@@ -43,8 +43,8 @@ private AlarmViewHolder(View itemView, AppComponent component) {
     });
 }
 
-public void bind(String text) {
-    mTimeView.setText(text);
+public void bind(int hour, int minute) {
+
 }//В этом методе вьюшка только подхватывает данные для отображения
 
 static AlarmViewHolder create(ViewGroup parent, AppComponent component) {

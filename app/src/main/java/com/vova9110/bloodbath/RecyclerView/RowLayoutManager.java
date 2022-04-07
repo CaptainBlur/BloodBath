@@ -1,4 +1,4 @@
-package com.vova9110.bloodbath;
+package com.vova9110.bloodbath.RecyclerView;
 
 import android.util.Log;
 import android.util.SparseArray;
@@ -7,7 +7,11 @@ import android.widget.NumberPicker;
 import android.widget.Switch;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.vova9110.bloodbath.R;
 
 
 public class RowLayoutManager extends RecyclerView.LayoutManager {
@@ -259,7 +263,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 /*
 
  */
-    void addNRecycle (RecyclerView.Recycler recycler, int direction, int joint){
+    void addNRecycle (RecyclerView.Recycler recycler, int direction, int joint){//TODO при переходе со статичной выкладки на скроллинг, происходит короткое зависание
 
         int leftOffset = getPaddingLeft();
         int topOffset;
@@ -337,8 +341,20 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
     public void onItemsAdded (RecyclerView recyclerView,
                                           int positionStart,
                                           int itemCount){
-        Log.d("TAG", "Adapter changed, clear cache");
+        Log.d("TAG", "Items added, clear cache");
         mViewCache.clear();
+    }
+
+    @Override
+    public void onItemsUpdated(@NonNull RecyclerView recyclerView, int positionStart, int itemCount) {
+        super.onItemsUpdated(recyclerView, positionStart, itemCount);
+        Log.d ("TAG", "Items updated!");
+    }
+
+    @Override
+    public void onAdapterChanged(@Nullable RecyclerView.Adapter oldAdapter, @Nullable RecyclerView.Adapter newAdapter) {
+        super.onAdapterChanged(oldAdapter, newAdapter);
+        Log.d ("TAG", "Adapter changed!");
     }
 
     @Override
@@ -346,5 +362,11 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
         if (state == RecyclerView.SCROLL_STATE_IDLE){//Чисто лог выводим
             Log.d ("TAG", "Row " + mAnchorRowPos + ", Top shift: " + mTopShift + ", first cache index: " + mViewCache.keyAt(0) + ", last cache index: " + mViewCache.keyAt(getChildCount() - 1));
         }
+    }
+
+    @Override
+    public void onItemsRemoved(@NonNull RecyclerView recyclerView, int positionStart, int itemCount) {
+        super.onItemsRemoved(recyclerView, positionStart, itemCount);
+        Log.d ("TAG", "Items removed!");
     }
 }

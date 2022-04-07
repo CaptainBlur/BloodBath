@@ -6,13 +6,13 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 
-import com.vova9110.bloodbath.Database.Tasks;
+import com.vova9110.bloodbath.Database.Alarm;
 
-public class TaskListAdapter extends ListAdapter<Tasks, AlarmViewHolder> {
+public class TaskListAdapter extends ListAdapter<Alarm, AlarmViewHolder> {
 
     private AppComponent component;
 
-    public TaskListAdapter(@NonNull DiffUtil.ItemCallback<Tasks> diffCallback, AppComponent component) {
+    public TaskListAdapter(@NonNull DiffUtil.ItemCallback<Alarm> diffCallback, AppComponent component) {
         super(diffCallback);
         this.component = component;
     }
@@ -23,20 +23,20 @@ public class TaskListAdapter extends ListAdapter<Tasks, AlarmViewHolder> {
 
     @Override
     public void onBindViewHolder(AlarmViewHolder holder, int position) {
-        Tasks current = getItem(position);
-        holder.bind(current.getTask());
+        Alarm current = getItem(position);
+        holder.bind(current.getHour(), current.getMinute());
     }
 
-    static class TaskDiff extends DiffUtil.ItemCallback<Tasks> {
+    static class AlarmDiff extends DiffUtil.ItemCallback<Alarm> {
 
         @Override
-        public boolean areItemsTheSame(@NonNull Tasks oldItem, @NonNull Tasks newItem) {
+        public boolean areItemsTheSame(@NonNull Alarm oldItem, @NonNull Alarm newItem) {
             return oldItem == newItem;
         }
 
         @Override
-        public boolean areContentsTheSame(@NonNull Tasks oldItem, @NonNull Tasks newItem) {
-            return oldItem.getTask().equals(newItem.getTask());
+        public boolean areContentsTheSame(@NonNull Alarm oldItem, @NonNull Alarm newItem) {
+            return oldItem.getHour()==newItem.getHour() && oldItem.getMinute()==newItem.getMinute();
         }
     }
 }
