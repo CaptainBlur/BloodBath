@@ -13,13 +13,13 @@ public interface AlarmDao {
     @Insert (onConflict = OnConflictStrategy.IGNORE)
     void insert (Alarm alarm); // В таблицу заносятся целые экземпляры Tasks
 
-    @Query("DELETE FROM alarms_table")
+    @Query("DELETE FROM alarms_table WHERE hour < 25")
     void deleteAll();
 
     @Query("DELETE FROM alarms_table WHERE hour = :hour AND minute = :minute")
     void deleteOne (int hour, int minute);
 
-    @Query("SELECT * FROM alarms_table ORDER BY hour AND minute ASC")
+    @Query("SELECT * FROM alarms_table")
     LiveData<List<Alarm>> getAllAlarms();
 
 }

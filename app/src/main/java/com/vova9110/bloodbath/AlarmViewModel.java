@@ -8,6 +8,7 @@ import androidx.room.Room;
 
 import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmDao;
+import com.vova9110.bloodbath.RecyclerView.AlarmViewHolder;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;

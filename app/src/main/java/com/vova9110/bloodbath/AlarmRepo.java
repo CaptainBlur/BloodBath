@@ -3,6 +3,7 @@ package com.vova9110.bloodbath;
 import android.app.Application;
 import android.content.Context;
 import android.util.Log;
+import android.view.View;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
@@ -23,12 +24,14 @@ public class AlarmRepo { // Репозиторий предоставляет а
     private AlarmDao alarmDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
     private AlarmListAdapter adapter;
     private MainActivity.LDObserver observer;
-    private LiveData<List<Alarm>> initialList;//TODO LD оставить в MA, но отцепить вовремя от наблюдателя, чтобы список нам не обновляла
+    private LiveData<List<Alarm>> initialList;
     private List<Alarm> bufferList = new LinkedList<>();
     private List<Alarm> oldList;
-    //TODO нафиг избавиться от наблюдения за выходным листом в MA. Проинджектить сюда адаптер, в каждом методе работы со списком высчитывать различия, сабмитать новый список и информировать об этом адаптер
+    private final Alarm addAlarm = new Alarm(66,6);
+    private Alarm prefAlarm;
 
     AlarmRepo(AlarmDao Dao){//Можно и здесь добавить аннотацию Inject, чтобы Даггер обращался к этому конструктору для создания и сам передавал в него Дао
+        addAlarm.setAddFlag(true);
         alarmDao = Dao;
         initialList = alarmDao.getAllAlarms();//При создани репозитория мы передаём этот список в MA,
         Log.d(TAG, "Repo instance created");
@@ -36,10 +39,22 @@ public class AlarmRepo { // Репозиторий предоставляет а
 
     public void passAdapterNObserver(AlarmListAdapter adapter, MainActivity.LDObserver observer) { this.adapter = adapter; this.observer = observer; }
     public LiveData<List<Alarm>> getInitialList() { return initialList; }
+    public Alarm getPrefAlarm () {return prefAlarm;}
+
     private void prepare(){
         if(initialList.hasObservers()) initialList.removeObserver(observer);
         if (!bufferList.isEmpty()) bufferList.clear();
         oldList = adapter.getCurrentList();
+    }
+
+    public void passPref(int pos){
+        prepare();
+        bufferList.addAll(oldList);
+        Alarm pref = new Alarm(bufferList.get(pos).getHour(), bufferList.get(pos).getMinute());
+        pref.setPrefFlag(true); pref.setPrefItemContainer(pos); pref.setPrefVisible(true);
+        prefAlarm = pref;
+        bufferList.add(pref);
+        submitList(oldList, bufferList);
     }
 
     void fill (){
@@ -49,19 +64,20 @@ public class AlarmRepo { // Репозиторий предоставляет а
             bufferList.add(alarm);
             AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(alarm));
         }
+        bufferList.add(addAlarm);
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(addAlarm));
         submitList(oldList, bufferList);
     }
 
-    void insert (Alarm alarm){
+    void insert (Alarm alarm){//TODO добавлять пустой будильник, в конец списка, да так, чтобы отражал только плюсик
         prepare();
         bufferList.addAll(oldList);
         bufferList.add(alarm);
         bufferList.sort((o1, o2) -> {
-            int c = 0;
+            int c = 1;
             if (o1.getHour() < o2.getHour()) c = -1;
             else if (o1.getHour() == o2.getHour() && o1.getMinute() < o2.getMinute()) c = -1;
             else if (o1.getHour() == o2.getHour() && o1.getMinute() == o2.getMinute()) c = 0;
-            else c = 1;
             return c;
         });
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(alarm));
@@ -79,7 +95,7 @@ public class AlarmRepo { // Репозиторий предоставляет а
 
     void clear () {
         prepare();
-        List<Alarm> oldList = adapter.getCurrentList();
+        bufferList.add(addAlarm);
         submitList(oldList, bufferList);
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteAll());
     }

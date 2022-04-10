@@ -14,6 +14,8 @@ import android.widget.Toast;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.vova9110.bloodbath.Database.Alarm;
+import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
+import com.vova9110.bloodbath.RecyclerView.AlarmViewHolder;
 import com.vova9110.bloodbath.RecyclerView.RowLayoutManager;
 
 import java.util.List;
@@ -21,12 +23,12 @@ import java.util.List;
 import javax.inject.Inject;
 
  public class MainActivity extends AppCompatActivity{
-
+     private final static String TAG = "TAG_MA";
     public static final int NEW_TASK_ACTIVITY_REQUEST_CODE = 1;
     public static final int FILL_DB = 3;
     public static final int CLEAR_DB = 4;
     private AlarmViewModel mAlarmViewModel;
-    private static TaskListAdapter adapter;
+    private static AlarmListAdapter adapter;
     LDObserver ldObserver;
     @Inject
     public AlarmRepo mRepo;
@@ -38,28 +40,30 @@ import javax.inject.Inject;
 
         // Get a new or existing ViewModel from the ViewModelProvider.
         mAlarmViewModel = new ViewModelProvider(this).get(AlarmViewModel.class);
+        mAlarmViewModel.getComponent().inject(this);
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
-        adapter = new TaskListAdapter(new TaskListAdapter.AlarmDiff(),mAlarmViewModel.getComponent());
+        adapter = new AlarmListAdapter(mRepo);
         recyclerView.setAdapter(adapter);
 
         //recyclerView.setLayoutManager(new GridLayoutManager(this,1, RecyclerView.VERTICAL, false));
-        recyclerView.setLayoutManager(new RowLayoutManager());
+        recyclerView.setLayoutManager(new RowLayoutManager(mRepo));
         ldObserver = new LDObserver();
 
-        mAlarmViewModel.getComponent().inject(this);
         mRepo.getInitialList().observe(this, ldObserver);
         mRepo.passAdapterNObserver(adapter, ldObserver);
 
         ImageView imageView = findViewById(R.id.imageView);
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> {
-            if (imageView.getVisibility() == View.INVISIBLE)
-                imageView.setVisibility(View.VISIBLE);
-            else imageView.setVisibility(View.INVISIBLE);
             Intent intent = new Intent(MainActivity.this, NewTaskActivity.class);
             startActivityForResult(intent, NEW_TASK_ACTIVITY_REQUEST_CODE);
         });
-
+        fab.setOnLongClickListener(v -> {
+            if (imageView.getVisibility() == View.INVISIBLE)
+                imageView.setVisibility(View.VISIBLE);
+            else imageView.setVisibility(View.INVISIBLE);
+            return true;
+        });
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -82,8 +86,16 @@ import javax.inject.Inject;
     static class LDObserver implements Observer<List<Alarm>> {
         @Override
         public void onChanged(List<Alarm> alarms) {
+            alarms.sort((o1, o2) -> {
+                int c = 1;
+                if (o1.getHour() < o2.getHour()) c = -1;
+                else if (o1.getHour() == o2.getHour() && o1.getMinute() < o2.getMinute()) c = -1;
+                else if (o1.getHour() == o2.getHour() && o1.getMinute() == o2.getMinute()) c = 0;
+                return c;
+            });
             adapter.submitList(alarms);
-            Log.d("TAG", "Time to initial layout! List size: " + alarms.size());
+            adapter.notifyDataSetChanged();
+            Log.d(TAG, "Time to initial layout! List size: " + alarms.size());
             return;
         }
     }

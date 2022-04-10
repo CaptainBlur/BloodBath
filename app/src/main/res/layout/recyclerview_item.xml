@@ -6,39 +6,65 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/textView"
-        style="@style/task_title"
-        android:layout_width="90dp"
-        android:layout_height="wrap_content"
-        android:background="@android:color/holo_orange_light"
-        android:lines="1"
-        android:paddingHorizontal="10dp"
-        android:text="00:00" />
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
 
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:orientation="horizontal">
+        <TextView
+            android:id="@+id/timeWindow"
+            style="@style/task_title"
+            android:layout_width="82dp"
+            android:layout_height="wrap_content"
+            android:background="@android:color/holo_orange_light"
+            android:lines="1"
+            android:paddingHorizontal="10dp"
+            android:text="00:00"
+            android:textAlignment="center"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="gone" />
 
         <NumberPicker
             android:id="@+id/picker_h"
-            android:layout_width="match_parent"
-            android:layout_height="96dp"
-            android:visibility="gone"/>
+            android:layout_width="wrap_content"
+            android:layout_height="80dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="10dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/timeWindow"
+            app:layout_constraintVertical_bias="0.0" />
+
         <NumberPicker
             android:id="@+id/picker_m"
-            android:layout_width="match_parent"
-            android:layout_height="96dp"
-            android:visibility="gone"/>
+            android:layout_width="wrap_content"
+            android:layout_height="80dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="20dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toEndOf="@+id/picker_h"
+            app:layout_constraintTop_toBottomOf="@id/timeWindow"
+            app:layout_constraintVertical_bias="0.0" />
 
         <Switch
             android:id="@+id/switcher"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:visibility="gone" />
-    </LinearLayout>
+            android:layout_height="80dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="20dp"
+            android:minWidth="48dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toEndOf="@+id/picker_m"
+            app:layout_constraintTop_toBottomOf="@id/timeWindow"
+            app:layout_constraintVertical_bias="0.0"
+            tools:ignore="UseSwitchCompatOrMaterialXml" />
 
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </LinearLayout>
