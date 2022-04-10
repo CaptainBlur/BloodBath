@@ -106,7 +106,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
 
             //Рассчитать максимальное количество строк, основываясь на высоте RV
             mVisibleRows = getHeight() / mDecoratedTimeHeight + 1;
-            mExtendedVisibleRows = (getHeight() - mDecoratedPreferencesHeight) / mDecoratedTimeHeight + 1;
+            mExtendedVisibleRows = (getHeight() - mDecoratedPreferencesHeight + mBaseVerticalPadding) / mDecoratedTimeHeight + 1;
             mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++;//Я реально уже хз, как оно работает, но оно работает
             Log.d(TAG, "Visible rows: " + mVisibleRows + " (Extended: " + mExtendedVisibleRows + "), Available rows: " + mAvailableRows +
                     "\n Time Height: " + mDecoratedTimeHeight + ", Pref Weight: " + mDecoratedTimeWidth +
@@ -126,8 +126,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                     prefRowPos = (prefContainingViewPos / 3) + 1; if (prefContainingViewPos % 3 !=0 || prefContainingViewPos < 3) prefContainingViewPos++;
 
                     if (prefAlarm.isPrefVisible()) {//Если условие выполняется, то точно требуется отрисовать окно настроек
-                        fillRows(recycler, state, prefView);
                         FLAG_PREF = LAYOUT_PREF_ITEM;
+                        fillRows(recycler, state, prefView);
                         Log.d(TAG, "Adding pref window");
                     }
                     break;
@@ -157,7 +157,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
             mAnchorRowPos = 1; mTopBound = mTopBaseline = mTopShift = 0;
 
             for (int index = 0; index < getItemCount() && rowCount <= mVisibleRows + 1; index++) { //Главный цикл. Выкладываемых строк больше, чем видимых
-                int p = index + 1;
+                int p = index + 1;//Переменная позиции для высчитывания оффсетов
                 if (index < 0 || index >= state.getItemCount()) { //Метод из класса State возвращает количество оставшихся Вьюшек, доступных для выкладки
                     //С его помощью будем выкладывать, пока не кончатся
                     continue;
@@ -190,13 +190,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
         Выкладываем только при удалении, добавлении или изменении элементов
          */
         else if (FLAG_PREF == LAYOUT_PREF_ITEM) {//Если поступил запрос на выкладку окна с настройками
-            Log.d (TAG, "Detaching and scrapping");
+            Log.d (TAG, "Pref Item added, laying out");
             for (int i = prefRowPos * 3; i < mLastVisibleRow * 3 && i != getItemCount(); i++) {
-                //Если бы мы просто меняли им индексы, то можно было бы просто отсоединить, но эти нужно заскрапить, а потом затребовать обратно
+                //Благодаря кэшу, можно отсоединять и присоединять вьюшки из адаптера, ссылаясь на них в кэше
                 //Log.d (TAG, "" + i);
-                detachAndScrapView(mViewCache.get(i), recycler);
+                detachView(mViewCache.get(i));
             }
             //Выкладываем пока что просто после первой строки
+            rowCount++;
             topOffset += mDecoratedTimeHeight - mBaseVerticalPadding;
 
             addView(prefView);
@@ -205,6 +206,27 @@ public class RowLayoutManager extends RecyclerView.LayoutManager {
                     leftOffset + mDecoratedPreferencesWidth,
                     topOffset + mDecoratedPreferencesHeight);
 
+            topOffset += mDecoratedPreferencesHeight - mBaseVerticalPadding;
+
+            for (int i = prefRowPos * 3; i < getItemCount() && rowCount <= mExtendedVisibleRows + 1; i++) {//Наполнять уже нужно привычным способом, не таким, которым отсоединяли
+                int p = i + 1;
+                SparseArray<View> newViewCache = new SparseArray<>();
+                View child = mViewCache.get(i);
+                newViewCache.put(i, child);
+
+                attachView(child);
+                measureChild(child, 0,0);
+                layoutDecorated(child, leftOffset, topOffset,
+                        leftOffset + mDecoratedTimeWidth,
+                        topOffset + mDecoratedTimeHeight);
+
+                if (p < 3 || p % 3 != 0) leftOffset += mDecoratedTimeWidth;
+                else if (p % 3 == 0) {
+                    topOffset += mDecoratedTimeHeight;
+                    leftOffset = paddingLeft;
+                    rowCount++;
+                }
+            }
         }
     }
 
