@@ -11,7 +11,7 @@ import com.vova9110.bloodbath.Database.Alarm;
 import java.util.LinkedList;
 import java.util.List;
 
-public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder> implements notifyAdapter {
+public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder>{
     private AlarmRepo repo;
     private List<Alarm> mList = new LinkedList<>();
 
@@ -45,12 +45,4 @@ public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder> impl
     public List<Alarm> getCurrentList () {
         return mList;
     }
-
-    @Override
-    public void notifyItemUpdated(int itemPos) {
-        notifyItemChanged(itemPos);
-    }
-}
-interface notifyAdapter {
-    void notifyItemUpdated(int itemPos);
 }

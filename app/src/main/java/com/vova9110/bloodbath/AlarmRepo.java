@@ -19,7 +19,7 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-public class AlarmRepo { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
+public class AlarmRepo implements RepoCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
     private final String TAG = "TAG_AR";
     private AlarmDao alarmDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
     private AlarmListAdapter adapter;
@@ -27,8 +27,11 @@ public class AlarmRepo { // Репозиторий предоставляет а
     private LiveData<List<Alarm>> initialList;
     private List<Alarm> bufferList = new LinkedList<>();
     private List<Alarm> oldList;
-    private final Alarm addAlarm = new Alarm(66,6);
+
+    private final Alarm addAlarm = new Alarm(11,11);
     private Alarm prefAlarm;
+    private View prefView;
+    private RLMCallback rlmCallback;
 
     AlarmRepo(AlarmDao Dao){//Можно и здесь добавить аннотацию Inject, чтобы Даггер обращался к этому конструктору для создания и сам передавал в него Дао
         addAlarm.setAddFlag(true);
@@ -39,23 +42,24 @@ public class AlarmRepo { // Репозиторий предоставляет а
 
     public void passAdapterNObserver(AlarmListAdapter adapter, MainActivity.LDObserver observer) { this.adapter = adapter; this.observer = observer; }
     public LiveData<List<Alarm>> getInitialList() { return initialList; }
-    public Alarm getPrefAlarm () {return prefAlarm;}
-
+    public View getPrefView (){ return prefView; }
     private void prepare(){
         if(initialList.hasObservers()) initialList.removeObserver(observer);
         if (!bufferList.isEmpty()) bufferList.clear();
         oldList = adapter.getCurrentList();
     }
 
-    public void passPref(int pos){
-        prepare();
-        bufferList.addAll(oldList);
-        Alarm pref = new Alarm(bufferList.get(pos).getHour(), bufferList.get(pos).getMinute());
-        pref.setPrefFlag(true); pref.setPrefItemContainer(pos); pref.setPrefVisible(true);
-        prefAlarm = pref;
-        bufferList.add(pref);
-        submitList(oldList, bufferList);
+
+    public RepoCallback pullRepoCallback(){
+        return this;
     }
+    public void passRLMCallback (RLMCallback callback){
+        this.rlmCallback = callback;
+    }
+    public RLMCallback pullRLMCallback(){
+        return rlmCallback;
+    }
+
 
     void fill (){
         prepare();
@@ -106,6 +110,27 @@ public class AlarmRepo { // Репозиторий предоставляет а
         adapter.submitList(newList);
         result.dispatchUpdatesTo(adapter);
     }
+
+    @Override
+    public void passPrefToAdapter(int parentPos, int prefPos) {
+        prepare();
+        bufferList.addAll(oldList);
+        Alarm pref = new Alarm(bufferList.get(parentPos).getHour(), bufferList.get(parentPos).getMinute());//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
+        pref.setPrefFlag(true);
+        prefAlarm = pref;
+        bufferList.add(prefPos, pref);
+        submitList(oldList, bufferList);
+    }
+
+    @Override
+    public void removePref() {
+        prepare();
+        bufferList.addAll(oldList);
+        bufferList.remove(prefAlarm);
+        submitList(oldList, bufferList);
+    }
+
+
     private class ListDiff extends DiffUtil.Callback {
         private List<Alarm> oldList;
         private List<Alarm> newList;
@@ -129,7 +154,8 @@ public class AlarmRepo { // Репозиторий предоставляет а
         public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {//Сравниваем на предмет перемещения будильников по списку
             Alarm oldAlarm = oldList.get(oldItemPosition);
             Alarm newAlarm = newList.get(newItemPosition);
-            return newAlarm.getHour()==oldAlarm.getHour() && newAlarm.getMinute()==oldAlarm.getMinute();//Час и минута - это уникальный идентификатор
+            return newAlarm.getHour()==oldAlarm.getHour() && newAlarm.getMinute()==oldAlarm.getMinute() && newAlarm.isPrefFlag()==oldAlarm.isPrefFlag();
+            //Час, минута и флаг настроек - это уникальные идентификаторы
         }
 
         @Override

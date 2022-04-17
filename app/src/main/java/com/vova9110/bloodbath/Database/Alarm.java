@@ -13,8 +13,6 @@ public class Alarm {
     private int minute;
     private boolean onOffState = false;
     private boolean prefFlag = false;
-    private boolean prefVisible = false;
-    private int prefItemContainer;
     private boolean addFlag = false;
 
     public Alarm(int hour, int minute) {
@@ -54,11 +52,4 @@ public class Alarm {
 
     public void setPrefFlag(boolean prefFlag) { this.prefFlag = prefFlag; }
 
-    public int getPrefItemContainer() { return prefItemContainer; }
-
-    public void setPrefItemContainer(int prefItemContainer) { this.prefItemContainer = prefItemContainer; }
-
-    public boolean isPrefVisible() { return prefVisible; }
-
-    public void setPrefVisible(boolean prefVisible) { this.prefVisible = prefVisible; }
 }

@@ -66,7 +66,7 @@ import javax.inject.Inject;
         });
     }
 
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == RESULT_OK) {
