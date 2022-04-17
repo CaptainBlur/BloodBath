@@ -78,7 +78,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     }
 
     @Override
-    public void onLayoutChildren (RecyclerView.Recycler recycler, RecyclerView.State state) {//TODO добавить отрисовку по вызову на обновление элемента. Автоматически определять, было ли убрано или добавлено окно настроек
+    public void onLayoutChildren (RecyclerView.Recycler recycler, RecyclerView.State state) {
 //        Log.d (TAG, "Adapter size: " + getItemCount());
 
         if (getChildCount()==0 && 0 != state.getItemCount()){//Первоначальное измерение, если есть что измерять и ничего ещё не выложено
@@ -176,8 +176,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             mLastVisibleRow = rowCount - 1;
         }
         /*
-        После первой выкладки или скролла уже в любом случае будет кэш. Если видимый сет не изменился, то мы не выкладываем заново
-        Выкладываем только при удалении, добавлении или изменении элементов
+        Тут мы скрапаем какую-нибудь крайнюю вьюшку и строки, которые нужно сместить,
+        затем добавляем вьюшку настроек в кэш и наполняем его недостающими вьюшками,
+        и только в конце устанавливаем флаг видимости окна настроек
          */
         else if (FLAG_NOTIFY == LAYOUT_PREF){
 
@@ -251,6 +252,52 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 }
             }
             prefVisibility = true;
+        }
+
+        else if (FLAG_NOTIFY == (HIDE_PREF | HIDE_N_LAYOUT_PREF)) {
+
+            boolean firstWasRecycled = false;//todo в отличи от предыдущего случая, тут всегда добавляется последняя строка. Методы скролла от этого не обидятся, обещаю. Кэш повторно юзать нельзя
+            for (int i = (mAnchorRowPos - 1) * 3; i < getItemCount() && rowCount <= mVisibleRows + 1; i++) {
+                int p = i + 1;//Переменная позиции для высчитывания оффсетов
+                if (i < 0 || i >= state.getItemCount()) { //Метод из класса State возвращает количество оставшихся Вьюшек, доступных для выкладки
+                    //С его помощью будем выкладывать, пока не кончатся
+                    continue;
+                }
+                Log.d (TAG, "getting " + i);
+                View child = mViewCache.get(i);
+                if (child == null){
+                    child =  recycler.getViewForPosition(i);
+                    mViewCache.put(i, child);
+
+                    firstWasRecycled = true;
+                }
+
+                addView(child);
+                measureChild(child, 0, 0);
+                layoutDecorated(child, leftOffset, topOffset,
+                        leftOffset + mDecoratedTimeWidth,
+                        topOffset + mDecoratedTimeHeight);
+
+                if (p < 3 || p % 3 != 0) leftOffset += mDecoratedTimeWidth;
+                else if (p % 3 == 0) {
+                    topOffset += mDecoratedTimeHeight;
+                    leftOffset = paddingLeft;
+                    rowCount++;
+                }
+            }
+
+            detachAndScrapView(prefView, recycler);
+
+            if (!firstWasRecycled) {//Если не ресайклили первую строку, значит, ресайклили последнюю
+                offsetChildrenVertical(-(mTopBaseline - ((mAnchorRowPos - 1) * mDecoratedTimeHeight)));//Топовую базовую линию пересчитываем только после скролла
+                mBottomBound = topOffset + getPaddingBottom();//Берём сумму всех сдвигов в процессе выкладки плюс нижний отступ так, чтобы получалось вплотную до следующей строки
+                mLastVisibleRow++;
+            }
+            else {
+
+            }
+
+
         }
         mBottomBaseline = getHeight() + mTopBaseline;//Базовую линию всегда считаем относительно топовой
         Log.d(TAG, "Anchor row: " + mAnchorRowPos + ", Last row: " + mLastVisibleRow + ", bottom baseline: " + mBottomBaseline + ", bottom bound: " + mBottomBound);
@@ -508,8 +555,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
                 prefVisibility = true;
             }
-
-
     }
 
 }
