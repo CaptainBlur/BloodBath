@@ -17,8 +17,6 @@ import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.inject.Inject;
-
 public class AlarmRepo implements RepoCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
     private final String TAG = "TAG_AR";
     private AlarmDao alarmDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
@@ -30,7 +28,6 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
     private final Alarm addAlarm = new Alarm(11,11);
     private Alarm prefAlarm;
-    private View prefView;
     private RLMCallback rlmCallback;
 
     AlarmRepo(AlarmDao Dao){//Можно и здесь добавить аннотацию Inject, чтобы Даггер обращался к этому конструктору для создания и сам передавал в него Дао
@@ -42,7 +39,6 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
     public void passAdapterNObserver(AlarmListAdapter adapter, MainActivity.LDObserver observer) { this.adapter = adapter; this.observer = observer; }
     public LiveData<List<Alarm>> getInitialList() { return initialList; }
-    public View getPrefView (){ return prefView; }
     private void prepare(){
         if(initialList.hasObservers()) initialList.removeObserver(observer);
         if (!bufferList.isEmpty()) bufferList.clear();
@@ -127,6 +123,19 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         prepare();
         bufferList.addAll(oldList);
         bufferList.remove(prefAlarm);
+        submitList(oldList, bufferList);
+    }
+
+    @Override
+    public void removeNPassPrefToAdapter(int parentPos, int prefPos) {
+        prepare();
+        bufferList.addAll(oldList);
+        bufferList.remove(prefAlarm);
+
+        Alarm pref = new Alarm(bufferList.get(parentPos).getHour(), bufferList.get(parentPos).getMinute());//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
+        pref.setPrefFlag(true);
+        prefAlarm = pref;
+        bufferList.add(prefPos, pref);
         submitList(oldList, bufferList);
     }
 

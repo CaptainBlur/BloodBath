@@ -180,13 +180,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         затем добавляем вьюшку настроек в кэш и наполняем его недостающими вьюшками,
         и только в конце устанавливаем флаг видимости окна настроек
          */
-        else if (FLAG_NOTIFY == LAYOUT_PREF){
+        else if (FLAG_NOTIFY == LAYOUT_PREF){//todo скролл с помощью выкладок не совсем как надо работает
 
             rearrangeChildren();
             prefView = recycler.getViewForPosition(prefPos);
 
             if ((mTopBaseline - mTopBound) >= mDecoratedTimeHeight){//При наличии одной полностью невидимой строки сверху, она ресайклится
                 for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {
+                    Log.d (TAG, "Scrapping first row");
                     Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos);
                     detachAndScrapViewAt(0, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
                     mViewCache.remove(i);
@@ -195,7 +196,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 mBottomBound += mDecoratedPreferencesHeight - mBaseVerticalPadding;
             }
             else if (mAvailableRows * mDecoratedTimeHeight > getHeight()) {//Во всех остальных случаях, кроме того, когда строк не хватает ресайклим последнюю строку
-                Log.d (TAG, "Recycling last row");
+                Log.d (TAG, "Scrapping last row");
                 for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount(); i++) {
                     Log.d(TAG, i + " scrapping , row: " + mLastVisibleRow);
                     detachAndScrapViewAt(getChildCount() - 1, recycler);//Берём индекс последней выложенной вьюшки
@@ -205,9 +206,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             }
 
             int count = getChildCount();
+            Log.d (TAG, prefRowPos + " " + mAnchorRowPos);
             for (int i = (prefRowPos - mAnchorRowPos) * 3; i < count; i++){//Инкремент у нас в относительных значениях, а позиция вьюшки в абсолютных
                 int v = (mAnchorRowPos - 1) * 3 + i;
-                Log.d (TAG, "" + i + " " + v);
+                Log.d (TAG, "  " + i + " " + v);
 
                 View scrap = mViewCache.get(v);//Вытаскивам также по примеру из кэша, потому что в адаптере может быть хрен знает что
                 detachAndScrapView(scrap, recycler);
@@ -252,25 +254,25 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 }
             }
             prefVisibility = true;
+            FLAG_NOTIFY = NOTIFY_NONE;
         }
 
-        else if (FLAG_NOTIFY == (HIDE_PREF | HIDE_N_LAYOUT_PREF)) {
+        else if (FLAG_NOTIFY == HIDE_PREF) {
 
-            boolean firstWasRecycled = false;//todo в отличи от предыдущего случая, тут всегда добавляется последняя строка. Методы скролла от этого не обидятся, обещаю. Кэш повторно юзать нельзя
+            detachAndScrapAttachedViews(recycler);
+            mViewCache.clear();
+
+            mLastVisibleRow = mAnchorRowPos;
+
             for (int i = (mAnchorRowPos - 1) * 3; i < getItemCount() && rowCount <= mVisibleRows + 1; i++) {
                 int p = i + 1;//Переменная позиции для высчитывания оффсетов
                 if (i < 0 || i >= state.getItemCount()) { //Метод из класса State возвращает количество оставшихся Вьюшек, доступных для выкладки
                     //С его помощью будем выкладывать, пока не кончатся
                     continue;
                 }
-                Log.d (TAG, "getting " + i);
-                View child = mViewCache.get(i);
-                if (child == null){
-                    child =  recycler.getViewForPosition(i);
-                    mViewCache.put(i, child);
-
-                    firstWasRecycled = true;
-                }
+                Log.d (TAG, "Laying out: " + i);
+                View child = recycler.getViewForPosition(i);
+                mViewCache.put(i, child);
 
                 addView(child);
                 measureChild(child, 0, 0);
@@ -283,21 +285,63 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     topOffset += mDecoratedTimeHeight;
                     leftOffset = paddingLeft;
                     rowCount++;
+                    mLastVisibleRow++;
                 }
             }
 
-            detachAndScrapView(prefView, recycler);
+            offsetChildrenVertical(-(mTopBaseline - ((mAnchorRowPos - 1) * mDecoratedTimeHeight)));//Топовую базовую линию пересчитываем только после скролла
+            mLastVisibleRow--;
+            mBottomBound = (mLastVisibleRow * mDecoratedTimeHeight) + getPaddingBottom() + getPaddingTop();//Берём сумму всех сдвигов в процессе выкладки плюс нижний отступ так, чтобы получалось вплотную до следующей строки
+            prefVisibility = false;
 
-            if (!firstWasRecycled) {//Если не ресайклили первую строку, значит, ресайклили последнюю
-                offsetChildrenVertical(-(mTopBaseline - ((mAnchorRowPos - 1) * mDecoratedTimeHeight)));//Топовую базовую линию пересчитываем только после скролла
-                mBottomBound = topOffset + getPaddingBottom();//Берём сумму всех сдвигов в процессе выкладки плюс нижний отступ так, чтобы получалось вплотную до следующей строки
-                mLastVisibleRow++;
+            FLAG_NOTIFY = NOTIFY_NONE;
+        }
+
+        else if (FLAG_NOTIFY == HIDE_N_LAYOUT_PREF){
+
+            detachAndScrapAttachedViews(recycler);
+            mViewCache.clear();
+
+            mLastVisibleRow = mAnchorRowPos;
+
+            int p = 1;
+            for (int i = (mAnchorRowPos - 1) * 3; i < getItemCount() && rowCount <= mVisibleRows + 1; i++) {
+                if (i < 0 || i >= state.getItemCount()) { //Метод из класса State возвращает количество оставшихся Вьюшек, доступных для выкладки
+                    //С его помощью будем выкладывать, пока не кончатся
+                    continue;
+                }
+                if (i == prefPos) i++;//Так нужно, потому что у нас в адаптере уже новая вьюшка с настройками
+
+                Log.d (TAG, "Laying out: " + i);
+                View child = recycler.getViewForPosition(i);
+                if (i < prefPos) mViewCache.put(i, child);
+                else mViewCache.put(i - 1, child);
+
+                addView(child);
+                measureChild(child, 0, 0);
+                layoutDecorated(child, leftOffset, topOffset,
+                        leftOffset + mDecoratedTimeWidth,
+                        topOffset + mDecoratedTimeHeight);
+
+                if (p < 3) {
+                    leftOffset += mDecoratedTimeWidth;
+                    p++;
+                }
+                else {
+                    topOffset += mDecoratedTimeHeight;
+                    leftOffset = paddingLeft;
+                    rowCount++;
+                    mLastVisibleRow++;
+                    p = 1;
+                }
             }
-            else {
+            offsetChildrenVertical(-(mTopBaseline - ((mAnchorRowPos - 1) * mDecoratedTimeHeight)));//Топовую базовую линию пересчитываем только после скролла
+            mLastVisibleRow--;
+            mBottomBound = (mLastVisibleRow * mDecoratedTimeHeight) + getPaddingBottom() + getPaddingTop();//Берём сумму всех сдвигов в процессе выкладки плюс нижний отступ так, чтобы получалось вплотную до следующей строки
+            prefVisibility = false;
 
-            }
-
-
+            FLAG_NOTIFY = LAYOUT_PREF;//todo при выкладке на концах вообще адище творится
+            fillRows(recycler, state);
         }
         mBottomBaseline = getHeight() + mTopBaseline;//Базовую линию всегда считаем относительно топовой
         Log.d(TAG, "Anchor row: " + mAnchorRowPos + ", Last row: " + mLastVisibleRow + ", bottom baseline: " + mBottomBaseline + ", bottom bound: " + mBottomBound);
@@ -333,19 +377,19 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 //то мы допускаем скролл на ряд, который будет выложен сейчас, и обновляем значение нижней границы,
                 //однако скролл не будет больше дельты, которая считается в самом начале.
                 //Мы обновляем координаты нижней границы и верхней (если за ней есть хоть ещё одна)
-                else if (delta <= dy && mLastVisibleRow < mAvailableRows)  {
-                    mBottomBound += mDecoratedTimeHeight; mTopBound += mDecoratedTimeHeight;//Даём первой строке стать частично невидимой и держим границу по ней
-                    offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
-                    Log.d (TAG, "AddNRecycle DOWN, former pos: " + mAnchorRowPos + " " + mLastVisibleRow);
-                    /*
-                    Переменная Стыка введена, потому что метод layoutDecorated выкладывает дочерние вьюшки в координатах, относительно начала RV.
-                    Мы передаём это смещение для выкладки, когда нужно выложить новую строку,
-                    При этом координаты нижней границы всё ещё считаются как обсолютные относительно начала первой строки,
-                    И нужны для скроллинга
-                    */
-                    joint = getHeight() - getPaddingBottom() + delta;
-                    addNRecycle (recycler, DIR_DOWN, joint);
-                }
+//                else if (delta <= dy && mLastVisibleRow < mAvailableRows)  {
+//                    mBottomBound += mDecoratedTimeHeight; mTopBound += mDecoratedTimeHeight;//Даём первой строке стать частично невидимой и держим границу по ней
+//                    offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
+//                    Log.d (TAG, "AddNRecycle DOWN, former pos: " + mAnchorRowPos + " " + mLastVisibleRow);
+//                    /*
+//                    Переменная Стыка введена, потому что метод layoutDecorated выкладывает дочерние вьюшки в координатах, относительно начала RV.
+//                    Мы передаём это смещение для выкладки, когда нужно выложить новую строку,
+//                    При этом координаты нижней границы всё ещё считаются как обсолютные относительно начала первой строки,
+//                    И нужны для скроллинга
+//                    */
+//                    joint = getHeight() - getPaddingBottom() + delta;
+//                    addNRecycle (recycler, DIR_DOWN, joint);
+//                }
                 //Если дельта меньше или равна оффсету и выкладывать уже нечего
                 else {
                     offset = delta;
@@ -369,14 +413,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     //Log.d (TAG, "Baseline down");
                 }
 
-                else if (delta >= dy && mAnchorRowPos > 1) { //Меньше первой строки у нас нет
-                    mBottomBound -= mDecoratedTimeHeight; mTopBound -= mDecoratedTimeHeight;//Даём последней строке стать частично невидимой и держим границу по ней
-                    offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
-
-                    joint = getPaddingTop() + delta;//Берём нижнюю границу RV (0), прибавляем отступ разметки и вычитаем дельту
-                    addNRecycle (recycler, DIR_UP, joint);
-                    Log.d (TAG, "AddNRecycle UP, new pos: " + mAnchorRowPos + " " + mLastVisibleRow);
-                }
+//                else if (delta >= dy && mAnchorRowPos > 1) { //Меньше первой строки у нас нет
+//                    mBottomBound -= mDecoratedTimeHeight; mTopBound -= mDecoratedTimeHeight;//Даём последней строке стать частично невидимой и держим границу по ней
+//                    offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
+//
+//                    joint = getPaddingTop() + delta;//Берём нижнюю границу RV (0), прибавляем отступ разметки и вычитаем дельту
+//                    addNRecycle (recycler, DIR_UP, joint);
+//                    Log.d (TAG, "AddNRecycle UP, new pos: " + mAnchorRowPos + " " + mLastVisibleRow);
+//                }
 
                 else if (delta >= dy && mAnchorRowPos > 0) {
                     offset = delta;
@@ -401,17 +445,19 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     }
 
     private void rearrangeChildren() {
-        for (int i = 0; i < getChildCount(); i++) {//Для правельной переработки и добавления строк,
+        int count = getChildCount();
+        for (int i = 0; i < count; i++) {//Для правельной переработки и добавления строк,
             //сначала нам нужно переназначить индексы дочерних вьюшек, которые уже выложены,
             //и заодно обновить кэш
             int v = (mAnchorRowPos - 1) * 3 + i;
-            Log.d(TAG, "Row " + mAnchorRowPos + ", taking " + v + ", setting " + i);
 
-            View view;
-            if (v == prefPos && prefVisibility) view = prefView;//Берём отдельно вьшку настроек, когда до неё доходит
-            else view = mViewCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной, согласно их нормальным индексам, которые у них в адаптере
-            detachView(view);
-            attachView(view, i);
+            if (!prefVisibility && v == oldPrefPos) {
+                Log.d(TAG, "Row " + mAnchorRowPos + ", taking " + v + ", setting " + i);
+                View view;
+                view = mViewCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной, согласно их нормальным индексам, которые у них в адаптере
+                detachView(view);
+                attachView(view, i);
+            }
         }
     }
 /*
@@ -532,28 +578,27 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 FLAG_NOTIFY = HIDE_PREF;
                 repoCallback.removePref();
                 Log.d (TAG, "Hiding pref");
-
-                prefVisibility = false;
             }
             else if (this.prefParentPos != 666 && this.prefParentPos != prefParentPos && prefVisibility){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
                 oldPrefParentPos = this.prefParentPos;
                 oldPrefRowPos = this.prefRowPos;
                 oldPrefPos = this.prefPos;
 
-                FLAG_NOTIFY = HIDE_N_LAYOUT_PREF;
-                repoCallback.removePref();
-                Log.d (TAG, "Hiding and laying out pref");
 
                 this.prefParentPos = prefParentPos;
                 if (prefParentPos >= oldPrefPos) this.prefParentPos--;//Если мы тыкаем на элемент, который идёт после строки с настройками, то нужно бы откорректировать позицию на 1 вниз
+
+                prefRowPos = ((this.prefParentPos+1) / 3) + 1;//Строка после материнской вьюшки. Имея в виду плюс один элемент в адаптере, добавляем один
                 //Если строка с материнским элементом не полная, либо элементов в раскладке всего не больше трёх, то добавляем одну строку к счётчику
-                prefRowPos = ((prefParentPos+1) / 3) + 1; if ((prefParentPos+1) % 3 !=0 || (prefParentPos+1) < 3) prefRowPos++;//Строка после материнской вьюшки. На которой будем выкладывать настройки
+                if ((this.prefParentPos+1) % 3 !=0 || (this.prefParentPos+1) < 3) prefRowPos++;
+
                 prefPos = ((prefRowPos-1) * 3); if (prefPos>getItemCount()) prefPos = getItemCount();//Позиция вьюшки настроек в адаптере
                 Log.d (TAG, "___prefParentPos:" + this.prefParentPos + " prefRowPos:" + prefRowPos + " prefPos:" + prefPos);
 
-                repoCallback.passPrefToAdapter(prefParentPos, prefPos);
 
-                prefVisibility = true;
+                FLAG_NOTIFY = HIDE_N_LAYOUT_PREF;
+                repoCallback.removeNPassPrefToAdapter(this.prefParentPos, prefPos);
+                Log.d (TAG, "Hiding and laying out pref");
             }
     }
 
