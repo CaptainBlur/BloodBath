@@ -149,8 +149,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             Log.d(TAG, "Empty layout detected. Views to be laid out: " + state.getItemCount());
             mAnchorRowPos = 1; mTopBound = mTopBaseline = mTopShift = 0;
 
+            int p = 1;
             for (int index = 0; index < getItemCount() && rowCount <= mVisibleRows + 1; index++) { //Главный цикл. Выкладываемых строк больше, чем видимых
-                int p = index + 1;//Переменная позиции для высчитывания оффсетов
                 if (index < 0 || index >= state.getItemCount()) { //Метод из класса State возвращает количество оставшихся Вьюшек, доступных для выкладки
                     //С его помощью будем выкладывать, пока не кончатся
                     continue;
@@ -165,12 +165,22 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                         leftOffset + mDecoratedTimeWidth,
                         topOffset + mDecoratedTimeHeight);
 
-                if (p < 3 || p % 3 != 0) leftOffset += mDecoratedTimeWidth;
-                else if (p % 3 == 0) {
+                if (p < 3) {
+                    leftOffset += mDecoratedTimeWidth;
+                    p++;
+                }
+                else {
                     topOffset += mDecoratedTimeHeight;
                     leftOffset = paddingLeft;
                     rowCount++;
+                    mLastVisibleRow++;
+                    p = 1;
                 }
+            }
+            if (p>1){
+                topOffset += mDecoratedTimeHeight;
+                rowCount++;
+                mLastVisibleRow++;
             }
             mBottomBound = topOffset + getPaddingBottom();//Берём сумму всех сдвигов в процессе выкладки плюс нижний отступ так, чтобы получалось вплотную до следующей строки
             mLastVisibleRow = rowCount - 1;
@@ -195,9 +205,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 mAnchorRowPos++; mTopBound += mDecoratedTimeHeight;
                 mBottomBound += mDecoratedPreferencesHeight - mBaseVerticalPadding;
             }
-            else if (mAvailableRows * mDecoratedTimeHeight > getHeight()) {//Во всех остальных случаях, кроме того, когда строк не хватает ресайклим последнюю строку
+            else if ((mAvailableRows * mDecoratedTimeHeight > getHeight()) && prefRowPos < mLastVisibleRow) {//Во всех остальных случаях, кроме того, когда строк не хватает ресайклим последнюю строку
                 Log.d (TAG, "Scrapping last row");
-                for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount(); i++) {
+                for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount() - 1; i++) {
                     Log.d(TAG, i + " scrapping , row: " + mLastVisibleRow);
                     detachAndScrapViewAt(getChildCount() - 1, recycler);//Берём индекс последней выложенной вьюшки
                     mViewCache.remove(i);
@@ -253,6 +263,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     p = 1;
                 }
             }
+            if (p>1 && mLastVisibleRow < mAvailableRows){
+                mBottomBound += mDecoratedTimeHeight;
+                mLastVisibleRow++;
+            }
             prefVisibility = true;
             FLAG_NOTIFY = NOTIFY_NONE;
         }
@@ -263,9 +277,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             mViewCache.clear();
 
             mLastVisibleRow = mAnchorRowPos;
+            mBottomBound = mTopBound;
 
+            int p = 1;
             for (int i = (mAnchorRowPos - 1) * 3; i < getItemCount() && rowCount <= mVisibleRows + 1; i++) {
-                int p = i + 1;//Переменная позиции для высчитывания оффсетов
                 if (i < 0 || i >= state.getItemCount()) { //Метод из класса State возвращает количество оставшихся Вьюшек, доступных для выкладки
                     //С его помощью будем выкладывать, пока не кончатся
                     continue;
@@ -280,13 +295,20 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                         leftOffset + mDecoratedTimeWidth,
                         topOffset + mDecoratedTimeHeight);
 
-                if (p < 3 || p % 3 != 0) leftOffset += mDecoratedTimeWidth;
-                else if (p % 3 == 0) {
+                if (p < 3) {
+                    leftOffset += mDecoratedTimeWidth;
+                    p++;
+                }
+                else {
                     topOffset += mDecoratedTimeHeight;
                     leftOffset = paddingLeft;
                     rowCount++;
                     mLastVisibleRow++;
+                    p = 1;
                 }
+            }
+            if (p>1 && mLastVisibleRow < mAvailableRows){
+                mLastVisibleRow++;
             }
 
             offsetChildrenVertical(-(mTopBaseline - ((mAnchorRowPos - 1) * mDecoratedTimeHeight)));//Топовую базовую линию пересчитываем только после скролла
@@ -377,19 +399,19 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 //то мы допускаем скролл на ряд, который будет выложен сейчас, и обновляем значение нижней границы,
                 //однако скролл не будет больше дельты, которая считается в самом начале.
                 //Мы обновляем координаты нижней границы и верхней (если за ней есть хоть ещё одна)
-//                else if (delta <= dy && mLastVisibleRow < mAvailableRows)  {
-//                    mBottomBound += mDecoratedTimeHeight; mTopBound += mDecoratedTimeHeight;//Даём первой строке стать частично невидимой и держим границу по ней
-//                    offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
-//                    Log.d (TAG, "AddNRecycle DOWN, former pos: " + mAnchorRowPos + " " + mLastVisibleRow);
-//                    /*
-//                    Переменная Стыка введена, потому что метод layoutDecorated выкладывает дочерние вьюшки в координатах, относительно начала RV.
-//                    Мы передаём это смещение для выкладки, когда нужно выложить новую строку,
-//                    При этом координаты нижней границы всё ещё считаются как обсолютные относительно начала первой строки,
-//                    И нужны для скроллинга
-//                    */
-//                    joint = getHeight() - getPaddingBottom() + delta;
-//                    addNRecycle (recycler, DIR_DOWN, joint);
-//                }
+                else if (delta <= dy && mLastVisibleRow < mAvailableRows)  {
+                    mBottomBound += mDecoratedTimeHeight; mTopBound += mDecoratedTimeHeight;//Даём первой строке стать частично невидимой и держим границу по ней
+                    offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
+                    Log.d (TAG, "AddNRecycle DOWN, former pos: " + mAnchorRowPos + " " + mLastVisibleRow);
+                    /*
+                    Переменная Стыка введена, потому что метод layoutDecorated выкладывает дочерние вьюшки в координатах, относительно начала RV.
+                    Мы передаём это смещение для выкладки, когда нужно выложить новую строку,
+                    При этом координаты нижней границы всё ещё считаются как обсолютные относительно начала первой строки,
+                    И нужны для скроллинга
+                    */
+                    joint = getHeight() - getPaddingBottom() + delta;
+                    addNRecycle (recycler, DIR_DOWN, joint);
+                }
                 //Если дельта меньше или равна оффсету и выкладывать уже нечего
                 else {
                     offset = delta;
@@ -549,7 +571,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     public void onScrollStateChanged (int state){
         if (state == RecyclerView.SCROLL_STATE_IDLE){//Чисто лог выводим
             //int count = getChildCount() - 1; if (prefVisibility) count--;
-            Log.d (TAG, "Row " + mAnchorRowPos + ", Top shift: " + mTopShift + ", first cache index: " + mViewCache.keyAt(0) + ", last cache index: " + mViewCache.keyAt(getChildCount()-1));
+            //Log.d (TAG, "Row " + mAnchorRowPos + ", Top shift: " + mTopShift + ", first cache index: " + mViewCache.keyAt(0) + ", last cache index: " + mViewCache.keyAt(getChildCount()-1));
         }
     }
 
@@ -561,45 +583,45 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
     @Override
     public void notifyBaseClick(int prefParentPos) {
-            Log.d (TAG, "PREFPARENTPOS: " + this.prefParentPos + " VISIBILITY: " + prefVisibility);
-            if (this.prefParentPos == 666 || this.prefParentPos == prefParentPos & !prefVisibility || this.prefParentPos != prefParentPos & !prefVisibility) {//Либо настройки ещё не выкладывались, либо матерниские позиции соответствуют и строки не видно
+        Log.d (TAG, "PREFPARENTPOS: " + this.prefParentPos + " VISIBILITY: " + prefVisibility);
+        if (this.prefParentPos == 666 || this.prefParentPos == prefParentPos & !prefVisibility || this.prefParentPos != prefParentPos & !prefVisibility) {//Либо настройки ещё не выкладывались, либо матерниские позиции соответствуют и строки не видно
 
-                this.prefParentPos = prefParentPos;
-                //Если строка с материнским элементом не полная, либо элементов в раскладке всего не больше трёх, то добавляем одну строку к счётчику
-                prefRowPos = ((prefParentPos+1) / 3) + 1; if ((prefParentPos+1) % 3 !=0 || (prefParentPos+1) < 3) prefRowPos++;//Строка после материнской вьюшки. На которой будем выкладывать настройки
-                prefPos = ((prefRowPos-1) * 3); if (prefPos>getItemCount()) prefPos = getItemCount();//Позиция вьюшки настроек в адаптере
-                Log.d (TAG, "___prefParentPos:" + this.prefParentPos + " prefRowPos:" + prefRowPos + " prefPos:" + prefPos);
+            this.prefParentPos = prefParentPos;
+            //Если строка с материнским элементом не полная, либо элементов в раскладке всего не больше трёх, то добавляем одну строку к счётчику
+            prefRowPos = ((prefParentPos+1) / 3) + 1; if ((prefParentPos+1) % 3 !=0 || (prefParentPos+1) < 3) prefRowPos++;//Строка после материнской вьюшки. На которой будем выкладывать настройки
+            prefPos = ((prefRowPos-1) * 3); if (prefPos>getItemCount()) prefPos = getItemCount();//Позиция вьюшки настроек в адаптере
+            Log.d (TAG, "___prefParentPos:" + this.prefParentPos + " prefRowPos:" + prefRowPos + " prefPos:" + prefPos);
 
-                FLAG_NOTIFY = LAYOUT_PREF;
-                repoCallback.passPrefToAdapter(prefParentPos, prefPos);
-                Log.d (TAG, "Laying out pref");
-            }
-            else if (this.prefParentPos != 666 && this.prefParentPos == prefParentPos && prefVisibility){//Настройки уже выкладывались, старая материнская позиция, строку видно
-                FLAG_NOTIFY = HIDE_PREF;
-                repoCallback.removePref();
-                Log.d (TAG, "Hiding pref");
-            }
-            else if (this.prefParentPos != 666 && this.prefParentPos != prefParentPos && prefVisibility){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
-                oldPrefParentPos = this.prefParentPos;
-                oldPrefRowPos = this.prefRowPos;
-                oldPrefPos = this.prefPos;
-
-
-                this.prefParentPos = prefParentPos;
-                if (prefParentPos >= oldPrefPos) this.prefParentPos--;//Если мы тыкаем на элемент, который идёт после строки с настройками, то нужно бы откорректировать позицию на 1 вниз
-
-                prefRowPos = ((this.prefParentPos+1) / 3) + 1;//Строка после материнской вьюшки. Имея в виду плюс один элемент в адаптере, добавляем один
-                //Если строка с материнским элементом не полная, либо элементов в раскладке всего не больше трёх, то добавляем одну строку к счётчику
-                if ((this.prefParentPos+1) % 3 !=0 || (this.prefParentPos+1) < 3) prefRowPos++;
-
-                prefPos = ((prefRowPos-1) * 3); if (prefPos>getItemCount()) prefPos = getItemCount();//Позиция вьюшки настроек в адаптере
-                Log.d (TAG, "___prefParentPos:" + this.prefParentPos + " prefRowPos:" + prefRowPos + " prefPos:" + prefPos);
-
-
-                FLAG_NOTIFY = HIDE_N_LAYOUT_PREF;
-                repoCallback.removeNPassPrefToAdapter(this.prefParentPos, prefPos);
-                Log.d (TAG, "Hiding and laying out pref");
-            }
+            FLAG_NOTIFY = LAYOUT_PREF;
+            repoCallback.passPrefToAdapter(prefParentPos, prefPos);
+            Log.d (TAG, "Laying out pref");
+        }
+        else if (this.prefParentPos != 666 && this.prefParentPos == prefParentPos && prefVisibility){//Настройки уже выкладывались, старая материнская позиция, строку видно
+            FLAG_NOTIFY = HIDE_PREF;
+            repoCallback.removePref();
+            Log.d (TAG, "Hiding pref");
+        }
+//        else if (this.prefParentPos != 666 && this.prefParentPos != prefParentPos && prefVisibility){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
+//            oldPrefParentPos = this.prefParentPos;
+//            oldPrefRowPos = this.prefRowPos;
+//            oldPrefPos = this.prefPos;
+//
+//
+//            this.prefParentPos = prefParentPos;
+//            if (prefParentPos >= oldPrefPos) this.prefParentPos--;//Если мы тыкаем на элемент, который идёт после строки с настройками, то нужно бы откорректировать позицию на 1 вниз
+//
+//            prefRowPos = ((this.prefParentPos+1) / 3) + 1;//Строка после материнской вьюшки. Имея в виду плюс один элемент в адаптере, добавляем один
+//            //Если строка с материнским элементом не полная, либо элементов в раскладке всего не больше трёх, то добавляем одну строку к счётчику
+//            if ((this.prefParentPos+1) % 3 !=0 || (this.prefParentPos+1) < 3) prefRowPos++;
+//
+//            prefPos = ((prefRowPos-1) * 3); if (prefPos>getItemCount()) prefPos = getItemCount();//Позиция вьюшки настроек в адаптере
+//            Log.d (TAG, "___prefParentPos:" + this.prefParentPos + " prefRowPos:" + prefRowPos + " prefPos:" + prefPos);
+//
+//
+//            FLAG_NOTIFY = HIDE_N_LAYOUT_PREF;
+//            repoCallback.removeNPassPrefToAdapter(this.prefParentPos, prefPos);
+//            Log.d (TAG, "Hiding and laying out pref");
+//        }
     }
 
 }
