@@ -65,6 +65,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     */
     private SparseArray<View> mViewCache = new SparseArray<>();
 
+    private int SCROLL_MODE = 3;
+
 
     public RowLayoutManager (AlarmRepo repo){
         super();
@@ -85,7 +87,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             //Здесь необходимо высчитать и задать стандартные размеры боковых и вертикальных отступов для всех дочерних вьюшек,
             View sample = recycler.getViewForPosition(0);
             mBaseHorizontalPadding = 130;
-            mBaseVerticalPadding = 150;
+            mBaseVerticalPadding = 80;
             sample.setPadding(0, 0, mBaseHorizontalPadding, mBaseVerticalPadding);
 
             //Высчитать размеры
@@ -195,8 +197,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             rearrangeChildren();
             prefView = recycler.getViewForPosition(prefPos);
 
-            if ((mTopBaseline - mTopBound) >= mDecoratedTimeHeight){//При наличии одной полностью невидимой строки сверху, она ресайклится
-                for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {
+            Log.d (TAG, "" + mTopBaseline + " " + mTopBound);
+            if ((mTopBaseline - mTopBound) >= mDecoratedTimeHeight){//При наличии хотя бы одной полностью невидимой строки, мы определяем сколько их там невидимых и ресайклим, если надо
+
+                for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {//Начинаем скрапать с первой строки. Их всегда будет по трое в строке
                     Log.d (TAG, "Scrapping first row");
                     Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos);
                     detachAndScrapViewAt(0, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
@@ -399,7 +403,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 //то мы допускаем скролл на ряд, который будет выложен сейчас, и обновляем значение нижней границы,
                 //однако скролл не будет больше дельты, которая считается в самом начале.
                 //Мы обновляем координаты нижней границы и верхней (если за ней есть хоть ещё одна)
-                else if (delta <= dy && mLastVisibleRow < mAvailableRows)  {
+                else if (delta <= dy && mLastVisibleRow < mAvailableRows && (SCROLL_MODE == 1 || SCROLL_MODE == 3))  {
                     mBottomBound += mDecoratedTimeHeight; mTopBound += mDecoratedTimeHeight;//Даём первой строке стать частично невидимой и держим границу по ней
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
                     Log.d (TAG, "AddNRecycle DOWN, former pos: " + mAnchorRowPos + " " + mLastVisibleRow);
@@ -435,14 +439,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     //Log.d (TAG, "Baseline down");
                 }
 
-//                else if (delta >= dy && mAnchorRowPos > 1) { //Меньше первой строки у нас нет
-//                    mBottomBound -= mDecoratedTimeHeight; mTopBound -= mDecoratedTimeHeight;//Даём последней строке стать частично невидимой и держим границу по ней
-//                    offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
-//
-//                    joint = getPaddingTop() + delta;//Берём нижнюю границу RV (0), прибавляем отступ разметки и вычитаем дельту
-//                    addNRecycle (recycler, DIR_UP, joint);
-//                    Log.d (TAG, "AddNRecycle UP, new pos: " + mAnchorRowPos + " " + mLastVisibleRow);
-//                }
+                else if (delta >= dy && mAnchorRowPos > 1 && (SCROLL_MODE == 2 || SCROLL_MODE == 3)) { //Меньше первой строки у нас нет
+                    mBottomBound -= mDecoratedTimeHeight; mTopBound -= mDecoratedTimeHeight;//Даём последней строке стать частично невидимой и держим границу по ней
+                    offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
+
+                    joint = getPaddingTop() + delta;//Берём нижнюю границу RV (0), прибавляем отступ разметки и вычитаем дельту
+                    addNRecycle (recycler, DIR_UP, joint);
+                    Log.d (TAG, "AddNRecycle UP, new pos: " + mAnchorRowPos + " " + mLastVisibleRow);
+                }
 
                 else if (delta >= dy && mAnchorRowPos > 0) {
                     offset = delta;
