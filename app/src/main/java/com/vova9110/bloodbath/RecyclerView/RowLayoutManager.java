@@ -65,7 +65,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     */
     private SparseArray<View> mViewCache = new SparseArray<>();
 
-    private int SCROLL_MODE = 3;
+    private int SCROLL_MODE = 1;
 
 
     public RowLayoutManager (AlarmRepo repo){
@@ -186,6 +186,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             }
             mBottomBound = topOffset + getPaddingBottom();//Берём сумму всех сдвигов в процессе выкладки плюс нижний отступ так, чтобы получалось вплотную до следующей строки
             mLastVisibleRow = rowCount - 1;
+
+            //mBottomBound = (mLastVisibleRow * mDecoratedTimeHeight) + getPaddingBottom() + getPaddingTop();//Берём сумму всех сдвигов в процессе выкладки плюс нижний отступ так, чтобы получалось вплотную до следующей строки
+
         }
         /*
         Тут мы скрапаем какую-нибудь крайнюю вьюшку и строки, которые нужно сместить,
@@ -198,41 +201,32 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             prefView = recycler.getViewForPosition(prefPos);
 
             Log.d (TAG, "" + mTopBaseline + " " + mTopBound);
-            if ((mTopBaseline - mTopBound) >= mDecoratedTimeHeight){//При наличии хотя бы одной полностью невидимой строки, мы определяем сколько их там невидимых и ресайклим, если надо
-
-                for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {//Начинаем скрапать с первой строки. Их всегда будет по трое в строке
+            if ((mTopBaseline - mTopBound) >= mDecoratedTimeHeight){//При наличии хотя бы одной полностью невидимой строки, мы скрапаем первую
+                //Это не связанно с выкладкой строки настроек, просто в процессе скролла может оказаться одна такая строка сверху
+                for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {//Начинаем скрапать с первой вьюшки. Их всегда будет по трое в строке
                     Log.d (TAG, "Scrapping first row");
                     Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos);
                     detachAndScrapViewAt(0, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
                     mViewCache.remove(i);
                 }
                 mAnchorRowPos++; mTopBound += mDecoratedTimeHeight;
-                mBottomBound += mDecoratedPreferencesHeight - mBaseVerticalPadding;
-            }
-            else if ((mAvailableRows * mDecoratedTimeHeight > getHeight()) && prefRowPos < mLastVisibleRow) {//Во всех остальных случаях, кроме того, когда строк не хватает ресайклим последнюю строку
-                Log.d (TAG, "Scrapping last row");
-                for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i != getItemCount() - 1; i++) {
-                    Log.d(TAG, i + " scrapping , row: " + mLastVisibleRow);
-                    detachAndScrapViewAt(getChildCount() - 1, recycler);//Берём индекс последней выложенной вьюшки
-                    mViewCache.remove(i);
-                }
-                mBottomBound += mDecoratedPreferencesHeight - mBaseVerticalPadding - ((mVisibleRows - mExtendedVisibleRows) * mDecoratedTimeHeight);
             }
 
             int count = getChildCount();
-            Log.d (TAG, prefRowPos + " " + mAnchorRowPos);
+            Log.d (TAG, "Pref row pos: " + prefRowPos + ", first row: " + mAnchorRowPos);//Скрапаем всё, что выше материнской строки настроек
             for (int i = (prefRowPos - mAnchorRowPos) * 3; i < count; i++){//Инкремент у нас в относительных значениях, а позиция вьюшки в абсолютных
                 int v = (mAnchorRowPos - 1) * 3 + i;
-                Log.d (TAG, "  " + i + " " + v);
+                Log.d (TAG, "Scrapping pos: " + v);
 
                 View scrap = mViewCache.get(v);//Вытаскивам также по примеру из кэша, потому что в адаптере может быть хрен знает что
                 detachAndScrapView(scrap, recycler);
                 mViewCache.remove(v);
             }
 
+            mBottomBound = (prefRowPos - 1) * mDecoratedTimeHeight;
             topOffset += ((mDecoratedTimeHeight * (prefRowPos - 1)) - mBaseVerticalPadding) - mTopBaseline;
 
-            mViewCache.put(prefPos, prefView);
+            mViewCache.put(prefPos, prefView);//Вьюшку настроек тоде добавляем в кэш согласно её индексу
             addView(prefView);
             measureChild(prefView, 0, 0);
             layoutDecorated(prefView, leftOffset, topOffset,
@@ -240,6 +234,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     topOffset + mDecoratedPreferencesHeight);
 
             topOffset += mDecoratedPreferencesHeight;
+            mBottomBound += mDecoratedPreferencesHeight;
             rowCount = prefRowPos - mAnchorRowPos - 1;//Тут он как-то сдвинут вниз, хрен его знает, работает
             mLastVisibleRow = prefRowPos - 1;
 
@@ -255,30 +250,48 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                         leftOffset + mDecoratedTimeWidth,
                         topOffset + mDecoratedTimeHeight);
 
-                if (p < 3) {
+                if (p < 3) {//Выкладываем вдоль, добавляем отступ слева
                     leftOffset += mDecoratedTimeWidth;
                     p++;
                 }
-                else {
+                else {//Строка кончилась, делаем вертикальный отступ и сбрасываем счёт
                     topOffset += mDecoratedTimeHeight;
                     leftOffset = paddingLeft;
                     rowCount++;
+                    //Добавляем к счёту и отступу уже добавленную строку
                     mLastVisibleRow++;
+                    mBottomBound += mDecoratedTimeHeight;
+
                     p = 1;
                 }
             }
-            if (p>1 && mLastVisibleRow < mAvailableRows){
-                mBottomBound += mDecoratedTimeHeight;
+            //На тот редкий случай, когда под конец выкладки попадается неполная строка
+            if (p > 1) {
                 mLastVisibleRow++;
+                mBottomBound += mDecoratedTimeHeight;
+            }
+            //Когда строка настроек выкладывается последней
+            if (prefRowPos > mLastVisibleRow) {
+                int offset = mBottomBound - mBottomBaseline;
+
+                offsetChildrenVertical(-offset);
+                mTopBaseline += offset;
+                mBottomBaseline += offset;
+
             }
             prefVisibility = true;
             FLAG_NOTIFY = NOTIFY_NONE;
+
+            SCROLL_MODE = 0;
         }
+
 
         else if (FLAG_NOTIFY == HIDE_PREF) {
 
             detachAndScrapAttachedViews(recycler);
             mViewCache.clear();
+
+
 
             mLastVisibleRow = mAnchorRowPos;
             mBottomBound = mTopBound;
@@ -363,9 +376,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             }
             offsetChildrenVertical(-(mTopBaseline - ((mAnchorRowPos - 1) * mDecoratedTimeHeight)));//Топовую базовую линию пересчитываем только после скролла
             mLastVisibleRow--;
-            mBottomBound = (mLastVisibleRow * mDecoratedTimeHeight) + getPaddingBottom() + getPaddingTop();//Берём сумму всех сдвигов в процессе выкладки плюс нижний отступ так, чтобы получалось вплотную до следующей строки
             prefVisibility = false;
-
             FLAG_NOTIFY = LAYOUT_PREF;//todo при выкладке на концах вообще адище творится
             fillRows(recycler, state);
         }
@@ -476,14 +487,19 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             //сначала нам нужно переназначить индексы дочерних вьюшек, которые уже выложены,
             //и заодно обновить кэш
             int v = (mAnchorRowPos - 1) * 3 + i;
+            Log.d(TAG, "Row " + mAnchorRowPos + ", taking " + v + ", setting " + i);
+            View view;
+            view = mViewCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной, согласно их нормальным индексам, которые у них в адаптере
+            detachView(view);
+            attachView(view, i);
 
-            if (!prefVisibility && v == oldPrefPos) {
-                Log.d(TAG, "Row " + mAnchorRowPos + ", taking " + v + ", setting " + i);
-                View view;
-                view = mViewCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной, согласно их нормальным индексам, которые у них в адаптере
-                detachView(view);
-                attachView(view, i);
-            }
+//            if (!prefVisibility && v == oldPrefPos) {
+//                Log.d(TAG, "Row " + mAnchorRowPos + ", taking " + v + ", setting " + i);
+//                View view;
+//                view = mViewCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной, согласно их нормальным индексам, которые у них в адаптере
+//                detachView(view);
+//                attachView(view, i);
+//            }
         }
     }
 /*
