@@ -137,6 +137,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         prefAlarm = pref;
         bufferList.add(prefPos, pref);
         submitList(oldList, bufferList);
+        //Log.d (TAG, bufferList.get(prefPos).isPrefFlag() + "");
     }
 
 
