@@ -164,15 +164,17 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {//Сравниваем на предмет перемещения будильников по списку
             Alarm oldAlarm = oldList.get(oldItemPosition);
             Alarm newAlarm = newList.get(newItemPosition);
-            return newAlarm.getHour()==oldAlarm.getHour() && newAlarm.getMinute()==oldAlarm.getMinute() && newAlarm.isPrefFlag()==oldAlarm.isPrefFlag();
-            //Час, минута и флаг настроек - это уникальные идентификаторы
+            return newAlarm.isPrefFlag()==oldAlarm.isPrefFlag();
+            //У нас либо окно времени, либо настройки
         }
 
         @Override
         public boolean areContentsTheSame(int oldItemPosition, int newItemPosition) {//Сравниваем на предмет изменения данных в будильнике
             Alarm oldAlarm = oldList.get(oldItemPosition);
             Alarm newAlarm = newList.get(newItemPosition);
-            return newAlarm.isOnOffState()==oldAlarm.isOnOffState();
+            return newAlarm.getHour()==oldAlarm.getHour() &&
+                    newAlarm.getMinute()==oldAlarm.getMinute() &&
+                    newAlarm.isOnOffState()==oldAlarm.isOnOffState();
         }
     }
 }

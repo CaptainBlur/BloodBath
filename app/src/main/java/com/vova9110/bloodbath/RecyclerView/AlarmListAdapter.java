@@ -1,5 +1,6 @@
 package com.vova9110.bloodbath.RecyclerView;
 
+import android.util.Log;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -12,6 +13,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder>{
+    private final String TAG = "TAG_ALA";
     private AlarmRepo repo;
     private List<Alarm> mList = new LinkedList<>();
 

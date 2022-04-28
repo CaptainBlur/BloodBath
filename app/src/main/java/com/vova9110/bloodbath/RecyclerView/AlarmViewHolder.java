@@ -61,13 +61,15 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
 
     public void bind(int hour, int minute) {
+        timeView.setVisibility(View.VISIBLE); hourPicker.setVisibility(View.GONE); minutePicker.setVisibility(View.GONE); switcher.setVisibility(View.GONE);
         timeView.setOnClickListener(this);
         timeView.setOnLongClickListener(this);
 
         timeView.setText(String.format("%02d:%02d", hour, minute));
     }
 
-    public void bindAddAlarm() {//Все элементы уже итак видны и пикерам не нужно устанавливать значения
+    public void bindAddAlarm() {
+        timeView.setVisibility(View.VISIBLE); hourPicker.setVisibility(View.GONE); minutePicker.setVisibility(View.GONE); switcher.setVisibility(View.GONE);
         timeView.setOnClickListener(this);
 
         timeView.setText("+");
