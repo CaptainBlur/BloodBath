@@ -53,6 +53,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private int oldPrefParentPos;
     private int oldPrefRowPos;
     private int oldPrefPos;
+    private boolean prefScrapped = false;
+    private int RCShift = 0;
     /*Кэш, который полностью дублирует выложенный сет вьюшек,
     наполняется вместе с первой выкладкой и обновляется при добавлении и переработке строк,
     служит как референс для индексов при переприсоединении,
@@ -583,7 +585,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private void rearrangeChildren() {
         int count = getChildCount();
         Log.d (TAG, "" + count + mViewCache.size());
-        for (int i = 0; i < count; i++) {//Для правельной переработки и добавления строк,
+        for (int i = RCShift; i < count + RCShift; i++) {//Для правельной переработки и добавления строк,
             //сначала нам нужно переназначить индексы дочерних вьюшек, которые уже выложены,
             //и заодно обновить кэш
             int v = (mAnchorRowPos - 1) * 3 + i;
@@ -600,30 +602,69 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
         int leftOffset = getPaddingLeft();
         int topOffset;
+        boolean prefJustScrapped = false;
 
         rearrangeChildren();
 
         switch (direction){
-            case (DIR_DOWN)://todo выходит, что после перемещения на одну строку, размер кэша уменьшается на один
+            case (DIR_DOWN)://todo надо проставить обновление верхних границ
 
                 topOffset = joint;
                 mLastVisibleRow++;
-                boolean scrapped = false;
-                boolean added = false;
 
-                if (mAnchorRowPos == prefRowPos){
-                    Log.d(TAG, "scrapping pref");
-                    detachAndScrapView(prefView, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
+                int dif = mVisibleRows - mExtendedVisibleRows;
+                if (mAnchorRowPos == prefRowPos && !prefScrapped && prefVisibility){//Если дошло дело до ресайкла строки, которая вплотную стоит к строке настроек, то
+                    Log.d(TAG, "Removing pref, adding on top");
+                    RCShift = 1;
+                    prefScrapped = prefJustScrapped = true;
+
+                    detachAndScrapView(prefView, recycler);
                     mViewCache.remove(prefPos);
-                    scrapped = true;
-                }
-                for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {
-                    Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos);
-                    detachAndScrapViewAt(0, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
-                    mViewCache.remove(i);
+
+                    int difTopOffset = joint - ((mExtendedVisibleRows + dif + 1) * mDecoratedTimeHeight);
+                    int p = 1;
+                    for (int i = (mAnchorRowPos - 1 - dif) * 3; i < (mAnchorRowPos - 1) * 3; i++){
+                        Log.d (TAG, "Adding " + i);
+
+                        View view = recycler.getViewForPosition(i);
+                        mViewCache.put(i, view);
+                        addView(view);
+                        measureChild(view, 0, 0);
+                        layoutDecorated(view, leftOffset, difTopOffset,
+                                leftOffset + mDecoratedTimeWidth,
+                                difTopOffset + mDecoratedTimeHeight);
+
+                        if (p < 3) {
+                            leftOffset += mDecoratedTimeWidth;
+                            p++;
+                        }
+                        else {
+                            difTopOffset += mDecoratedTimeHeight;
+                            leftOffset = getPaddingLeft();
+                            p = 1;
+                        }
+                    }
+                    mAnchorRowPos -= dif;
+
+                    for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {//Здесь как обычно скрапаем первую строку
+                        Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos);
+
+                        View scrap = mViewCache.get(i);
+                        detachAndScrapView(scrap, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
+                        mViewCache.remove(i);
+                    }
                 }
 
-                if (!prefVisibility || mAnchorRowPos >= prefRowPos) {
+                if (!prefJustScrapped){
+                    for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {//Здесь как обычно скрапаем первую строку
+                        Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos);
+
+                        detachAndScrapViewAt(0, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
+                        mViewCache.remove(i);
+                    }
+                }
+
+                if (!prefVisibility) {
                     Log.d (TAG, "No pref detected");
                     for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i < getItemCount(); i++) {
                         Log.d(TAG, i + " adding row: " + mLastVisibleRow);
@@ -640,8 +681,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                         mViewCache.put(i, view);
                     }
                 }
-                else{
-                    Log.d (TAG, "Pref in the FOV");
+                else{//todo на выкладке, которая после убирания строки с настройками, нужно поправить наполнение кэша. Сами вьюшки выкладываются нормально
+                    Log.d (TAG, "Pref in the Layout");
                     for (int i = (mLastVisibleRow - 1) * 3 + 1; i < mLastVisibleRow * 3 + 1 && i < getItemCount(); i++) {
                         Log.d(TAG, i + " adding row: " + mLastVisibleRow);
 
@@ -659,6 +700,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 }
                 mAnchorRowPos++;
                 break;
+
 
             case (DIR_UP):
 
@@ -688,6 +730,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 mLastVisibleRow--;
                     break;
         }
+        for (int i = 0; i<getChildCount(); i++){
+            Log.d (TAG, "" + mViewCache.keyAt(i));
+        }
         Log.d (TAG, "Cache filled: " + mViewCache.size());
     }
     @Override
@@ -711,7 +756,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     public void onScrollStateChanged (int state){
         if (state == RecyclerView.SCROLL_STATE_IDLE){//Чисто лог выводим
             int count = getChildCount() - 1; if (prefVisibility) count--;
-            Log.d (TAG, "Row " + mAnchorRowPos + ", Top baseline: " + mTopBaseline + ", first cache index: " + mViewCache.keyAt(0) + ", last cache index: " + mViewCache.keyAt(count));
+            //Log.d (TAG, "Row " + mAnchorRowPos + ", Top baseline: " + mTopBaseline + ", first cache index: " + mViewCache.keyAt(0) + ", last cache index: " + mViewCache.keyAt(count));
         }
     }
 
