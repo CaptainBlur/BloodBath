@@ -1,26 +1,26 @@
  package com.vova9110.bloodbath;
 
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
-import androidx.recyclerview.widget.RecyclerView;
+ import android.content.Intent;
+ import android.os.Bundle;
+ import android.util.Log;
+ import android.view.View;
+ import android.widget.ImageView;
+ import android.widget.Toast;
 
-import android.content.Intent;
-import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
-import android.widget.ImageView;
-import android.widget.Toast;
+ import androidx.appcompat.app.AppCompatActivity;
+ import androidx.appcompat.app.AppCompatDelegate;
+ import androidx.lifecycle.Observer;
+ import androidx.lifecycle.ViewModelProvider;
+ import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.vova9110.bloodbath.Database.Alarm;
-import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
-import com.vova9110.bloodbath.RecyclerView.AlarmViewHolder;
-import com.vova9110.bloodbath.RecyclerView.RowLayoutManager;
+ import com.google.android.material.floatingactionbutton.FloatingActionButton;
+ import com.vova9110.bloodbath.Database.Alarm;
+ import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
+ import com.vova9110.bloodbath.RecyclerView.RowLayoutManager;
 
-import java.util.List;
+ import java.util.List;
 
-import javax.inject.Inject;
+ import javax.inject.Inject;
 
  public class MainActivity extends AppCompatActivity{
      private final static String TAG = "TAG_MA";
@@ -37,6 +37,7 @@ import javax.inject.Inject;
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
 
         // Get a new or existing ViewModel from the ViewModelProvider.
         mAlarmViewModel = new ViewModelProvider(this).get(AlarmViewModel.class);

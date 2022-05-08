@@ -62,7 +62,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private SparseArray<View> mViewCache = new SparseArray<>();
 
     private int SCROLL_MODE = 3;
-    private boolean STS = false;//Переменная означает, что в предыдущем проходе скролла было изменено кол-во строк,
+    private boolean STSBottom = false;
+    private boolean STSTop = false;//Переменные означают, что в предыдущем проходе скролла было изменено кол-во строк,
     //а в следующим за ним проходе требуется либо скрыть настройки, либо вернуть кол-во строк
 
 
@@ -301,7 +302,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         }
 
 
-        else if (FLAG_NOTIFY == HIDE_PREF) {//todo После сокрытия, что-то неладное творится с нижней границей, появляются отступы
+        else if (FLAG_NOTIFY == HIDE_PREF) {//todo После сокрытия, что-то неладное творится с нижней границей, появляются лишние отступы
 
             removeAndRecycleView(prefView, recycler);
             detachAndScrapAttachedViews(recycler);
@@ -359,14 +360,15 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             int offset = shift * mDecoratedTimeHeight;
             Log.d (TAG, "Shifting for : " + shift);
             offsetChildrenVertical(-offset);//Если в начале уменьшали якорную строку, то на её высоту сдвинем, чтобы видно было материнскую вьюшку.
-            //По сути, у нас будет выклдака с нулевым сдвигом плюс высота строки. Для красоты можно бы и подхватить сдвиг до HIDE ивента, но это уже во вторую очередь
+            //По сути, у нас будет выклдака с нулевым сдвигом плюс высота строки
+            //todo убрать эту колхозятину со сдвигом всей раскладки на начало строки
             mTopBaseline += offset;
 
             prefVisibility = false;
             FLAG_NOTIFY = NOTIFY_NONE;
         }
 
-        else if (FLAG_NOTIFY == HIDE_N_LAYOUT_PREF){//todo обслужить вариант с перевыкладкой с отскрапанными настройками
+        else if (FLAG_NOTIFY == HIDE_N_LAYOUT_PREF){//todo обслужить вариант с проскроленными настройками, что отскрапанными, что нет
 
             detachAndScrapAttachedViews(recycler);
             mViewCache.clear();
@@ -520,7 +522,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     mBottomBound += mDecoratedTimeHeight; mTopBound += mDecoratedTimeHeight;//В мирное время, мы управляем значениями границ только отсюда,
                     //Но при выложенной строке настроек, её видимость определяется в другом методе, где мы дополнительно изменяем значение границ, влияя на дельту
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
-                    Log.d (TAG, "AddNRecycle DOWN, former pos: " + mAnchorRowPos + " " + mLastVisibleRow);
+                    Log.d (TAG, "AddNRecycle DOWN, new pos: " + (mAnchorRowPos+1) + " " + (mLastVisibleRow+1));
                     /*
                     Переменная Стыка введена, потому что метод layoutDecorated выкладывает дочерние вьюшки в координатах, относительно начала RV.
                     Мы передаём это смещение для выкладки, когда нужно выложить новую строку,
@@ -592,7 +594,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             //сначала нам нужно переназначить индексы дочерних вьюшек, которые уже выложены,
             //и заодно обновить кэш
             int v = (mAnchorRowPos - 1) * 3 + i;
-            Log.d(TAG, "Row " + mAnchorRowPos + ", taking " + v + ", setting " + i);
+            //Log.d(TAG, "Row " + mAnchorRowPos + ", taking " + v + ", setting " + i);
             View view;
             view = mViewCache.get(v);//Нужно взять из кэша все выложенные вьюшки по одной, согласно их нормальным индексам, которые у них в адаптере
             detachView(view);
@@ -610,25 +612,22 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         rearrangeChildren();
 
         //Окно настроек убирается и добавляется только вместе с прилегающей строкой (снизу или сверху)
+        //todo на все скраповые варианты с окном настроек нужно добавить отдельный высчет строк, чтобы не зависеть от дифа
         switch (direction){
             case (DIR_DOWN):
 
                 topOffset = joint;
 
-                if (mAnchorRowPos == prefRowPos && !prefScrapped && prefVisibility){//Если дошло дело до ресайкла строки, которая вплотную снизу стоит к строке настроек,
-                    //то нужно оставить эту строку и выложить dif - 1 снизу, завершив при этом метод
-                    Log.d(TAG, "Removing pref, adding row(s) on bottom");
-                    prefScrapped = true;
+                if (mAnchorRowPos == prefRowPos && !prefScrapped && prefVisibility && !STSTop){//Если дошло дело до ресайкла строки, которая вплотную снизу стоит к строке настроек,
+                    //то нужно оставить эту строку вместе с настройками и выложить диф снизу
+                    Log.d(TAG, "Adding dif rows on bottom. Need to scrap pref next time");
+                    prefScrapped = false; STSTop = true;
 
-                    detachAndScrapView(prefView, recycler);
-                    mViewCache.remove(prefPos);
-
-                    mTopBound += mDecoratedPreferencesHeight - mDecoratedTimeHeight;
-                    mBottomBound -= mDecoratedTimeHeight;
+                    mTopBound -= mDecoratedTimeHeight;
 
                     int p = 1;
-                    for (int i = mLastVisibleRow * 3 + 1; i < (mLastVisibleRow + dif) * 3 + 1 && i < getItemCount(); i++){
-                        Log.d (TAG, "Adding " + i);
+                    for (int i = mLastVisibleRow * 3 + 1; i < (mLastVisibleRow + dif) * 3 + 1 && i < getItemCount(); i++){//С учётом того, что диф всегда равен минимум одному
+                        Log.d (TAG, "Adding shifted: " + i);
 
                         View view = recycler.getViewForPosition(i);
                         mViewCache.put(i, view);
@@ -650,9 +649,120 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     }
 
                     mLastVisibleRow += dif;
-                    mBottomBound += mDecoratedTimeHeight * dif;
+                    mBottomBound += (mDecoratedTimeHeight * dif) - mDecoratedTimeHeight;
 
                     break;//Корневая и последняя строки не добавятся. Просто switch завершится
+                }
+                else if (STSTop){//Тут нужно убрать настройки со следующей за ними строкой и выложить новую снизу
+                    Log.d (TAG, "TS passed. Scrapping pref and rolling rows");
+                    prefScrapped = true; STSTop = false;
+
+                    mTopBound += mDecoratedPreferencesHeight;
+                    mLastVisibleRow++;
+
+                    detachAndScrapView(prefView, recycler);
+                    mViewCache.remove(prefPos);
+
+                    for (int i = (mAnchorRowPos - 1) * 3 + 1; i < mAnchorRowPos * 3 + 1; i++) {
+                        Log.d(TAG, i + " scrapping shifted, row: " + mAnchorRowPos);
+
+                        detachAndScrapViewAt(0, recycler);
+                        mViewCache.remove(i);
+                    }
+                    for (int i = (mLastVisibleRow - 1) * 3 + 1; i < mLastVisibleRow * 3 + 1 && i < getItemCount(); i++) {
+                        Log.d(TAG, i + " adding shifted, row: " + mLastVisibleRow);
+
+                        View view = recycler.getViewForPosition(i);
+                        addView(view);
+                        measureChild(view, 0, 0);
+                        layoutDecorated(view, leftOffset, topOffset,
+                                leftOffset + mDecoratedTimeWidth,
+                                topOffset + mDecoratedTimeHeight);
+
+                        leftOffset += mDecoratedTimeWidth;
+
+                        mViewCache.put(i, view);
+                    }
+
+                    mAnchorRowPos++;
+                    break;
+                }
+
+                if (prefScrapped && prefVisibility && mLastVisibleRow == prefRowPos - 2 && !STSBottom){//В условии, когда доходит дело до выкладки материнской строки,
+                    //мы её выложим со строкой настроек, сверху скрапнем старую, а диф скрапнем уже когда нужно будет выкладывать строку за окном настроек
+                    Log.d(TAG, "Restoring pref with parent row. Need to scrap redundant next time");
+                    prefScrapped = false; STSBottom = true;
+
+                    mBottomBound += mDecoratedPreferencesHeight - mBaseVerticalPadding;
+                    mLastVisibleRow++;
+
+                    for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {
+                        Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos);
+
+                        detachAndScrapViewAt(0, recycler);
+                        mViewCache.remove(i);
+                    }
+
+                    mAnchorRowPos++;
+
+                    for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i < getItemCount(); i++) {
+                        Log.d(TAG, i + " adding row: " + mLastVisibleRow);
+
+                        View view = recycler.getViewForPosition(i);
+                        addView(view);
+                        measureChild(view, 0, 0);
+                        layoutDecorated(view, leftOffset, topOffset,
+                                leftOffset + mDecoratedTimeWidth,
+                                topOffset + mDecoratedTimeHeight);
+
+                        leftOffset += mDecoratedTimeWidth;
+
+                        mViewCache.put(i, view);
+                    }
+
+                    leftOffset = getPaddingLeft();
+                    topOffset += mDecoratedTimeHeight - mBaseVerticalPadding;
+
+                    prefView = recycler.getViewForPosition(prefPos);
+                    mViewCache.put(prefPos, prefView);
+                    addView (prefView);
+                    measureChild(prefView,0,0);
+                    layoutDecorated(prefView, leftOffset, topOffset,
+                            leftOffset + mDecoratedPreferencesWidth, topOffset + mDecoratedPreferencesHeight);
+
+                    break;
+                }
+                else if (STSBottom){//Помимо дифа нужно скрапнуть ещё одну старую сверху
+                    Log.d (TAG, "TS passed. Scrapping rows on top and adding new on bottom");
+                    STSBottom = false;
+
+                    for (int i = (mAnchorRowPos - 1) * 3; i < (mAnchorRowPos + dif) * 3; i++) {
+                        Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos);
+
+                        detachAndScrapViewAt(0, recycler);
+                        mViewCache.remove(i);
+                    }
+
+                    mAnchorRowPos += dif + 1;
+                    mTopBound += mDecoratedTimeHeight * (dif);//Не забываем, что один отступ уже сделал вызывающий метод
+                    mLastVisibleRow++;
+
+                    for (int i = (mLastVisibleRow - 1) * 3 + 1; i < mLastVisibleRow * 3 + 1 && i < getItemCount(); i++) {
+                        Log.d(TAG, i + " adding row: " + mLastVisibleRow);
+
+                        View view = recycler.getViewForPosition(i);
+                        addView(view);
+                        measureChild(view, 0, 0);
+                        layoutDecorated(view, leftOffset, topOffset,
+                                leftOffset + mDecoratedTimeWidth,
+                                topOffset + mDecoratedTimeHeight);
+
+                        leftOffset += mDecoratedTimeWidth;
+
+                        mViewCache.put(i, view);
+                    }
+
+                    break;
                 }
 
                 mLastVisibleRow++;//Дефолтное выполнение варианта начинается отсюда
@@ -668,18 +778,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     }
                     if (mAnchorRowPos == prefRowPos - 1 && !prefScrapped) mTopBound -= mBaseVerticalPadding;//Отступ от материнской строки до настроек отсутствует
 
-                    if (STS){
-                        STS = false;
-                        Log.d (TAG, "Scrapping additional row(s) from top");
-                        for (int i = (mAnchorRowPos - 1 - dif) * 3; i < (mAnchorRowPos - 1) * 3; i++) {
-                            Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos);
-
-                            detachAndScrapViewAt(0, recycler);
-                            mViewCache.remove(i);
-                        }
-                        mAnchorRowPos += dif;
-                        mTopBound += mDecoratedTimeHeight * dif;
-                    }
                 }
                 else {
                     for (int i = (mAnchorRowPos - 1) * 3 + 1; i < mAnchorRowPos * 3 + 1; i++) {//Так как мы скрапаем уже после строки настроек, нужно удалять верные вьюшки из кэша
@@ -726,25 +824,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     }
                 }
                 mAnchorRowPos++;
-
-                if (prefScrapped && prefVisibility && mLastVisibleRow == prefRowPos - 1 && !STS){//В условии, когда доходит дело до выкладки материнской строки,
-                    //мы её выложим (выше уже выложили) со строкой настроек, а сверху скрапнем уже когда нужно будет выкладывать строку за окном настроек
-                    Log.d(TAG, "Restoring pref with parent row");
-                    prefScrapped = false; STS = true;
-
-                    leftOffset = getPaddingLeft();
-                    topOffset = joint + mDecoratedTimeHeight - mBaseVerticalPadding;
-                    mBottomBound += mDecoratedTimeHeight - mBaseVerticalPadding;
-
-                    prefView = recycler.getViewForPosition(prefPos);
-                    mViewCache.put(prefPos, prefView);
-                    addView (prefView);
-                    measureChild(prefView,0,0);
-                    layoutDecorated(prefView, leftOffset, topOffset,
-                            leftOffset + mDecoratedPreferencesWidth, topOffset + mDecoratedPreferencesHeight);
-
-                    mBottomBound += mDecoratedPreferencesHeight - mDecoratedTimeHeight;
-                }
                 break;
 
 
@@ -752,10 +831,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
                 topOffset = joint - mDecoratedTimeHeight;//Стык у нас приходит как топовый отступ разметки + дельта (отрицательная)
 
-                if (mLastVisibleRow == prefRowPos - 1 && !prefScrapped && prefVisibility && !STS){//Если дошло дело до ресайкла материнской строки,
+                if (mLastVisibleRow == prefRowPos - 1 && !prefScrapped && prefVisibility && !STSBottom){//Если дошло дело до ресайкла материнской строки,
                     //с учётом уменьшенного кол-ва строк, то нужно оставить материнскую строку с настройками и выложить диф кол-во строк сверху
                     Log.d(TAG, "Adding row(s) on top. Need to scrap pref next time");
-                    prefScrapped = false; STS = true;
+                    prefScrapped = false; STSBottom = true;
 
                     mBottomBound += mDecoratedTimeHeight;
                     mTopBound += mDecoratedTimeHeight;
@@ -787,13 +866,15 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
                     break;//Корневая и последняя строки не добавятся. Просто switch завершится
                 }
-                else if (STS){//На следующем проходе после выкладки диф строк, нам нужно скрапнуть настройки вместе с материнской строкой,
+                else if (STSBottom){//На следующем проходе после выкладки диф строк, нам нужно скрапнуть настройки вместе с материнской строкой,
                     //а также выложить новую верхнюю строку
-                    Log.d (TAG, "Scrapping pref");
-                    STS = false;
+                    Log.d (TAG, "TS passed. Scrapping pref");
+                    prefScrapped = true; STSBottom = false;
 
                     detachAndScrapView(prefView, recycler);
                     mViewCache.remove(prefPos);
+
+                    mAnchorRowPos--;
 
                     for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i < getItemCount(); i++) {
                         Log.d(TAG, i + " scrapping, row: " + mLastVisibleRow);
@@ -817,23 +898,17 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
                         mViewCache.put(i, view);
                     }
+                    mLastVisibleRow--;
                     break;
                 }
 
-                if (prefScrapped && prefVisibility && mAnchorRowPos == prefRowPos){//В условии, когда доходит дело до выкладки материнской строки,
-                    //мы вместо неё добавим строку настроек и скрапнем нужное кол-во строк снизу,
-                    //а саму материнскую пусть выкладывают нижние условия
-                    Log.d(TAG, "Restoring pref, scrapping row(s) from bottom");
-                    prefScrapped = false;
+                if (prefScrapped && prefVisibility && mAnchorRowPos == prefRowPos && !STSTop){//В условии, когда доходит дело до выкладки материнской строки (якорная позиция ещё не сместилась),
+                    //мы просто выложим настройки
+                    Log.d(TAG, "Restoring pref. Need to scrap redundant next time");
+                    prefScrapped = false; STSTop = true;
 
-                    mTopBound -= mDecoratedPreferencesHeight - mDecoratedTimeHeight - mBaseVerticalPadding;
+                    mTopBound -= mDecoratedPreferencesHeight - mDecoratedTimeHeight;
                     mBottomBound += mDecoratedTimeHeight;
-
-                    for (int i = (mLastVisibleRow - 1) * 3 + 1; i < (mLastVisibleRow - 1 + dif) * 3 + 1 && i < getItemCount(); i++) {
-                        Log.d(TAG, i + " scrapping redundant");
-                        detachAndScrapViewAt(getChildCount() - 1, recycler);
-                        mViewCache.remove(i);
-                    }
 
                     prefView = recycler.getViewForPosition(prefPos);
                     mViewCache.put(prefPos, prefView);
@@ -842,9 +917,39 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     layoutDecorated(prefView, leftOffset, joint - mDecoratedPreferencesHeight,
                             leftOffset + mDecoratedPreferencesWidth, joint);
 
-                    mBottomBound -= mDecoratedTimeHeight * dif;
-                    mLastVisibleRow -= dif;
+                    break;
+                }
+                else if (STSTop){
+                    Log.d (TAG, "TS passed, scrapping redundant on bottom");
+                    STSTop = false;
 
+                    mTopBound += mBaseVerticalPadding;
+                    mBottomBound += mDecoratedTimeHeight;
+                    mAnchorRowPos--;
+                    int rowCount = mAnchorRowPos + mExtendedVisibleRows;
+                    topOffset += mBaseVerticalPadding;
+
+                    for (int i = rowCount * 3 + 1; i < mLastVisibleRow * 3 + 1 && i < getItemCount(); i++) {
+                        Log.d(TAG, i + " scrapping shifted, row: " + mLastVisibleRow);
+                        detachAndScrapViewAt(getChildCount() - 1, recycler);
+                        mViewCache.remove(i);
+                    }
+                    for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {
+                        Log.d(TAG, i + " adding row: " + mAnchorRowPos);
+
+                        View view = recycler.getViewForPosition(i);
+                        addView(view);
+                        measureChild(view, 0, 0);
+                        layoutDecorated(view, leftOffset, topOffset,
+                                leftOffset + mDecoratedTimeWidth,
+                                topOffset + mDecoratedTimeHeight);
+
+                        leftOffset += mDecoratedTimeWidth;
+
+                        mViewCache.put(i, view);
+                    }
+                    mBottomBound -= (mLastVisibleRow - rowCount) * mDecoratedTimeHeight;
+                    mLastVisibleRow = rowCount;
                     break;
                 }
 
@@ -867,8 +972,11 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     }
                 }
 
-
                 if (!prefVisibility || mAnchorRowPos < prefRowPos) {
+                    if (mAnchorRowPos == prefRowPos - 1 && !prefScrapped) {
+                        topOffset += mBaseVerticalPadding;
+                        mTopBound += mBaseVerticalPadding;
+                    }
                     for (int i = (mAnchorRowPos - 1) * 3; i < mAnchorRowPos * 3; i++) {
                         Log.d(TAG, i + " adding row: " + mAnchorRowPos);
 
@@ -953,12 +1061,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             repoCallback.passPrefToAdapter(prefParentPos, prefPos);
             Log.d (TAG, "LAYING OUT PREF");
         }
-        else if (this.prefParentPos != 666 && this.prefParentPos == prefParentPos && prefVisibility){//Настройки уже выкладывались, старая материнская позиция, строку видно
+        else if (this.prefParentPos != 666 && this.prefParentPos == prefParentPos && prefVisibility && false){//Настройки уже выкладывались, старая материнская позиция, строку видно
             FLAG_NOTIFY = HIDE_PREF;
             repoCallback.removePref();
             Log.d (TAG, "HIDING PREF");
         }
-        else if (this.prefParentPos != 666 && this.prefParentPos != prefParentPos && prefVisibility && !prefScrapped){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
+        else if (this.prefParentPos != 666 && this.prefParentPos != prefParentPos && prefVisibility && false){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
             oldPrefParentPos = this.prefParentPos;
             oldPrefRowPos = this.prefRowPos;
             oldPrefPos = this.prefPos;
