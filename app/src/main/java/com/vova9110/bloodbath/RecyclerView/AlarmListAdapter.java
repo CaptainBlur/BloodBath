@@ -37,7 +37,7 @@ public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder>{
         else if (current.isPrefFlag()) holder.bindPref(current.getHour(), current.getMinute(), current.isOnOffState());
         else {
             holder.bind(current.getHour(), current.getMinute());
-            Log.d(TAG, "binding " + current.getMinute() + current.isAddFlag());
+            Log.d(TAG, "binding " + current.getMinute() + position + current.isAddFlag());
         }
     }
 

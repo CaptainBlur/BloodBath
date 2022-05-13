@@ -146,7 +146,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     При первоначальной выкладке устанавливает стартовые значения границ и оффсетов для скроллинга
      */
     //todo добавить вариант выкладки на сет данных без скролла, либо без выкладки новых строк
-    //todo когда удаляется элемент, к добавочному не байндится плюсик на скролле. либо ресайклить на полную, либо разбираться с кэшем, чтобы тот выдавал нужные
     private void fillRows (RecyclerView.Recycler recycler,
                            RecyclerView.State state){
 
@@ -479,11 +478,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
 
         else if (FLAG_NOTIFY == UPDATE_EVENT){//Практически копия hide pref. Ресайклим все, потому что в ином случае адаптер будет путаться в позициях
-            Log.d (TAG, "" + prefVisibility);
+            //todo в случае, когда настройки присутствуют и добавочный будьльник находится на новой строке, эта строка не скроллится
 
             removeAndRecycleAllViews(recycler);
+            recycler.clear();//Обязательно чистим, чтобы у адаптера не было вьюшек с корявыми индексами
             mViewCache.clear();
-            prefVisibility = false;
+            prefVisibility = prefScrapped = STSTop = STSBottom = false;
 
             int shift = 0;//Переменная обозначает, на сколько нужно уменьшить mAnchorRowPos, чтобы в раскладке было нужное количество строк;
             if (mVisibleRows + mAnchorRowPos > mAvailableRows) shift = (mVisibleRows + mAnchorRowPos) - mAvailableRows;
@@ -1084,7 +1084,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         Log.d (TAG, "Cache filled: " + mViewCache.size() + ". from:" + mViewCache.keyAt(0) + " to:" + mViewCache.keyAt(mViewCache.size() - 1));
     }
 
-    private void loadAdapter (RecyclerView.Recycler recycler){for (int i = 0; i < getItemCount(); i++) {View view = recycler.getViewForPosition(i);}}
+    private void fillDrawer (RecyclerView.Recycler recycler){//todo оттестировать теорию о том, что именно выкладка, а не байндинг тормозит скролл
+
+    }
+
     @Override
     public void onItemsAdded (RecyclerView recyclerView, int positionStart, int itemCount){
         Log.d(TAG, "Items added: " + positionStart + ", " + itemCount);
