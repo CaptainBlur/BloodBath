@@ -20,6 +20,5 @@ public interface AlarmDao {
     void deleteOne (int hour, int minute);
 
     @Query("SELECT * FROM alarms_table")
-    LiveData<List<Alarm>> getAllAlarms();
-
+    LiveData<List<Alarm>> getLD();
 }

@@ -88,11 +88,8 @@
         @Override
         public void onChanged(List<Alarm> alarms) {
             alarms.sort((o1, o2) -> {
-                int c = 1;
-                if (o1.getHour() < o2.getHour()) c = -1;
-                else if (o1.getHour() == o2.getHour() && o1.getMinute() < o2.getMinute()) c = -1;
-                else if (o1.getHour() == o2.getHour() && o1.getMinute() == o2.getMinute()) c = 0;
-                return c;
+                if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
+                else return o1.getMinute() - o2.getMinute();
             });
             adapter.submitList(alarms);
             adapter.notifyDataSetChanged();

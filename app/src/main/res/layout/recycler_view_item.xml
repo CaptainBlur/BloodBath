@@ -48,6 +48,7 @@
             app:layout_constraintTop_toTopOf="@+id/picker_h"
             app:layout_constraintVertical_bias="0.0" />
 
+
         <Switch
             android:id="@+id/switcher"
             android:layout_width="wrap_content"
@@ -61,6 +62,20 @@
             app:layout_constraintTop_toTopOf="@+id/picker_m"
             app:layout_constraintVertical_bias="0.0"
             tools:ignore="UseSwitchCompatOrMaterialXml" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/floatingActionButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:clickable="true"
+            android:contentDescription="Add or update alarm"
+            app:backgroundTint="#E91E63"
+            app:layout_constraintBottom_toBottomOf="@+id/switcher"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/switcher"
+            app:layout_constraintTop_toTopOf="@+id/switcher"
+            app:srcCompat="@drawable/ic_baseline_add_24" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

@@ -1,17 +1,13 @@
 package com.vova9110.bloodbath;
 
-import android.app.Application;
-import android.content.Context;
 import android.util.Log;
-import android.view.View;
 
 import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
 import androidx.recyclerview.widget.DiffUtil;
 
-import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.Database.AlarmDao;
+import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
 
 import java.util.LinkedList;
@@ -22,25 +18,26 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     private AlarmDao alarmDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
     private AlarmListAdapter adapter;
     private MainActivity.LDObserver observer;
-    private LiveData<List<Alarm>> initialList;
+    private LiveData<List<Alarm>> roomLD;
     private List<Alarm> bufferList = new LinkedList<>();
     private List<Alarm> oldList;
 
-    private final Alarm addAlarm = new Alarm(11,11);
+    private final Alarm addAlarm = new Alarm(66,66);
     private Alarm prefAlarm;
     private RLMCallback rlmCallback;
+    private int prefPos;
 
     AlarmRepo(AlarmDao Dao){//Можно и здесь добавить аннотацию Inject, чтобы Даггер обращался к этому конструктору для создания и сам передавал в него Дао
         addAlarm.setAddFlag(true);
         alarmDao = Dao;
-        initialList = alarmDao.getAllAlarms();//При создани репозитория мы передаём этот список в MA,
+        roomLD = alarmDao.getLD();//При создани репозитория мы передаём этот список в MA,
         Log.d(TAG, "Repo instance created");
     }
 
     public void passAdapterNObserver(AlarmListAdapter adapter, MainActivity.LDObserver observer) { this.adapter = adapter; this.observer = observer; }
-    public LiveData<List<Alarm>> getInitialList() { return initialList; }
+    public LiveData<List<Alarm>> getInitialList() { return roomLD; }
     private void prepare(){
-        if(initialList.hasObservers()) initialList.removeObserver(observer);
+        roomLD.removeObserver(observer);
         if (!bufferList.isEmpty()) bufferList.clear();
         oldList = adapter.getCurrentList();
     }
@@ -69,28 +66,58 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         submitList(oldList, bufferList);
     }
 
-    void insert (Alarm alarm){//TODO добавлять пустой будильник, в конец списка, да так, чтобы отражал только плюсик
+    public void add (int hours, int minutes){
         prepare();
         bufferList.addAll(oldList);
-        bufferList.add(alarm);
+        Alarm current = new Alarm(hours, minutes);
+        bufferList.add(current);
         bufferList.sort((o1, o2) -> {
-            int c = 1;
-            if (o1.getHour() < o2.getHour()) c = -1;
-            else if (o1.getHour() == o2.getHour() && o1.getMinute() < o2.getMinute()) c = -1;
-            else if (o1.getHour() == o2.getHour() && o1.getMinute() == o2.getMinute()) c = 0;
-            return c;
+            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
+            else return o1.getMinute() - o2.getMinute();
         });
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(alarm));
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
+        bufferList.remove(prefAlarm);
         submitList(oldList, bufferList);
     }
 
-    public void delete(int pos) {
+    public void delete(int pos) {//todo хрен пойми что творится с сетом данных
         prepare();
         bufferList.addAll(oldList);
+
         Alarm current = bufferList.get(pos);
         bufferList.remove(pos);
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(current.getHour(), current.getMinute()));
-        submitList(oldList, bufferList);
+
+        Log.d (TAG, "asdfasdf" + bufferList.contains(prefAlarm));
+        bufferList.remove(prefAlarm);
+        bufferList.sort((o1, o2) -> {
+            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
+            else return o1.getMinute() - o2.getMinute();
+        });
+        //submitList(oldList, bufferList);
+        adapter.submitList(bufferList);
+        adapter.notifyItemRemoved(pos);
+    }
+
+    public void updateTime(int pos, int hours, int minutes){
+        prepare();
+        bufferList.addAll(oldList);
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(hours, minutes));
+        Alarm current = bufferList.get(pos);
+        bufferList.remove(current);
+
+        current.setHour(hours);
+        current.setMinute(minutes);
+        bufferList.sort((o1, o2) -> {
+            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
+            else return o1.getMinute() - o2.getMinute();
+        });
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
+        bufferList.add(current);
+
+        bufferList.remove(prefAlarm);
+        adapter.submitList(bufferList);
+        adapter.notifyItemInserted(bufferList.indexOf(current));
     }
 
     void clear () {
@@ -128,6 +155,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
     @Override
     public void removeNPassPrefToAdapter(int parentPos, int prefPos) {
+        this.prefPos = prefPos;
         prepare();
         bufferList.addAll(oldList);
         bufferList.remove(prefAlarm);
@@ -141,7 +169,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     }
 
 
-    private class ListDiff extends DiffUtil.Callback {
+    private class ListDiff extends DiffUtil.Callback {//Эту лабуду оставим для оповещения о настройках
         private List<Alarm> oldList;
         private List<Alarm> newList;
 
@@ -161,10 +189,12 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         }
 
         @Override
-        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {//Сравниваем на предмет перемещения будильников по списку
+        public boolean areItemsTheSame(int oldItemPosition, int newItemPosition) {
             Alarm oldAlarm = oldList.get(oldItemPosition);
             Alarm newAlarm = newList.get(newItemPosition);
-            return newAlarm.isPrefFlag()==oldAlarm.isPrefFlag();
+
+            return newAlarm.isPrefFlag()==oldAlarm.isPrefFlag() &&
+                    newAlarm.isAddFlag()==oldAlarm.isAddFlag();
             //У нас либо окно времени, либо настройки
         }
 
