@@ -16,6 +16,8 @@ import com.vova9110.bloodbath.RepoCallback;
 
 public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMCallback {
     private final String TAG = "TAG_RLM";
+    private RecyclerView.Recycler recycler;
+    private RecyclerView.State state;
     private final RepoCallback repoCallback;
     //Размеры окошка с временем в пикселях
     private int mDecoratedTimeWidth;
@@ -38,14 +40,17 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
     private final int DIR_DOWN = 0;
     private final int DIR_UP = 1;
+
     private int FLAG_NOTIFY;
     private final int NOTIFY_NONE = 0;
     private final int LAYOUT_PREF = 1;
     private final int HIDE_PREF = 2;
     private final int HIDE_N_LAYOUT_PREF = 3;
-    private final int UPDATE_EVENT = 4;
-    private final int REMOVE_EVENT = 5;
+    private final int UPDATE_DATASET = 4;
 
+    public static final int MODE_DELETE = 0;
+    public static final int MODE_ADD = 1;
+    public static final int MODE_CHANGE = 2;
 
     private boolean prefVisibility = false;
     private View prefView;
@@ -56,11 +61,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private int oldPrefRowPos;
     private int oldPrefPos;
     private boolean prefScrapped = false;//Переменная означает, что настройки отскрапаны, но требуют выкладки при скролле
-    /*Кэш, который полностью дублирует выложенный сет вьюшек,
-    наполняется вместе с первой выкладкой и обновляется при добавлении и переработке строк,
-    служит как референс для индексов при переприсоединении,
-    и используется как устаревший вариант раскладки в предиктивных анимациях
-    */
+
+
     private SparseArray<View> mViewCache = new SparseArray<>();
 
     private int SCROLL_MODE = 3;
@@ -83,6 +85,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
     @Override
     public void onLayoutChildren (RecyclerView.Recycler recycler, RecyclerView.State state) {
+        this.recycler = recycler;
+        this.state = state;
         Log.d (TAG, "TIME TO LAYOUT!");
 
         if (getChildCount()==0 && 0 != state.getItemCount()) {//Первоначальное измерение, если есть что измерять и ничего ещё не выложено
@@ -122,16 +126,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             FAB.setVisibility(View.GONE);
 
             //Рассчитать максимальное количество строк, основываясь на высоте RV
+            mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++;//Я реально уже хз, как оно работает, но оно работает
             mVisibleRows = getHeight() / mDecoratedTimeHeight + 1;
             mExtendedVisibleRows = (getHeight() - mDecoratedPreferencesHeight + mBaseVerticalPadding) / mDecoratedTimeHeight + 1;
-            Log.d(TAG, "Visible rows: " + mVisibleRows + " (Extended: " + mExtendedVisibleRows +
-                    "), \nTime Height: " + mDecoratedTimeHeight + ", Pref Weight: " + mDecoratedTimeWidth +
+            Log.d(TAG, "Visible rows: " + mVisibleRows + " (Extended: " + mExtendedVisibleRows + "), Available: " + mAvailableRows +
+                    "\nTime Height: " + mDecoratedTimeHeight + ", Pref Weight: " + mDecoratedTimeWidth +
                     "\n Pref Height: " + mDecoratedPreferencesHeight + ", Pref Weight: " + mDecoratedPreferencesWidth);
 
         }
-        int count = getItemCount(); if (prefVisibility) count--;
-        mAvailableRows = count / 3; if (count % 3 !=0 || mAvailableRows < 3) mAvailableRows++;//Я реально уже хз, как оно работает, но оно работает
-        Log.d (TAG, "Available rows: " + mAvailableRows);
 
         if (0 != state.getItemCount()){ //Выкладывать, если есть что выкладывать
                     fillRows (recycler, state);
@@ -139,14 +141,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         else if (getItemCount()==0) removeAndRecycleAllViews(recycler);//Если адаптер пустой, то очищаем разметку
 
     }
-    /*
-    Метод выкладывает и кэширует дочерние вьюшки. Если в разметке уже есть - использует кэшированные заново
-    Он сам определяет требуемое количество строк и стартовую позицию,
-    Производит выкладку на пустую, уже заполненную и проскроленную разметку (определяет сам),
-    При первоначальной выкладке устанавливает стартовые значения границ и оффсетов для скроллинга
-     */
-    //todo добавить вариант выкладки на сет данных без скролла, либо без выкладки новых строк
-    private void fillRows (RecyclerView.Recycler recycler,
+
+
+
+    private void fillRows (RecyclerView.Recycler recycler,//todo При малом количестве строкб раскладка сходит с ума. Можно начать с пустой и добавлять по одной вьюшке
                            RecyclerView.State state){
 
         int paddingLeft = getPaddingLeft();
@@ -154,6 +152,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         int leftOffset = paddingLeft;
         int topOffset = paddingTop;
         int rowCount = 1;//Это относительный счётчик строк, находится в пределах 1<= ... >=VisibleRows + 1
+
+
         if (getChildCount() == 0 && FLAG_NOTIFY == NOTIFY_NONE){
             Log.d(TAG, "Empty layout detected. Views to be laid out: " + state.getItemCount());
             mAnchorRowPos = 1; mTopBound = mTopBaseline = 0;//Выходит, что нулевая линия у нас на уровне верхнего отступа всего RV
@@ -305,15 +305,25 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         }
 
 
-        else if (FLAG_NOTIFY == HIDE_PREF) {
+        else if (FLAG_NOTIFY == HIDE_PREF | FLAG_NOTIFY == UPDATE_DATASET) {
 
-            removeAndRecycleView(prefView, recycler);
+            if (prefVisibility) {
+                Log.d (TAG, "Removing pref N shifting if transition state exists");
+                if (STSTop) mAnchorRowPos++;
+                if (STSBottom) mLastVisibleRow--;
+                prefScrapped = STSTop = STSBottom = false;
+                removeAndRecycleView(prefView, recycler);
+                prefVisibility = false;
+            }
             detachAndScrapAttachedViews(recycler);
             mViewCache.clear();
 
+            if (FLAG_NOTIFY == UPDATE_DATASET){ mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++; }
+
             int shift = 0;//Переменная обозначает, на сколько нужно уменьшить mAnchorRowPos, чтобы в раскладке было нужное количество строк;
-            if (mVisibleRows + mAnchorRowPos > mAvailableRows) shift = (mVisibleRows + mAnchorRowPos) - mAvailableRows;
-            Log.d (TAG, "Shifting rows for :" + -shift);
+            if (mVisibleRows + mAnchorRowPos > mAvailableRows)
+                shift = (mVisibleRows + mAnchorRowPos) - mAvailableRows;
+            Log.d(TAG, "Shifting rows up for :" + shift);
             mAnchorRowPos -= shift;
 
             mLastVisibleRow = mAnchorRowPos - 1;//Потому что строку плюсуем только после её выкладки
@@ -322,7 +332,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             mBottomBound = (mAnchorRowPos - 1) * mDecoratedTimeHeight + getPaddingBottom() + getPaddingTop();
             mTopBound = mBottomBound - (getPaddingTop() + getPaddingBottom());
             topOffset += (mAnchorRowPos - 1) * mDecoratedTimeHeight - mTopBaseline;//Мы выкладываем уже по правильному сдвигу, оффсет в конце не нужен
-            Log.d (TAG, "Cleared. Start filling from row " + mAnchorRowPos);
+            Log.d (TAG, "Start filling from row " + mAnchorRowPos);
 
             int p = 1;
             for (int i = (mAnchorRowPos - 1) * 3; i < getItemCount() && rowCount <= mVisibleRows + 1; i++) {
@@ -330,7 +340,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     //С его помощью будем выкладывать, пока не кончатся
                     continue;
                 }
-                Log.d (TAG, "Laying out: " + i);
+                //Log.d (TAG, "Laying out: " + i);
                 View child = recycler.getViewForPosition(i);
                 mViewCache.put(i, child);
 
@@ -362,6 +372,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 Log.d (TAG, "row incomplete. Adding one");
             }
 
+            recycler.clear();//старую кучу отходов нужно чистить, иначе адаптер не будет байндить новые вьюшки
             FLAG_NOTIFY = NOTIFY_NONE;
         }
 
@@ -477,69 +488,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         }
 
 
-        else if (FLAG_NOTIFY == UPDATE_EVENT){//Практически копия hide pref. Ресайклим все, потому что в ином случае адаптер будет путаться в позициях
-            //todo в случае, когда настройки присутствуют и добавочный будьльник находится на новой строке, эта строка не скроллится
-
-            removeAndRecycleAllViews(recycler);
-            recycler.clear();//Обязательно чистим, чтобы у адаптера не было вьюшек с корявыми индексами
-            mViewCache.clear();
-            prefVisibility = prefScrapped = STSTop = STSBottom = false;
-
-            int shift = 0;//Переменная обозначает, на сколько нужно уменьшить mAnchorRowPos, чтобы в раскладке было нужное количество строк;
-            if (mVisibleRows + mAnchorRowPos > mAvailableRows) shift = (mVisibleRows + mAnchorRowPos) - mAvailableRows;
-            Log.d (TAG, "Shifting rows for :" + -shift);
-            mAnchorRowPos -= shift;
-
-            mLastVisibleRow = mAnchorRowPos - 1;//Потому что строку плюсуем только после её выкладки
-
-            //Верхняя граница у нас уже есть, она никуда не сдвигалась. Установим стартовые значения нижней границы и оффсета
-            mBottomBound = (mAnchorRowPos - 1) * mDecoratedTimeHeight + getPaddingBottom() + getPaddingTop();
-            mTopBound = mBottomBound - (getPaddingTop() + getPaddingBottom());
-            topOffset += (mAnchorRowPos - 1) * mDecoratedTimeHeight - mTopBaseline;//Мы выкладываем уже по правильному сдвигу, оффсет в конце не нужен
-            Log.d (TAG, "Cleared. Start filling from row " + mAnchorRowPos);
-
-            int p = 1;
-            for (int i = (mAnchorRowPos - 1) * 3; i < getItemCount() && rowCount <= mVisibleRows + 1; i++) {
-                if (i < 0 || i >= state.getItemCount()) { //Метод из класса State возвращает количество оставшихся Вьюшек, доступных для выкладки
-                    //С его помощью будем выкладывать, пока не кончатся
-                    continue;
-                }
-                Log.d (TAG, "Laying out: " + i);
-                View child = recycler.getViewForPosition(i);
-                mViewCache.put(i, child);
-
-                addView(child);
-                measureChild(child, 0, 0);
-                layoutDecorated(child, leftOffset, topOffset,
-                        leftOffset + mDecoratedTimeWidth,
-                        topOffset + mDecoratedTimeHeight);
-
-                if (p < 3) {//Выкладываем вдоль, добавляем отступ слева
-                    leftOffset += mDecoratedTimeWidth;
-                    p++;
-                }
-                else {//Строка кончилась, делаем вертикальный отступ и сбрасываем счёт
-                    topOffset += mDecoratedTimeHeight;
-                    leftOffset = paddingLeft;
-                    rowCount++;
-                    //Добавляем к счёту и отступу уже добавленную строку
-                    mLastVisibleRow++;
-                    mBottomBound += mDecoratedTimeHeight;
-
-                    p = 1;
-                }
-            }
-            //На тот редкий случай, когда под конец выкладки попадается неполная строка
-            if (p > 1) {
-                mLastVisibleRow++;
-                mBottomBound += mDecoratedTimeHeight;
-                Log.d (TAG, "row incomplete. Adding one");
-            }
-
-            FLAG_NOTIFY = NOTIFY_NONE;
-        }
-
-
         mBottomBaseline = getHeight() + mTopBaseline;//Базовую линию всегда считаем относительно топовой
         int offset = 0;
         if (mBottomBaseline > mBottomBound) {
@@ -550,12 +498,32 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         }
 
         Log.d(TAG, "Anchor row: " + mAnchorRowPos + " , top baseline: " + mTopBaseline + " , top bound: " + mTopBound +
-                ", \nLast row: " + mLastVisibleRow + ", bottom baseline: " + mBottomBaseline + ", bottom bound: " + mBottomBound);
+                ", \nLast row: " + mLastVisibleRow + ", bottom baseline: " + mBottomBaseline + ", bottom bound: " + mBottomBound +
+                ", \nAvailable rows: " + mAvailableRows);
     }
 
     @Override
-    public boolean canScrollVertically() {
-        return mAvailableRows * mDecoratedTimeHeight > getHeight();
+    public void updateDatasetEvent(int position, int mode, int newHour, int newMinute) {
+        Log.d (TAG, "UDE, pos " + position + ", mode " + mode);
+
+        FLAG_NOTIFY = UPDATE_DATASET;//todo всё нормально, только бы со сдвигами разобраться
+        Log.d(TAG, "UPDATE DATASET");
+        switch (mode){
+            case (MODE_DELETE):
+                repoCallback.deleteItem(position);
+                break;
+            case (MODE_ADD):
+                repoCallback.addItem(newHour, newMinute);
+                break;
+            case (MODE_CHANGE):
+                repoCallback.changeItem(position, newHour, newMinute);
+                break;
+        }
+    }
+
+    @Override
+    public boolean canScrollVertically() {//проверка всегда производится уже после выкладки
+        return mBottomBound > (getHeight() - getPaddingBottom() - getPaddingTop());
     }
 
     @Override
@@ -584,7 +552,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 //однако скролл не будет больше дельты, которая считается в самом начале.
                 //Мы обновляем координаты нижней границы и верхней (если за ней есть хоть ещё одна)
                 else if (delta <= dy && mLastVisibleRow < mAvailableRows && (SCROLL_MODE == 1 || SCROLL_MODE == 3))  {
-                    Log.d (TAG, "" + mLastVisibleRow + mAvailableRows);
+                    //Log.d (TAG, "" + mLastVisibleRow + mAvailableRows);
                     mBottomBound += mDecoratedTimeHeight; mTopBound += mDecoratedTimeHeight;//В мирное время, мы управляем значениями границ только отсюда,
                     //Но при выложенной строке настроек, её видимость определяется в другом методе, где мы дополнительно изменяем значение границ, влияя на дельту
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
@@ -655,7 +623,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         int count = getChildCount();
         int RCShift = 0;
         if (prefScrapped && mAnchorRowPos >= prefRowPos) RCShift++;
-        Log.d (TAG, "" + count + mViewCache.size() + RCShift);
+        //Log.d (TAG, "" + count + mViewCache.size() + RCShift);
         for (int i = RCShift; i < count + RCShift; i++) {//Для правельной переработки и добавления строк,
             //сначала нам нужно переназначить индексы дочерних вьюшек, которые уже выложены,
             //и заодно обновить кэш
@@ -1084,16 +1052,13 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         Log.d (TAG, "Cache filled: " + mViewCache.size() + ". from:" + mViewCache.keyAt(0) + " to:" + mViewCache.keyAt(mViewCache.size() - 1));
     }
 
-    private void fillDrawer (RecyclerView.Recycler recycler){//todo оттестировать теорию о том, что именно выкладка, а не байндинг тормозит скролл
+    private void fillDrawer (RecyclerView.Recycler recycler){//todo проверить теорию о том, что именно выкладка, а не байндинг тормозит скролл
 
     }
 
     @Override
     public void onItemsAdded (RecyclerView recyclerView, int positionStart, int itemCount){
         Log.d(TAG, "Items added: " + positionStart + ", " + itemCount);
-        if (FLAG_NOTIFY == NOTIFY_NONE){
-            FLAG_NOTIFY = UPDATE_EVENT;
-        }
     }
 
     @Override
@@ -1119,9 +1084,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     public void onItemsRemoved(@NonNull RecyclerView recyclerView, int positionStart, int itemCount) {
         super.onItemsRemoved(recyclerView, positionStart, itemCount);
         Log.d (TAG, "Items removed: " + positionStart + ", " + itemCount);
-        if (FLAG_NOTIFY == NOTIFY_NONE){
-            FLAG_NOTIFY = UPDATE_EVENT;
-        }
     }
 
     @Override
@@ -1143,7 +1105,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         else if (this.prefParentPos != 666 && this.prefParentPos == prefParentPos && prefVisibility){//Настройки уже выкладывались, старая материнская позиция, строку видно
             FLAG_NOTIFY = HIDE_PREF;
             repoCallback.removePref();
-            prefVisibility = false;
             Log.d (TAG, "HIDING PREF");
         }
         else if (this.prefParentPos != 666 && this.prefParentPos != prefParentPos && prefVisibility){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
@@ -1169,5 +1130,4 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             Log.d (TAG, "HIDING and LAYING OUT PREF");
         }
     }
-
 }

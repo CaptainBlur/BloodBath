@@ -4,4 +4,7 @@ public interface RepoCallback {
     void passPrefToAdapter(int parentPos, int prefPos);
     void removePref();
     void removeNPassPrefToAdapter(int parentPos, int prefPos);
+    void deleteItem (int pos);
+    void addItem (int hour, int minute);
+    void changeItem (int oldPos, int hour, int minute);
 }

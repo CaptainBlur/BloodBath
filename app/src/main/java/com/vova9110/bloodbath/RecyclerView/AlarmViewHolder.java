@@ -51,8 +51,8 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     
     @Override
     public boolean onLongClick(View v) {
-        Log.d (TAG, "Delete click");
-        repo.delete(getAdapterPosition());
+        Log.d (TAG, "notify delete click");
+        rlmCallback.updateDatasetEvent(getAdapterPosition(), RowLayoutManager.MODE_DELETE, -1, -1);
         return true;
     }
 
@@ -67,9 +67,9 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         timeView.setVisibility(View.VISIBLE); hourPicker.setVisibility(View.GONE); minutePicker.setVisibility(View.GONE); switcher.setVisibility(View.GONE); FAB.setVisibility(View.GONE);
         timeView.setOnClickListener(this);
         timeView.setOnLongClickListener(this);
+        //Log.d (TAG, "binding " + getAdapterPosition() + getOldPosition());
 
         timeView.setText(String.format("%02d:%02d", hour, minute));
-        //FAB.setOnClickListener(view -> repo.updateTime(getAdapterPosition(), hourPicker.getValue(), minutePicker.getValue()));
     }
 
     public void bindAddAlarm() {
@@ -79,12 +79,19 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         timeView.setText("+");
     }
 
-    public void bindPref(int hour, int minute, boolean switcherState){
+    public void bindPref(int hour, int minute, boolean switcherState, int parentPos, boolean belongsToAdd){
         timeView.setVisibility(View.GONE); hourPicker.setVisibility(View.VISIBLE); minutePicker.setVisibility(View.VISIBLE); switcher.setVisibility(View.VISIBLE); FAB.setVisibility(View.VISIBLE);
 
         hourPicker.setValue(hour);
         minutePicker.setValue(minute);
         switcher.setChecked(switcherState);
-        FAB.setOnClickListener(view -> repo.add(hourPicker.getValue(), minutePicker.getValue()));
+        if (belongsToAdd) FAB.setOnClickListener(view ->{
+            Log.d (TAG, "notify adding click");
+            rlmCallback.updateDatasetEvent(getAdapterPosition(), RowLayoutManager.MODE_ADD, hourPicker.getValue(), minutePicker.getValue());
+        });
+        else FAB.setOnClickListener(view ->{
+            Log.d (TAG, "notify changing click");
+            rlmCallback.updateDatasetEvent(parentPos, RowLayoutManager.MODE_CHANGE, hourPicker.getValue(), minutePicker.getValue());
+        });
     }
 }

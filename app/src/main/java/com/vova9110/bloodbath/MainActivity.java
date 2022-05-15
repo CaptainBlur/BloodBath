@@ -51,7 +51,8 @@
         ldObserver = new LDObserver();
 
         mRepo.getInitialList().observe(this, ldObserver);
-        mRepo.passAdapterNObserver(adapter, ldObserver);
+        mRepo.pass(recyclerView, adapter, ldObserver);
+        //mRepo.fill();
 
         ImageView imageView = findViewById(R.id.imageView);
         FloatingActionButton fab = findViewById(R.id.fab);

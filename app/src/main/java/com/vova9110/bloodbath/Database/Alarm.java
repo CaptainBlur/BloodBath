@@ -3,7 +3,6 @@ package com.vova9110.bloodbath.Database;
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.Ignore;
-import androidx.room.PrimaryKey;
 
 @Entity (tableName = "alarms_table", primaryKeys = {"hour", "minute"})
 public class Alarm {
@@ -12,7 +11,12 @@ public class Alarm {
     @NonNull
     private int minute;
     private boolean onOffState = false;
+    @Ignore
     private boolean prefFlag = false;
+    @Ignore
+    private int parentPos;
+    @Ignore
+    private boolean prefBelongsToAdd = false;
     private boolean addFlag = false;
 
     public Alarm(int hour, int minute) {
@@ -40,9 +44,7 @@ public class Alarm {
         return onOffState;
     }
 
-    public void setOnOffState(boolean onOffState) {
-        this.onOffState = onOffState;
-    }
+    public void setOnOffState(boolean onOffState) { this.onOffState = onOffState; }
 
     public void setAddFlag(boolean addFlag) { this.addFlag = addFlag; }
 
@@ -50,6 +52,12 @@ public class Alarm {
 
     public boolean isPrefFlag() { return prefFlag; }
 
-    public void setPrefFlag(boolean prefFlag) { this.prefFlag = prefFlag; }
+    public void setPrefFlag() { this.prefFlag = true; }
 
+    public int getParentPos() { return parentPos; }
+
+    public void setParentPos(int parentPos) { this.parentPos = parentPos; }
+    public boolean isPrefBelongsToAdd() { return prefBelongsToAdd; }
+
+    public void setPrefBelongsToAdd() { this.prefBelongsToAdd = true; }
 }

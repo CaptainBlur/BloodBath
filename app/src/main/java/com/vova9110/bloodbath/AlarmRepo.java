@@ -4,6 +4,7 @@ import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 import androidx.recyclerview.widget.DiffUtil;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.Database.AlarmDao;
@@ -16,6 +17,7 @@ import java.util.List;
 public class AlarmRepo implements RepoCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
     private final String TAG = "TAG_AR";
     private AlarmDao alarmDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
+    private RecyclerView recycler;
     private AlarmListAdapter adapter;
     private MainActivity.LDObserver observer;
     private LiveData<List<Alarm>> roomLD;
@@ -34,7 +36,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         Log.d(TAG, "Repo instance created");
     }
 
-    public void passAdapterNObserver(AlarmListAdapter adapter, MainActivity.LDObserver observer) { this.adapter = adapter; this.observer = observer; }
+    public void pass(RecyclerView recyclerView, AlarmListAdapter adapter, MainActivity.LDObserver observer) { recycler = recyclerView; this.adapter = adapter; this.observer = observer; }
     public LiveData<List<Alarm>> getInitialList() { return roomLD; }
     private void prepare(){
         roomLD.removeObserver(observer);
@@ -56,6 +58,8 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
     void fill (){
         prepare();
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteAll());
+
         for (int i = 0; i<28; i++){
             Alarm alarm = new Alarm(0, i);
             bufferList.add(alarm);
@@ -66,60 +70,6 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         submitList(oldList, bufferList);
     }
 
-    public void add (int hours, int minutes){
-        prepare();
-        bufferList.addAll(oldList);
-        Alarm current = new Alarm(hours, minutes);
-        bufferList.add(current);
-        bufferList.sort((o1, o2) -> {
-            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
-            else return o1.getMinute() - o2.getMinute();
-        });
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
-        bufferList.remove(prefAlarm);
-        submitList(oldList, bufferList);
-    }
-
-    public void delete(int pos) {//todo хрен пойми что творится с сетом данных
-        prepare();
-        bufferList.addAll(oldList);
-
-        Alarm current = bufferList.get(pos);
-        bufferList.remove(pos);
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(current.getHour(), current.getMinute()));
-
-        Log.d (TAG, "asdfasdf" + bufferList.contains(prefAlarm));
-        bufferList.remove(prefAlarm);
-        bufferList.sort((o1, o2) -> {
-            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
-            else return o1.getMinute() - o2.getMinute();
-        });
-        //submitList(oldList, bufferList);
-        adapter.submitList(bufferList);
-        adapter.notifyItemRemoved(pos);
-    }
-
-    public void updateTime(int pos, int hours, int minutes){
-        prepare();
-        bufferList.addAll(oldList);
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(hours, minutes));
-        Alarm current = bufferList.get(pos);
-        bufferList.remove(current);
-
-        current.setHour(hours);
-        current.setMinute(minutes);
-        bufferList.sort((o1, o2) -> {
-            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
-            else return o1.getMinute() - o2.getMinute();
-        });
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
-        bufferList.add(current);
-
-        bufferList.remove(prefAlarm);
-        adapter.submitList(bufferList);
-        adapter.notifyItemInserted(bufferList.indexOf(current));
-    }
-
     void clear () {
         prepare();
         bufferList.add(addAlarm);
@@ -127,6 +77,75 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteAll());
     }
 
+    @Override
+    public void deleteItem(int pos) {
+        int currentPos;
+        boolean prefRemoved = false;
+        prepare();
+        bufferList.addAll(oldList);
+        Alarm current = bufferList.get(pos);
+
+        prefPos = bufferList.indexOf(prefAlarm);
+        if (bufferList.remove(prefAlarm)) prefRemoved = true;
+
+        currentPos = bufferList.indexOf(current);
+        bufferList.remove(current);
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(current.getHour(), current.getMinute()));
+
+        adapter.submitList(bufferList);
+        if (prefRemoved) recycler.post(()-> adapter.notifyItemRemoved(prefPos));
+        recycler.post(()-> adapter.notifyItemRemoved(currentPos));
+    }
+
+    @Override
+    public void addItem(int hour, int minute) {
+        int currentPos;
+        boolean prefRemoved = false;
+        prepare();
+        bufferList.addAll(oldList);
+
+        Alarm current = new Alarm(hour, minute);
+        bufferList.add(current);
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
+        bufferList.sort((o1, o2) -> {
+            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
+            else return o1.getMinute() - o2.getMinute();
+        });
+        currentPos = bufferList.indexOf(current);
+
+        prefPos = bufferList.indexOf(prefAlarm);
+        if (bufferList.remove(prefAlarm)) prefRemoved = true;
+
+        adapter.submitList(bufferList);
+        if (prefRemoved) recycler.post(()-> adapter.notifyItemRemoved(prefPos));
+        recycler.post(()-> adapter.notifyItemInserted(currentPos));
+    }
+
+    @Override
+    public void changeItem(int oldPos, int hour, int minute) {
+        int currentPos;
+        boolean prefRemoved = false;
+        prepare();
+        bufferList.addAll(oldList);
+
+        prefPos = bufferList.indexOf(prefAlarm);
+        if (bufferList.remove(prefAlarm)) prefRemoved = true;
+
+        Alarm current = bufferList.get(oldPos);
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(current.getHour(), current.getMinute()));
+        bufferList.get(oldPos).setHour(hour); bufferList.get(oldPos).setMinute(minute);
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
+        bufferList.sort((o1, o2) -> {
+            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
+            else return o1.getMinute() - o2.getMinute();
+        });
+        currentPos = bufferList.indexOf(current);
+
+        adapter.submitList(bufferList);
+        if (prefRemoved) recycler.post(()-> adapter.notifyItemRemoved(prefPos));
+        recycler.post(()-> adapter.notifyItemRemoved(oldPos));
+        recycler.post(()-> adapter.notifyItemInserted(currentPos));
+    }
 
     private void submitList(List<Alarm> oldList, List<Alarm> newList) {
         DiffUtil.DiffResult result = DiffUtil.calculateDiff(new ListDiff(oldList, newList));
@@ -138,9 +157,13 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     public void passPrefToAdapter(int parentPos, int prefPos) {
         prepare();
         bufferList.addAll(oldList);
+
         Alarm pref = new Alarm(bufferList.get(parentPos).getHour(), bufferList.get(parentPos).getMinute());//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
-        pref.setPrefFlag(true);
+        pref.setPrefFlag();
+        pref.setParentPos(parentPos);
+        if (parentPos == bufferList.indexOf(addAlarm)) pref.setPrefBelongsToAdd();
         prefAlarm = pref;
+
         bufferList.add(prefPos, pref);
         submitList(oldList, bufferList);
     }
@@ -158,11 +181,15 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         this.prefPos = prefPos;
         prepare();
         bufferList.addAll(oldList);
+
         bufferList.remove(prefAlarm);
 
         Alarm pref = new Alarm(bufferList.get(parentPos).getHour(), bufferList.get(parentPos).getMinute());//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
-        pref.setPrefFlag(true);
+        pref.setPrefFlag();
+        pref.setParentPos(parentPos);
+        if (parentPos == bufferList.indexOf(addAlarm)) pref.setPrefBelongsToAdd();
         prefAlarm = pref;
+
         bufferList.add(prefPos, pref);
         submitList(oldList, bufferList);
         //Log.d (TAG, bufferList.get(prefPos).isPrefFlag() + "");
