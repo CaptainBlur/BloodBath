@@ -234,9 +234,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             }
             if (p>1) scrappedRows++;
 
-            if (scrappedRows < (mVisibleRows - mExtendedVisibleRows)){
+            if (scrappedRows < (mVisibleRows - mExtendedVisibleRows) && mLastVisibleRow >= mVisibleRows ){//если снизу не хватает строк для скрапа, берём сверху
                 int scrapRows = mVisibleRows - mExtendedVisibleRows - scrappedRows;
-                Log.d (TAG, "Additional scrapping first row (rows)");
+                Log.d (TAG, "Additionally scrapping first row (rows)");
                 for (int i = (mAnchorRowPos - 1) * 3; i < (mAnchorRowPos - 1 + scrapRows) * 3; i++) {//Начинаем скрапать с первой вьюшки. Их всегда будет по трое в строке
                     Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos + scrapRows);
                     detachAndScrapViewAt(0, recycler);//Метод берёт индекс вьюшки из разметки, а не из адаптера
@@ -321,7 +321,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             if (FLAG_NOTIFY == UPDATE_DATASET){ mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++; }
 
             int shift = 0;//Переменная обозначает, на сколько нужно уменьшить mAnchorRowPos, чтобы в раскладке было нужное количество строк;
-            if (mVisibleRows + mAnchorRowPos > mAvailableRows)
+            if (mVisibleRows + mAnchorRowPos > mAvailableRows && mLastVisibleRow >= mVisibleRows)
                 shift = (mVisibleRows + mAnchorRowPos) - mAvailableRows;
             Log.d(TAG, "Shifting rows up for :" + shift);
             mAnchorRowPos -= shift;
@@ -494,7 +494,13 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             offset = mBottomBaseline - mBottomBound + 1;
             mTopBaseline -= offset; mBottomBaseline -= offset;
             offsetChildrenVertical(offset);
-            Log.d (TAG, "Shifting layout for: " + offset);
+            Log.d (TAG, "Shifting layout by bottom for: " + offset);
+        }
+        if (mTopBaseline < 0) {
+            offset = mTopBaseline;
+            mTopBaseline -= offset; mBottomBaseline -= offset;
+            offsetChildrenVertical(offset);
+            Log.d (TAG, "Shifting layout by top for: " + offset);
         }
 
         Log.d(TAG, "Anchor row: " + mAnchorRowPos + " , top baseline: " + mTopBaseline + " , top bound: " + mTopBound +

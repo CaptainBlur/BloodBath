@@ -157,11 +157,19 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     public void passPrefToAdapter(int parentPos, int prefPos) {
         prepare();
         bufferList.addAll(oldList);
+        int addAlarmPos; int i = 0; boolean flag;
+        do{
+            addAlarmPos = i;
+            flag = bufferList.get(i).isAddFlag();
+            i++;
+        }
+        while (!flag);
 
         Alarm pref = new Alarm(bufferList.get(parentPos).getHour(), bufferList.get(parentPos).getMinute());//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
         pref.setPrefFlag();
         pref.setParentPos(parentPos);
-        if (parentPos == bufferList.indexOf(addAlarm)) pref.setPrefBelongsToAdd();
+        Log.d (TAG, "" + addAlarmPos);
+        if (parentPos == addAlarmPos) pref.setPrefBelongsToAdd();
         prefAlarm = pref;
 
         bufferList.add(prefPos, pref);
