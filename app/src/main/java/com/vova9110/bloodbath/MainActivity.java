@@ -47,7 +47,7 @@
         recyclerView.setAdapter(adapter);
 
         //recyclerView.setLayoutManager(new GridLayoutManager(this,1, RecyclerView.VERTICAL, false));
-        recyclerView.setLayoutManager(new RowLayoutManager(mRepo));
+        recyclerView.setLayoutManager(new RowLayoutManager(this, mRepo));
         ldObserver = new LDObserver();
 
         mRepo.getInitialList().observe(this, ldObserver);

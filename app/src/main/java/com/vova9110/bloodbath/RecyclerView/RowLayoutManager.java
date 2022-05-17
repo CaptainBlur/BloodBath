@@ -1,8 +1,10 @@
 package com.vova9110.bloodbath.RecyclerView;
 
+import android.content.Context;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -16,6 +18,7 @@ import com.vova9110.bloodbath.RepoCallback;
 
 public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMCallback {
     private final String TAG = "TAG_RLM";
+    private final Context parentContext;
     private RecyclerView.Recycler recycler;
     private RecyclerView.State state;
     private final RepoCallback repoCallback;
@@ -72,8 +75,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
 
 
-    public RowLayoutManager (AlarmRepo repo){
+    public RowLayoutManager(Context parentContext, AlarmRepo repo){
         super();
+        this.parentContext = parentContext;
         repoCallback = repo.pullRepoCallback();
         repo.passRLMCallback(this);
     }
@@ -144,7 +148,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
 
 
-    private void fillRows (RecyclerView.Recycler recycler,//todo При малом количестве строкб раскладка сходит с ума. Можно начать с пустой и добавлять по одной вьюшке
+    private void fillRows (RecyclerView.Recycler recycler,
                            RecyclerView.State state){
 
         int paddingLeft = getPaddingLeft();
@@ -234,8 +238,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             }
             if (p>1) scrappedRows++;
 
-            if (scrappedRows < (mVisibleRows - mExtendedVisibleRows) && mLastVisibleRow >= mVisibleRows ){//если снизу не хватает строк для скрапа, берём сверху
-                int scrapRows = mVisibleRows - mExtendedVisibleRows - scrappedRows;
+            if (scrappedRows < (mVisibleRows - mExtendedVisibleRows) && mAvailableRows > mExtendedVisibleRows + 1){//если снизу не хватает строк для скрапа, берём сверху,
+                int scrapRows = mVisibleRows - mExtendedVisibleRows - scrappedRows;//но только тогда, когда
                 Log.d (TAG, "Additionally scrapping first row (rows)");
                 for (int i = (mAnchorRowPos - 1) * 3; i < (mAnchorRowPos - 1 + scrapRows) * 3; i++) {//Начинаем скрапать с первой вьюшки. Их всегда будет по трое в строке
                     Log.d(TAG, i + " scrapping, row: " + mAnchorRowPos + scrapRows);
@@ -321,7 +325,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             if (FLAG_NOTIFY == UPDATE_DATASET){ mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++; }
 
             int shift = 0;//Переменная обозначает, на сколько нужно уменьшить mAnchorRowPos, чтобы в раскладке было нужное количество строк;
-            if (mVisibleRows + mAnchorRowPos > mAvailableRows && mLastVisibleRow >= mVisibleRows)
+            if (mVisibleRows + mAnchorRowPos > mAvailableRows && mAvailableRows > mExtendedVisibleRows + 1)//если у нас в раскладке вообще есть лишние
                 shift = (mVisibleRows + mAnchorRowPos) - mAvailableRows;
             Log.d(TAG, "Shifting rows up for :" + shift);
             mAnchorRowPos -= shift;
@@ -514,22 +518,28 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
         FLAG_NOTIFY = UPDATE_DATASET;//todo всё нормально, только бы со сдвигами разобраться
         Log.d(TAG, "UPDATE DATASET");
-        switch (mode){
-            case (MODE_DELETE):
-                repoCallback.deleteItem(position);
-                break;
-            case (MODE_ADD):
-                repoCallback.addItem(newHour, newMinute);
-                break;
-            case (MODE_CHANGE):
-                repoCallback.changeItem(position, newHour, newMinute);
-                break;
+        try {
+            switch (mode) {
+                case (MODE_DELETE):
+                    repoCallback.deleteItem(position);
+                    break;
+                case (MODE_ADD):
+                    repoCallback.addItem(newHour, newMinute);
+                    break;
+                case (MODE_CHANGE):
+                    repoCallback.changeItem(position, newHour, newMinute);
+                    break;
+            }
+        }
+        catch (UnsupportedOperationException e){
+            Toast.makeText(parentContext, "Такой будильник уже существует", Toast.LENGTH_SHORT).show();
+            Log.d (TAG, "Exception case");
         }
     }
 
     @Override
     public boolean canScrollVertically() {//проверка всегда производится уже после выкладки
-        return mBottomBound > (getHeight() - getPaddingBottom() - getPaddingTop());
+        return true;
     }
 
     @Override

@@ -72,9 +72,10 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
     void clear () {
         prepare();
-        bufferList.add(addAlarm);
-        submitList(oldList, bufferList);
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteAll());
+        bufferList.add(addAlarm);
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(addAlarm));
+        submitList(oldList, bufferList);
     }
 
     @Override
@@ -104,6 +105,15 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         prepare();
         bufferList.addAll(oldList);
 
+        int i = 0; Alarm req;
+        while (i < bufferList.size()){
+            req = bufferList.get(i);
+            if (req.getHour() == hour & req.getMinute() == minute){
+                throw new UnsupportedOperationException("Alarm already exist, can't add");
+            }
+            else i++;
+        }
+
         Alarm current = new Alarm(hour, minute);
         bufferList.add(current);
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
@@ -127,6 +137,15 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         boolean prefRemoved = false;
         prepare();
         bufferList.addAll(oldList);
+
+        int i = 0; Alarm req;
+        while (i < bufferList.size()){
+            req = bufferList.get(i);
+            if (req.getHour() == hour & req.getMinute() == minute){
+                throw new UnsupportedOperationException("Alarm already exist, can't add");
+            }
+            else i++;
+        }
 
         prefPos = bufferList.indexOf(prefAlarm);
         if (bufferList.remove(prefAlarm)) prefRemoved = true;
@@ -192,10 +211,18 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
         bufferList.remove(prefAlarm);
 
+        int addAlarmPos; int i = 0; boolean flag;
+        do{
+            addAlarmPos = i;
+            flag = bufferList.get(i).isAddFlag();
+            i++;
+        }
+        while (!flag);
+
         Alarm pref = new Alarm(bufferList.get(parentPos).getHour(), bufferList.get(parentPos).getMinute());//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
         pref.setPrefFlag();
         pref.setParentPos(parentPos);
-        if (parentPos == bufferList.indexOf(addAlarm)) pref.setPrefBelongsToAdd();
+        if (parentPos == addAlarmPos) pref.setPrefBelongsToAdd();
         prefAlarm = pref;
 
         bufferList.add(prefPos, pref);

@@ -14,6 +14,11 @@ import com.vova9110.bloodbath.AlarmRepo;
 import com.vova9110.bloodbath.R;
 import com.vova9110.bloodbath.RLMCallback;
 
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+import java.util.Locale;
+import java.util.TimeZone;
+
 public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener{
     private final String TAG = "TAG_AVH";
     private final TextView timeView;
@@ -81,9 +86,19 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
     public void bindPref(int hour, int minute, boolean switcherState, int parentPos, boolean belongsToAdd){
         timeView.setVisibility(View.GONE); hourPicker.setVisibility(View.VISIBLE); minutePicker.setVisibility(View.VISIBLE); switcher.setVisibility(View.VISIBLE); FAB.setVisibility(View.VISIBLE);
+        Calendar calendar = Calendar.getInstance();
 
-        hourPicker.setValue(hour);
-        minutePicker.setValue(minute);
+        if (!belongsToAdd) {
+            hourPicker.setValue(hour);
+            minutePicker.setValue(minute);
+        }
+        else{
+            calendar.setTimeInMillis(System.currentTimeMillis());
+            hourPicker.setValue(calendar.get(Calendar.HOUR_OF_DAY));
+            minutePicker.setValue(calendar.get(Calendar.MINUTE));
+
+            switcher.setVisibility(View.INVISIBLE);
+        }
         switcher.setChecked(switcherState);
         if (belongsToAdd) FAB.setOnClickListener(view ->{
             Log.d (TAG, "notify adding click");
