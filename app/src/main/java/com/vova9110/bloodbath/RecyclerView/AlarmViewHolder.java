@@ -11,6 +11,7 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.vova9110.bloodbath.AlarmRepo;
+import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.R;
 import com.vova9110.bloodbath.RLMCallback;
 
@@ -84,13 +85,13 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         timeView.setText("+");
     }
 
-    public void bindPref(int hour, int minute, boolean switcherState, int parentPos, boolean belongsToAdd){
+    public void bindPref(Alarm current){
         timeView.setVisibility(View.GONE); hourPicker.setVisibility(View.VISIBLE); minutePicker.setVisibility(View.VISIBLE); switcher.setVisibility(View.VISIBLE); FAB.setVisibility(View.VISIBLE);
         Calendar calendar = Calendar.getInstance();
 
-        if (!belongsToAdd) {
-            hourPicker.setValue(hour);
-            minutePicker.setValue(minute);
+        if (!current.isPrefBelongsToAdd()) {
+            hourPicker.setValue(current.getHour());
+            minutePicker.setValue(current.getMinute());
         }
         else{
             calendar.setTimeInMillis(System.currentTimeMillis());
@@ -99,14 +100,17 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
             switcher.setVisibility(View.INVISIBLE);
         }
-        switcher.setChecked(switcherState);
-        if (belongsToAdd) FAB.setOnClickListener(view ->{
+
+        if (current.isPrefBelongsToAdd()) FAB.setOnClickListener(view ->{
             Log.d (TAG, "notify adding click");
             rlmCallback.updateDatasetEvent(getAdapterPosition(), RowLayoutManager.MODE_ADD, hourPicker.getValue(), minutePicker.getValue());
         });
         else FAB.setOnClickListener(view ->{
             Log.d (TAG, "notify changing click");
-            rlmCallback.updateDatasetEvent(parentPos, RowLayoutManager.MODE_CHANGE, hourPicker.getValue(), minutePicker.getValue());
+            rlmCallback.updateDatasetEvent(current.getParentPos(), RowLayoutManager.MODE_CHANGE, hourPicker.getValue(), minutePicker.getValue());
         });
+
+        switcher.setChecked(current.isOnOffState());
+        switcher.setOnCheckedChangeListener((buttonView, isChecked) -> repo.deployItem(current.getParentPos(), isChecked));
     }
 }

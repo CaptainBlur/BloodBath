@@ -51,7 +51,7 @@
         ldObserver = new LDObserver();
 
         mRepo.getInitialList().observe(this, ldObserver);
-        mRepo.pass(recyclerView, adapter, ldObserver);
+        mRepo.pass(recyclerView, adapter, ldObserver, getApplicationContext());
         //mRepo.fill();
 
         ImageView imageView = findViewById(R.id.imageView);

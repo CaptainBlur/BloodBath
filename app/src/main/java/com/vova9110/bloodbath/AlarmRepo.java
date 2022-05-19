@@ -1,5 +1,9 @@
 package com.vova9110.bloodbath;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
 import android.util.Log;
 
 import androidx.lifecycle.LiveData;
@@ -11,6 +15,7 @@ import com.vova9110.bloodbath.Database.AlarmDao;
 import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
 
+import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -20,6 +25,8 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     private RecyclerView recycler;
     private AlarmListAdapter adapter;
     private MainActivity.LDObserver observer;
+    private Context context;
+
     private LiveData<List<Alarm>> roomLD;
     private List<Alarm> bufferList = new LinkedList<>();
     private List<Alarm> oldList;
@@ -29,6 +36,11 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     private RLMCallback rlmCallback;
     private int prefPos;
 
+    private Calendar currentCalendar;
+    private AlarmManager AManager;
+    private Intent testScreenActivityIntent;
+    private PendingIntent testPendingIntent;
+
     AlarmRepo(AlarmDao Dao){//Можно и здесь добавить аннотацию Inject, чтобы Даггер обращался к этому конструктору для создания и сам передавал в него Дао
         addAlarm.setAddFlag(true);
         alarmDao = Dao;
@@ -36,7 +48,12 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         Log.d(TAG, "Repo instance created");
     }
 
-    public void pass(RecyclerView recyclerView, AlarmListAdapter adapter, MainActivity.LDObserver observer) { recycler = recyclerView; this.adapter = adapter; this.observer = observer; }
+    public void pass(RecyclerView recyclerView, AlarmListAdapter adapter, MainActivity.LDObserver observer, Context applicationContext ) {
+        recycler = recyclerView;
+        this.adapter = adapter;
+        this.observer = observer;
+        context = applicationContext;
+    }
     public LiveData<List<Alarm>> getInitialList() { return roomLD; }
     private void prepare(){
         roomLD.removeObserver(observer);
@@ -164,6 +181,28 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         if (prefRemoved) recycler.post(()-> adapter.notifyItemRemoved(prefPos));
         recycler.post(()-> adapter.notifyItemRemoved(oldPos));
         recycler.post(()-> adapter.notifyItemInserted(currentPos));
+    }
+
+    public void deployItem(int parentPos, boolean switcherState) {//этот метод подразумевает, что у нас уже есть родительский элемент, и этим методом мы только активируем или дезиктивируем его
+        prepare();
+        Alarm current = oldList.get(parentPos);
+        currentCalendar = Calendar.getInstance();
+        currentCalendar.setTimeInMillis(System.currentTimeMillis());
+        currentCalendar.set(Calendar.HOUR_OF_DAY, current.getHour());
+        currentCalendar.set(Calendar.MINUTE, current.getMinute());
+        currentCalendar.set(Calendar.SECOND, 0);
+        currentCalendar.set(Calendar.MILLISECOND, 0);
+
+        AManager = (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        testScreenActivityIntent = new Intent(context, NewTaskActivity.class);
+        testPendingIntent = PendingIntent.getActivity(context, 0, testScreenActivityIntent, PendingIntent.FLAG_IMMUTABLE);
+        AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(currentCalendar.getTimeInMillis(), testPendingIntent);
+
+
+        if (switcherState){
+            Log.d (TAG, "Deploying Alarm" + currentCalendar);
+            AManager.setAlarmClock(info, testPendingIntent);
+        }
     }
 
     private void submitList(List<Alarm> oldList, List<Alarm> newList) {
