@@ -45,6 +45,8 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         addAlarm.setAddFlag(true);
         alarmDao = Dao;
         roomLD = alarmDao.getLD();//При создани репозитория мы передаём этот список в MA,
+
+
         Log.d(TAG, "Repo instance created");
     }
 
@@ -177,7 +179,13 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
         Alarm current = bufferList.get(oldPos);
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(current.getHour(), current.getMinute()));
-        bufferList.get(oldPos).setHour(hour); bufferList.get(oldPos).setMinute(minute);
+
+        currentCalendar.set(Calendar.HOUR_OF_DAY, hour);
+        currentCalendar.set(Calendar.MINUTE, minute);
+        current.setHour(hour);
+        current.setMinute(minute);
+        current.setTime(currentCalendar.getTimeInMillis());
+
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
         bufferList.sort((o1, o2) -> {
             if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
@@ -192,18 +200,17 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     }
 
     public void updateItem(int parentPos, boolean switcherState) {//каким-то хером левый код вызывает метод
-        Log.d (TAG, "Updating item " + parentPos + switcherState);
+        Log.d (TAG, "Updating item " + parentPos + ", state: " + switcherState);
         prepare();
         bufferList.addAll(oldList);
         Alarm current = bufferList.get(parentPos);
         current.setOnOffState(switcherState);
         bufferList.set(parentPos, current);
-//        AlarmDatabase.databaseWriteExecutor.execute(() -> {
-//            alarmDao.deleteOne(current.getHour(), current.getMinute());
-//            alarmDao.insert(current);
-//        });
+        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.updateState(current.getHour(), current.getMinute(), switcherState));
         adapter.submitList(bufferList);
-        adapter.notifyItemChanged(parentPos);
+
+        Intent execIntent = new Intent(context, AlarmExec.class);//todo разобраться, чего там можно напихать в интент
+        context.startService(execIntent);
 
 //        currentCalendar.set(Calendar.HOUR_OF_DAY, current.getHour());
 //        currentCalendar.set(Calendar.MINUTE, current.getMinute());
@@ -222,7 +229,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
     @Override
     public void passPrefToAdapter(int parentPos, int prefPos) {
-        Log.d (TAG, "" + parentPos + prefPos);
+        //Log.d (TAG, "" + parentPos + prefPos);
         prepare();
         bufferList.addAll(oldList);
         Alarm parent = bufferList.get(parentPos);

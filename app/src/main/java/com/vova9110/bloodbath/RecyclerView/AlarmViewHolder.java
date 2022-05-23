@@ -16,9 +16,6 @@ import com.vova9110.bloodbath.R;
 import com.vova9110.bloodbath.RLMCallback;
 
 import java.util.Calendar;
-import java.util.GregorianCalendar;
-import java.util.Locale;
-import java.util.TimeZone;
 
 public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener{
     private final String TAG = "TAG_AVH";
@@ -88,7 +85,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     public void bindPref(Alarm current){
         timeView.setVisibility(View.GONE); hourPicker.setVisibility(View.VISIBLE); minutePicker.setVisibility(View.VISIBLE); switcher.setVisibility(View.VISIBLE); FAB.setVisibility(View.VISIBLE);
         Calendar calendar = Calendar.getInstance();
-        Log.d (TAG, "" + current.isOnOffState() + current.getParentPos());
+        //Log.d (TAG, "" + current.isOnOffState() + current.getParentPos());
 
         if (!current.isPrefBelongsToAdd()) {
             hourPicker.setValue(current.getHour());
@@ -111,6 +108,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
             rlmCallback.updateDatasetEvent(current.getParentPos(), RowLayoutManager.MODE_CHANGE, hourPicker.getValue(), minutePicker.getValue());
         });
 
+        switcher.setOnCheckedChangeListener(null);
         switcher.setChecked(current.isOnOffState());
         switcher.setOnCheckedChangeListener((buttonView, isChecked) -> repo.updateItem(current.getParentPos(), isChecked));
     }

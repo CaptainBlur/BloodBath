@@ -92,15 +92,9 @@
                 if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
                 else return o1.getMinute() - o2.getMinute();
             });
-
-            int i = 0; int c = 0;
-            do {
-                if (alarms.get(i).isOnOffState()) c++;
-                i++;
-            }while (i < alarms.size());
             adapter.submitList(alarms);
             adapter.notifyDataSetChanged();
-            Log.d(TAG, "Time to initial layout! List size: " + alarms.size() + c);
+            Log.d(TAG, "Time to initial layout! List size: " + alarms.size());
             return;
         }
     }

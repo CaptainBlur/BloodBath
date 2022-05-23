@@ -5,7 +5,6 @@ import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
-import androidx.room.Update;
 
 import java.util.List;
 
@@ -15,7 +14,7 @@ public interface AlarmDao {
     void insert (Alarm alarm); // В таблицу заносятся целые экземпляры Tasks
 
     @Query("UPDATE alarms_table SET onOffState = :switcherState WHERE hour = :hour AND minute = :minute")
-    void updateOnOff (int hour, int minute, boolean switcherState);
+    void updateState (int hour, int minute, boolean switcherState);
 
     @Query("DELETE FROM alarms_table WHERE hour < 25")
     void deleteAll();

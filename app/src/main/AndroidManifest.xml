@@ -22,7 +22,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".AlarmSupervisor" />
+        <service android:name=".AlarmExec" />
     </application>
 
 </manifest>
