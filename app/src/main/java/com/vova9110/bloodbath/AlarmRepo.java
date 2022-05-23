@@ -31,7 +31,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     private List<Alarm> bufferList = new LinkedList<>();
     private List<Alarm> oldList;
 
-    private final Alarm addAlarm = new Alarm(66,66);
+    private final Alarm addAlarm = new Alarm(66,66, 0);
     private Alarm prefAlarm;
     private RLMCallback rlmCallback;
     private int prefPos;
@@ -59,6 +59,11 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         roomLD.removeObserver(observer);
         if (!bufferList.isEmpty()) bufferList.clear();
         oldList = adapter.getCurrentList();
+
+        currentCalendar = Calendar.getInstance();
+        currentCalendar.setTimeInMillis(System.currentTimeMillis());
+        currentCalendar.set(Calendar.SECOND, 0);
+        currentCalendar.set(Calendar.MILLISECOND, 0);
     }
 
 
@@ -78,7 +83,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteAll());
 
         for (int i = 0; i<28; i++){
-            Alarm alarm = new Alarm(0, i);
+            Alarm alarm = new Alarm(0, i,0);
             bufferList.add(alarm);
             AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(alarm));
         }
@@ -122,6 +127,9 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         prepare();
         bufferList.addAll(oldList);
 
+        currentCalendar.set(Calendar.HOUR_OF_DAY, hour);
+        currentCalendar.set(Calendar.MINUTE, minute);
+
         int i = 0; Alarm req;
         while (i < bufferList.size()){
             req = bufferList.get(i);
@@ -131,7 +139,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
             else i++;
         }
 
-        Alarm current = new Alarm(hour, minute);
+        Alarm current = new Alarm(hour, minute, currentCalendar.getTimeInMillis());
         bufferList.add(current);
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
         bufferList.sort((o1, o2) -> {
@@ -183,26 +191,27 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         recycler.post(()-> adapter.notifyItemInserted(currentPos));
     }
 
-    public void deployItem(int parentPos, boolean switcherState) {//этот метод подразумевает, что у нас уже есть родительский элемент, и этим методом мы только активируем или дезиктивируем его
+    public void updateItem(int parentPos, boolean switcherState) {//каким-то хером левый код вызывает метод
+        Log.d (TAG, "Updating item " + parentPos + switcherState);
         prepare();
-        Alarm current = oldList.get(parentPos);
-        currentCalendar = Calendar.getInstance();
-        currentCalendar.setTimeInMillis(System.currentTimeMillis());
-        currentCalendar.set(Calendar.HOUR_OF_DAY, current.getHour());
-        currentCalendar.set(Calendar.MINUTE, current.getMinute());
-        currentCalendar.set(Calendar.SECOND, 0);
-        currentCalendar.set(Calendar.MILLISECOND, 0);
+        bufferList.addAll(oldList);
+        Alarm current = bufferList.get(parentPos);
+        current.setOnOffState(switcherState);
+        bufferList.set(parentPos, current);
+//        AlarmDatabase.databaseWriteExecutor.execute(() -> {
+//            alarmDao.deleteOne(current.getHour(), current.getMinute());
+//            alarmDao.insert(current);
+//        });
+        adapter.submitList(bufferList);
+        adapter.notifyItemChanged(parentPos);
 
-        AManager = (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        testScreenActivityIntent = new Intent(context, NewTaskActivity.class);
-        testPendingIntent = PendingIntent.getActivity(context, 0, testScreenActivityIntent, PendingIntent.FLAG_IMMUTABLE);
-        AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(currentCalendar.getTimeInMillis(), testPendingIntent);
+//        currentCalendar.set(Calendar.HOUR_OF_DAY, current.getHour());
+//        currentCalendar.set(Calendar.MINUTE, current.getMinute());
+//        AManager = (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+//        testScreenActivityIntent = new Intent(context, NewTaskActivity.class);
+//        testPendingIntent = PendingIntent.getActivity(context, 0, testScreenActivityIntent, PendingIntent.FLAG_IMMUTABLE);
+//        AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(currentCalendar.getTimeInMillis(), testPendingIntent);
 
-
-        if (switcherState){
-            Log.d (TAG, "Deploying Alarm" + currentCalendar);
-            AManager.setAlarmClock(info, testPendingIntent);
-        }
     }
 
     private void submitList(List<Alarm> oldList, List<Alarm> newList) {
@@ -213,8 +222,11 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
     @Override
     public void passPrefToAdapter(int parentPos, int prefPos) {
+        Log.d (TAG, "" + parentPos + prefPos);
         prepare();
         bufferList.addAll(oldList);
+        Alarm parent = bufferList.get(parentPos);
+
         int addAlarmPos; int i = 0; boolean flag;
         do{
             addAlarmPos = i;
@@ -223,10 +235,10 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         }
         while (!flag);
 
-        Alarm pref = new Alarm(bufferList.get(parentPos).getHour(), bufferList.get(parentPos).getMinute());//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
+        Alarm pref = new Alarm(parent.getHour(), parent.getMinute(), 0);//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
         pref.setPrefFlag();
         pref.setParentPos(parentPos);
-        Log.d (TAG, "" + addAlarmPos);
+        pref.setOnOffState(parent.isOnOffState());
         if (parentPos == addAlarmPos) pref.setPrefBelongsToAdd();
         prefAlarm = pref;
 
@@ -245,10 +257,12 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     @Override
     public void removeNPassPrefToAdapter(int parentPos, int prefPos) {
         this.prefPos = prefPos;
+        Log.d (TAG, "" + parentPos + prefPos);
         prepare();
         bufferList.addAll(oldList);
-
         bufferList.remove(prefAlarm);
+        Alarm parent = bufferList.get(parentPos);
+
 
         int addAlarmPos; int i = 0; boolean flag;
         do{
@@ -258,9 +272,10 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
         }
         while (!flag);
 
-        Alarm pref = new Alarm(bufferList.get(parentPos).getHour(), bufferList.get(parentPos).getMinute());//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
+        Alarm pref = new Alarm(parent.getHour(), parent.getMinute(), 0);//Здесь мы берём информацию из материнского элемента, согласно его переданной позиции
         pref.setPrefFlag();
         pref.setParentPos(parentPos);
+        pref.setOnOffState(parent.isOnOffState());
         if (parentPos == addAlarmPos) pref.setPrefBelongsToAdd();
         prefAlarm = pref;
 

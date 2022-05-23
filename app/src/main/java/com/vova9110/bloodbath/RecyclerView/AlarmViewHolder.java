@@ -54,7 +54,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
                 .inflate(R.layout.recycler_view_item, parent, false);
                 return new AlarmViewHolder(itemView, repo);
     }
-    
+
     @Override
     public boolean onLongClick(View v) {
         Log.d (TAG, "notify delete click");
@@ -88,6 +88,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     public void bindPref(Alarm current){
         timeView.setVisibility(View.GONE); hourPicker.setVisibility(View.VISIBLE); minutePicker.setVisibility(View.VISIBLE); switcher.setVisibility(View.VISIBLE); FAB.setVisibility(View.VISIBLE);
         Calendar calendar = Calendar.getInstance();
+        Log.d (TAG, "" + current.isOnOffState() + current.getParentPos());
 
         if (!current.isPrefBelongsToAdd()) {
             hourPicker.setValue(current.getHour());
@@ -111,6 +112,6 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         });
 
         switcher.setChecked(current.isOnOffState());
-        switcher.setOnCheckedChangeListener((buttonView, isChecked) -> repo.deployItem(current.getParentPos(), isChecked));
+        switcher.setOnCheckedChangeListener((buttonView, isChecked) -> repo.updateItem(current.getParentPos(), isChecked));
     }
 }
