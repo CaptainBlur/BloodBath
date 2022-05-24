@@ -10,10 +10,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.vova9110.bloodbath.AlarmRepo;
+import com.vova9110.bloodbath.UIHandler;
 import com.vova9110.bloodbath.R;
 import com.vova9110.bloodbath.RLMCallback;
-import com.vova9110.bloodbath.RepoCallback;
+import com.vova9110.bloodbath.HandlerCallback;
 
 
 public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMCallback {
@@ -21,7 +21,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private final Context parentContext;
     private RecyclerView.Recycler recycler;
     private RecyclerView.State state;
-    private final RepoCallback repoCallback;
+    private final HandlerCallback handlerCallback;
     //Размеры окошка с временем в пикселях
     private int mDecoratedTimeWidth;
     private int mDecoratedTimeHeight;
@@ -75,11 +75,11 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
 
 
-    public RowLayoutManager(Context parentContext, AlarmRepo repo){
+    public RowLayoutManager(Context parentContext, UIHandler handler){
         super();
         this.parentContext = parentContext;
-        repoCallback = repo.pullRepoCallback();
-        repo.passRLMCallback(this);
+        handlerCallback = handler.pullHandlerCallback();
+        handler.passRLMCallback(this);
     }
 
     @Override
@@ -521,13 +521,13 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         try {
             switch (mode) {
                 case (MODE_DELETE):
-                    repoCallback.deleteItem(position);
+                    handlerCallback.deleteItem(position);
                     break;
                 case (MODE_ADD):
-                    repoCallback.addItem(newHour, newMinute);
+                    handlerCallback.addItem(newHour, newMinute);
                     break;
                 case (MODE_CHANGE):
-                    repoCallback.changeItem(position, newHour, newMinute);
+                    handlerCallback.changeItem(position, newHour, newMinute);
                     break;
             }
         }
@@ -1114,13 +1114,13 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             Log.d (TAG, "___prefParentPos:" + this.prefParentPos + " prefRowPos:" + prefRowPos + " prefPos:" + prefPos);
 
             FLAG_NOTIFY = LAYOUT_PREF;
-            repoCallback.passPrefToAdapter(prefParentPos, prefPos);
+            handlerCallback.passPrefToAdapter(prefParentPos, prefPos);
             prefVisibility = true;
             Log.d (TAG, "LAYING OUT PREF");
         }
         else if (this.prefParentPos != 666 && this.prefParentPos == prefParentPos && prefVisibility){//Настройки уже выкладывались, старая материнская позиция, строку видно
             FLAG_NOTIFY = HIDE_PREF;
-            repoCallback.removePref();
+            handlerCallback.removePref();
             Log.d (TAG, "HIDING PREF");
         }
         else if (this.prefParentPos != 666 && this.prefParentPos != prefParentPos && prefVisibility){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
@@ -1141,7 +1141,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
 
             FLAG_NOTIFY = HIDE_N_LAYOUT_PREF;
-            repoCallback.removeNPassPrefToAdapter(this.prefParentPos, prefPos);
+            handlerCallback.removeNPassPrefToAdapter(this.prefParentPos, prefPos);
             prefVisibility = true;
             Log.d (TAG, "HIDING and LAYING OUT PREF");
         }

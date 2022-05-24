@@ -17,9 +17,6 @@ public interface AlarmDao {
     @Update (onConflict = OnConflictStrategy.REPLACE)
     void update (Alarm alarm);
 
-    @Query("UPDATE alarms_table SET onOffState = :switcherState WHERE hour = :hour AND minute = :minute")
-    void updateState (int hour, int minute, boolean switcherState);
-
     @Query("DELETE FROM alarms_table WHERE hour < 25")
     void deleteAll();
 

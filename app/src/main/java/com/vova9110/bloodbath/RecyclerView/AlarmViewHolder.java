@@ -10,7 +10,7 @@ import android.widget.TextView;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.vova9110.bloodbath.AlarmRepo;
+import com.vova9110.bloodbath.UIHandler;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.R;
 import com.vova9110.bloodbath.RLMCallback;
@@ -25,13 +25,13 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     private final Switch switcher;
     private final com.google.android.material.floatingactionbutton.FloatingActionButton FAB;
 
-    private final AlarmRepo repo;
+    private final UIHandler handler;
     private final RLMCallback rlmCallback;
 
-    private AlarmViewHolder(View view, AlarmRepo repo) {
+    private AlarmViewHolder(View view, UIHandler handler) {
         super(view);
-        this.repo = repo;
-        rlmCallback = repo.pullRLMCallback();
+        this.handler = handler;
+        rlmCallback = handler.pullRLMCallback();
 
         timeView = view.findViewById(R.id.timeWindow);
         hourPicker = view.findViewById(R.id.picker_h);
@@ -43,13 +43,13 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         minutePicker.setMinValue(0); minutePicker.setMaxValue(60);
     }
 
-    static AlarmViewHolder create(ViewGroup parent, AlarmRepo repo) {
+    static AlarmViewHolder create(ViewGroup parent, UIHandler handler) {
         //В данном случае, когда мы указиваем родительскую ViewGroup в качестве источника LayoutParams, эти самые LP передаются в View при наполнении
         //Конкретно - это те, которые указаны в материнской LinearLayout, ширина и высота всей разметки.
         //Если не передать эти LP, то RLM подхватит LP по умолчанию
         View itemView = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.recycler_view_item, parent, false);
-                return new AlarmViewHolder(itemView, repo);
+                return new AlarmViewHolder(itemView, handler);
     }
 
     @Override
@@ -110,6 +110,6 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
         switcher.setOnCheckedChangeListener(null);
         switcher.setChecked(current.isOnOffState());
-        switcher.setOnCheckedChangeListener((buttonView, isChecked) -> repo.updateItem(current.getParentPos(), isChecked));
+        switcher.setOnCheckedChangeListener((buttonView, isChecked) -> handler.updateItem(current.getParentPos(), isChecked));
     }
 }

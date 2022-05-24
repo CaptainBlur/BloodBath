@@ -31,7 +31,7 @@
     private static AlarmListAdapter adapter;
     LDObserver ldObserver;
     @Inject
-    public AlarmRepo mRepo;
+    public UIHandler mHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -43,16 +43,16 @@
         mAlarmViewModel = new ViewModelProvider(this).get(AlarmViewModel.class);
         mAlarmViewModel.getComponent().inject(this);
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
-        adapter = new AlarmListAdapter(mRepo);
+        adapter = new AlarmListAdapter(mHandler);
         recyclerView.setAdapter(adapter);
 
         //recyclerView.setLayoutManager(new GridLayoutManager(this,1, RecyclerView.VERTICAL, false));
-        recyclerView.setLayoutManager(new RowLayoutManager(this, mRepo));
+        recyclerView.setLayoutManager(new RowLayoutManager(this, mHandler));
         ldObserver = new LDObserver();
 
-        mRepo.getInitialList().observe(this, ldObserver);
-        mRepo.pass(recyclerView, adapter, ldObserver, getApplicationContext(), mAlarmViewModel.getComponent());
-        //mRepo.fill();
+        mHandler.getInitialList().observe(this, ldObserver);
+        mHandler.pass(recyclerView, adapter, ldObserver, getApplicationContext(), mAlarmViewModel.getComponent());
+        //mHandler.fill();
 
         ImageView imageView = findViewById(R.id.imageView);
         FloatingActionButton fab = findViewById(R.id.fab);
@@ -73,10 +73,10 @@
 
         if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == RESULT_OK) {
             //Alarm alarm = new Alarm(data.getStringExtra(NewTaskActivity.EXTRA_REPLY));
-            //mRepo.insert(alarm);
+            //mHandler.insert(alarm);
         }
-        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == FILL_DB) mRepo.fill();
-        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == CLEAR_DB) mRepo.clear();
+        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == FILL_DB) mHandler.fill();
+        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == CLEAR_DB) mHandler.clear();
         else {
             Toast.makeText(
                     getApplicationContext(),

@@ -13,14 +13,16 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.Database.AlarmDao;
 import com.vova9110.bloodbath.Database.AlarmDatabase;
+import com.vova9110.bloodbath.Database.AlarmRepo;
 import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
 
 import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
-public class AlarmRepo implements RepoCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
-    private final String TAG = "TAG_AR";
+public class UIHandler implements HandlerCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
+    private final String TAG = "TAG_UIH";
+    private final AlarmRepo repo;
     private final AlarmDao alarmDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
     private final Intent execIntent;
 
@@ -41,13 +43,14 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     private AlarmManager AManager;
     private PendingIntent testPendingIntent;
 
-    AlarmRepo(AlarmDao Dao, Intent intent){//Можно и здесь добавить аннотацию Inject, чтобы Даггер обращался к этому конструктору для создания и сам передавал в него Дао
+    UIHandler(AlarmRepo repo, AlarmDao Dao, Intent intent){//Можно и здесь добавить аннотацию Inject, чтобы Даггер обращался к этому конструктору для создания и сам передавал в него Дао
+        this.repo = repo;
         addAlarm.setAddFlag(true);
         alarmDao = Dao;
         execIntent = intent;
 
         roomLD = alarmDao.getLD();//При создани репозитория мы передаём этот список в MA,
-        Log.d(TAG, "Repo instance created");
+        Log.d(TAG, "Handler instance created");
     }
 
     public void pass(RecyclerView recyclerView, AlarmListAdapter adapter, MainActivity.LDObserver observer, Context applicationContext, AppComponent component) {
@@ -64,7 +67,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
     }
 
 
-    public RepoCallback pullRepoCallback(){
+    public HandlerCallback pullHandlerCallback(){
         return this;
     }
     public void passRLMCallback (RLMCallback callback){
@@ -91,7 +94,7 @@ public class AlarmRepo implements RepoCallback { // Репозиторий пр�
 
     void clear () {
         prepare();
-        AlarmDatabase.databaseWriteExecutor.execute(alarmDao::deleteAll);
+        repo.deleteAll();
         bufferList.add(addAlarm);
         AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(addAlarm));
         submitList(oldList, bufferList);

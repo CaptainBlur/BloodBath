@@ -7,6 +7,8 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.vova9110.bloodbath.Database.AlarmRepo;
+
 /*
 Главной функцией является установка ближайшего будильника и его снятие, при необходимости. Вызывается вручную в ряде случаев, и автоматически только после старта системы
 Дополнительная функция - вывод уведомления о приближающемся будильнике
@@ -14,6 +16,7 @@ import androidx.annotation.Nullable;
  */
 public class AlarmExec extends Service {
     private final String TAG = "TAG_AEserv";
+    private AlarmRepo repo;
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
@@ -25,6 +28,9 @@ public class AlarmExec extends Service {
         //а стартИД обозначает идентификатор хоста, запустившего сервис. Чтобы остановить сервис, вызванный конкретным хостом, используют stopSelfResult.
         //Там гемора выше крыши с параллельным запуском сервисов, так что ну его нахрен пока что
         Log.d (TAG, "Service started, start id: " + startId);
+        repo = (AlarmRepo) intent.getSerializableExtra("repo");
+        repo.deleteAll();
+
         stopSelf();
         return super.onStartCommand(intent, flags, startId);
     }

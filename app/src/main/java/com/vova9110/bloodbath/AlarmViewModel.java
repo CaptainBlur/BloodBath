@@ -10,9 +10,8 @@ import androidx.room.Room;
 
 import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmDao;
-import com.vova9110.bloodbath.RecyclerView.AlarmViewHolder;
+import com.vova9110.bloodbath.Database.AlarmRepo;
 
-import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import dagger.Component;
@@ -21,8 +20,6 @@ import dagger.Provides;
 
 public class  AlarmViewModel extends AndroidViewModel {
     public final String TAG = "AVM";
-    @Inject
-    public AlarmRepo repo;
     private final AppComponent component;
 
     public AlarmViewModel(Application app) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
@@ -69,14 +66,14 @@ class DBModule{
 
     @Singleton
     @Provides
-    AlarmRepo providesRepo(AlarmDao alarmDao, Intent execIntent){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
-        return new AlarmRepo(alarmDao, execIntent);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
+    UIHandler providesHandler(AlarmRepo repo, AlarmDao alarmDao, Intent execIntent){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
+        return new UIHandler(repo, alarmDao, execIntent);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
     }
 
     @Provides
-    Intent providesIntent (AlarmDao alarmDao){
+    Intent providesIntent (AlarmRepo alarmRepo){
         Intent execIntent = new Intent(app.getApplicationContext(), AlarmExec.class);
-        //execIntent.putExtra()
+        execIntent.putExtra("repo", alarmRepo);
         return execIntent;
     }
 }
