@@ -13,7 +13,7 @@ import androidx.annotation.Nullable;
 Должен самостоятельно определять, стоит ли будильник уже, и сравнивать его с ближайшим включённым из БД
  */
 public class AlarmExec extends Service {
-    private final String TAG = "TAG_AE";
+    private final String TAG = "TAG_AEserv";
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {

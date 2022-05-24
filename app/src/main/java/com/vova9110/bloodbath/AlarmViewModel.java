@@ -1,6 +1,8 @@
 package com.vova9110.bloodbath;
 
 import android.app.Application;
+import android.content.Intent;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -18,6 +20,7 @@ import dagger.Module;
 import dagger.Provides;
 
 public class  AlarmViewModel extends AndroidViewModel {
+    public final String TAG = "AVM";
     @Inject
     public AlarmRepo repo;
     private final AppComponent component;
@@ -36,14 +39,17 @@ public class  AlarmViewModel extends AndroidViewModel {
 interface AppComponent {
     void inject (MainActivity MA);
     void inject (AlarmViewModel VM);
-    void inject (AlarmViewHolder VH);
+    void inject (AlarmExec AE);
 }
 
 @Module
 class DBModule{
+    public final String TAG = "DBM";
+    private Application app;
     private AlarmDatabase db;
 
     public DBModule (Application app){
+        this.app = app;
         db = Room.databaseBuilder(app, AlarmDatabase.class, "alarms_database").build();//Особенность метода build такова, что каждый раз при входе с приложение, создаётся БД,
         //поэтому она и создаётся у нас один раз при инициализации Dagger (он создаёт все модули один раз)
     }
@@ -57,13 +63,21 @@ class DBModule{
     @Singleton
     @Provides
     AlarmDao providesDao(@NonNull AlarmDatabase db){//Так выходит, что предыдущий метод предоставляет сюда экземпляр БД
+        Log.d (TAG, "Providing DAO");
         return db.alarmDao();//А мы извлекаем из него Дао, которое используется в конструкторе репозитория
     }
 
     @Singleton
     @Provides
-    AlarmRepo providesRepo(AlarmDao alarmDao){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
-        return new AlarmRepo(alarmDao);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
+    AlarmRepo providesRepo(AlarmDao alarmDao, Intent execIntent){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
+        return new AlarmRepo(alarmDao, execIntent);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
+    }
+
+    @Provides
+    Intent providesIntent (AlarmDao alarmDao){
+        Intent execIntent = new Intent(app.getApplicationContext(), AlarmExec.class);
+        //execIntent.putExtra()
+        return execIntent;
     }
 }
 

@@ -15,8 +15,8 @@ public class Alarm{
     private int hour;
     @NonNull
     private int minute;
+    private Date initialTime;
 
-    private long time;
     private boolean onOffState = false;
     @Ignore
     private boolean prefFlag = false;
@@ -26,10 +26,10 @@ public class Alarm{
     private boolean prefBelongsToAdd = false;
     private boolean addFlag = false;
 
-    public Alarm(int hour, int minute, long time) {
+    public Alarm(int hour, int minute, Date initialTime) {
         this.hour = hour;
         this.minute = minute;
-        this.time = time;
+        this.initialTime = initialTime;
     }
 
     public int getHour() {
@@ -48,12 +48,12 @@ public class Alarm{
         this.minute = minute;
     }
 
-    public long getTime() {
-        return time;
+    public Date getInitialTime() {
+        return initialTime;
     }
 
-    public void setTime(long time) {
-        this.time = time;
+    public void setInitialTime(Date initialTime) {
+        this.initialTime = initialTime;
     }
 
     public boolean isOnOffState() {
