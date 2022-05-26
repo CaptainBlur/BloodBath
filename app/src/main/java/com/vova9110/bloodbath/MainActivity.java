@@ -72,7 +72,7 @@
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == RESULT_OK) {
-            //Alarm alarm = new Alarm(data.getStringExtra(NewTaskActivity.EXTRA_REPLY));
+            //AlarmActivity alarm = new AlarmActivity(data.getStringExtra(NewTaskActivity.EXTRA_REPLY));
             //mHandler.insert(alarm);
         }
         else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == FILL_DB) mHandler.fill();

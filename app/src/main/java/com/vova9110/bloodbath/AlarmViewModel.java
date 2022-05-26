@@ -8,8 +8,8 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.room.Room;
 
-import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmDao;
+import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmRepo;
 
 import javax.inject.Singleton;
@@ -67,7 +67,7 @@ class DBModule{
     @Singleton
     @Provides
     UIHandler providesHandler(AlarmRepo repo, AlarmDao alarmDao, Intent execIntent){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
-        return new UIHandler(repo, alarmDao, execIntent);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
+        return new UIHandler(repo, execIntent);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
     }
 
     @Provides

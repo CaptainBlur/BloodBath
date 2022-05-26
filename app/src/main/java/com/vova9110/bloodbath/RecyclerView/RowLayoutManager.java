@@ -10,10 +10,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.vova9110.bloodbath.UIHandler;
+import com.vova9110.bloodbath.HandlerCallback;
 import com.vova9110.bloodbath.R;
 import com.vova9110.bloodbath.RLMCallback;
-import com.vova9110.bloodbath.HandlerCallback;
+import com.vova9110.bloodbath.UIHandler;
 
 
 public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMCallback {
@@ -532,8 +532,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             }
         }
         catch (UnsupportedOperationException e){
+            e.printStackTrace();
             Toast.makeText(parentContext, "Такой будильник уже существует", Toast.LENGTH_SHORT).show();
-            Log.d (TAG, "Exception case");
         }
     }
 

@@ -1,13 +1,17 @@
 package com.vova9110.bloodbath.Database;
 
-import android.os.Parcel;
-import android.os.Parcelable;
 import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 
 import java.io.Serializable;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import javax.inject.Inject;
 
@@ -15,6 +19,7 @@ public class AlarmRepo implements Serializable {
 
     private final String TAG = "TAG_AR";
     private static AlarmDao alarmDao;
+    private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Inject
     public AlarmRepo (AlarmDao dao){
@@ -22,18 +27,32 @@ public class AlarmRepo implements Serializable {
     }
 
     public void insert (Alarm alarm){
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(alarm));
+        executor.execute(() -> alarmDao.insert(alarm));
     }
     public void update (Alarm alarm){
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.update(alarm));
+        executor.execute(() -> alarmDao.update(alarm));
     }
     public void deleteAll() {
-        AlarmDatabase.databaseWriteExecutor.execute(alarmDao::deleteAll);
+        executor.execute(alarmDao::deleteAll);
     }
     public void deleteOne(int hour, int minute){
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(hour, minute));
+        executor.execute(() -> alarmDao.deleteOne(hour, minute));
     }
     public LiveData<List<Alarm>> getLD(){
         return alarmDao.getLD();
+    }
+    public Alarm getFirstActive(){
+
+        Callable<Alarm> callable = () -> alarmDao.getFirstActive();
+        Future<Alarm> future = executor.submit(callable);
+        Alarm result = null;
+        try{
+            result = future.get();
+        } catch (CancellationException | ExecutionException | InterruptedException e){
+            e.printStackTrace();
+            Log.d (TAG, "EXECUTION FAILED!");
+        }
+        if (result != null) Log.d (TAG, "first: " + result.getHour() + result.getMinute());
+        return result;
     }
 }

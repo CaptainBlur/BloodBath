@@ -1,7 +1,5 @@
 package com.vova9110.bloodbath;
 
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -11,8 +9,6 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.vova9110.bloodbath.Database.Alarm;
-import com.vova9110.bloodbath.Database.AlarmDao;
-import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmRepo;
 import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
 
@@ -23,7 +19,6 @@ import java.util.List;
 public class UIHandler implements HandlerCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
     private final String TAG = "TAG_UIH";
     private final AlarmRepo repo;
-    private final AlarmDao alarmDao; // Создаём поле, которое будет представлять переменную интерфейса Дао
     private final Intent execIntent;
 
     private RecyclerView recycler;
@@ -40,16 +35,12 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
     private RLMCallback rlmCallback;
     private int prefPos;
 
-    private AlarmManager AManager;
-    private PendingIntent testPendingIntent;
-
-    UIHandler(AlarmRepo repo, AlarmDao Dao, Intent intent){//Можно и здесь добавить аннотацию Inject, чтобы Даггер обращался к этому конструктору для создания и сам передавал в него Дао
+    UIHandler(AlarmRepo repo, Intent intent){
         this.repo = repo;
         addAlarm.setAddFlag(true);
-        alarmDao = Dao;
         execIntent = intent;
 
-        roomLD = alarmDao.getLD();//При создани репозитория мы передаём этот список в MA,
+        roomLD = repo.getLD();//При создани репозитория мы передаём этот список в MA,
         Log.d(TAG, "Handler instance created");
     }
 
@@ -80,15 +71,14 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
 
     void fill (){
         prepare();
-        AlarmDatabase.databaseWriteExecutor.execute(alarmDao::deleteAll);//todo чё это такое
-
+        repo.deleteAll();
         for (int i = 0; i<28; i++){
             Alarm alarm = new Alarm(0, i,null);
             bufferList.add(alarm);
-            AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(alarm));
+            repo.insert(alarm);
         }
         bufferList.add(addAlarm);
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(addAlarm));
+        repo.insert(addAlarm);
         submitList(oldList, bufferList);
     }
 
@@ -96,7 +86,7 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         prepare();
         repo.deleteAll();
         bufferList.add(addAlarm);
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(addAlarm));
+        repo.insert(addAlarm);
         submitList(oldList, bufferList);
     }
 
@@ -113,7 +103,7 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
 
         currentPos = bufferList.indexOf(current);
         bufferList.remove(current);
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(current.getHour(), current.getMinute()));
+        repo.deleteOne(current.getHour(), current.getMinute());
 
         adapter.submitList(bufferList);
         if (prefRemoved) recycler.post(()-> adapter.notifyItemRemoved(prefPos));
@@ -131,14 +121,14 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         while (i < bufferList.size()){
             req = bufferList.get(i);
             if (req.getHour() == hour & req.getMinute() == minute){
-                throw new UnsupportedOperationException("Alarm already exist, can't add");
+                throw new UnsupportedOperationException("AlarmActivity already exist, can't add");
             }
             else i++;
         }
 
         Alarm current = new Alarm(hour, minute, null);
         bufferList.add(current);
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
+        repo.insert(current);
         bufferList.sort((o1, o2) -> {
             if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
             else return o1.getMinute() - o2.getMinute();
@@ -164,7 +154,7 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         while (i < bufferList.size()){
             req = bufferList.get(i);
             if (req.getHour() == hour & req.getMinute() == minute){
-                throw new UnsupportedOperationException("Alarm already exist, can't add");
+                throw new UnsupportedOperationException("AlarmActivity already exist, can't add");
             }
             else i++;
         }
@@ -173,13 +163,13 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         if (bufferList.remove(prefAlarm)) prefRemoved = true;
 
         Alarm current = bufferList.get(oldPos);
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.deleteOne(current.getHour(), current.getMinute()));
+        repo.deleteOne(current.getHour(), current.getMinute());
 
         current.setHour(hour);
         current.setMinute(minute);
         current.setOnOffState(false);
 
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.insert(current));
+        repo.insert(current);
         bufferList.sort((o1, o2) -> {
             if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
             else return o1.getMinute() - o2.getMinute();
@@ -212,10 +202,11 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         currentCalendar.set(Calendar.MINUTE, current.getMinute());
         currentCalendar.set(Calendar.HOUR_OF_DAY, current.getHour());
         if (currentCalendar.getTimeInMillis() <= System.currentTimeMillis()) currentCalendar.roll(Calendar.DATE, true);
-        Log.d (TAG, "" + currentCalendar.get(Calendar.DATE) + currentCalendar.get(Calendar.HOUR_OF_DAY) + currentCalendar.get(Calendar.MINUTE));
+        Log.d (TAG, "sending: " + currentCalendar.get(Calendar.DATE) + currentCalendar.get(Calendar.HOUR_OF_DAY) + currentCalendar.get(Calendar.MINUTE));
 
+        current.setInitialTime(currentCalendar.getTime());
         bufferList.set(parentPos, current);
-        AlarmDatabase.databaseWriteExecutor.execute(() -> alarmDao.update(current));
+        repo.update(current);
         adapter.submitList(bufferList);
 
         context.startService(execIntent);

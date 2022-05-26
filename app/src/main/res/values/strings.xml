@@ -4,4 +4,7 @@
     <string name="hint_task">Task...</string>
     <string name="button_save">Save</string>
     <string name="empty_not_saved">Task not saved because it is empty.</string>
+    <string name="title_activity_active_alarm">ActiveAlarmActivity</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
 </resources>
