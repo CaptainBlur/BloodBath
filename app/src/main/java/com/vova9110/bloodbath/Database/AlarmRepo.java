@@ -41,8 +41,36 @@ public class AlarmRepo implements Serializable {
     public LiveData<List<Alarm>> getLD(){
         return alarmDao.getLD();
     }
-    public Alarm getFirstActive(){
 
+    public Alarm findPrevPassive(){
+        Callable<Alarm> callable = () -> alarmDao.getWasPassive();
+        Future<Alarm> future = executor.submit(callable);
+        Alarm result = null;
+        try{
+            result = future.get();
+        } catch (CancellationException | ExecutionException | InterruptedException e){
+            e.printStackTrace();
+            Log.d (TAG, "EXECUTION FAILED!");
+        }
+        if (result != null) Log.d (TAG, "wasPassive: " + result.getHour() + result.getMinute());
+        return result;
+    }
+
+    public Alarm findPrevActive(){
+        Callable<Alarm> callable = () -> alarmDao.getWasActive();
+        Future<Alarm> future = executor.submit(callable);
+        Alarm result = null;
+        try{
+            result = future.get();
+        } catch (CancellationException | ExecutionException | InterruptedException e){
+            e.printStackTrace();
+            Log.d (TAG, "EXECUTION FAILED!");
+        }
+        if (result != null) Log.d (TAG, "wasActive: " + result.getHour() + result.getMinute());
+        return result;
+    }
+
+    public Alarm getFirstActive(){
         Callable<Alarm> callable = () -> alarmDao.getFirstActive();
         Future<Alarm> future = executor.submit(callable);
         Alarm result = null;

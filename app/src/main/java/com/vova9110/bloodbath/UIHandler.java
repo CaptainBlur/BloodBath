@@ -193,7 +193,6 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         prepare();
         bufferList.addAll(oldList);
         Alarm current = bufferList.get(parentPos);
-        current.setOnOffState(switcherState);
 
         Calendar currentCalendar = Calendar.getInstance();
         currentCalendar.setTimeInMillis(System.currentTimeMillis());
@@ -204,20 +203,16 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         if (currentCalendar.getTimeInMillis() <= System.currentTimeMillis()) currentCalendar.roll(Calendar.DATE, true);
         Log.d (TAG, "sending: " + currentCalendar.get(Calendar.DATE) + currentCalendar.get(Calendar.HOUR_OF_DAY) + currentCalendar.get(Calendar.MINUTE));
 
+        current.setOnOffState(switcherState);
         current.setInitialTime(currentCalendar.getTime());
+        if (switcherState) current.setPrevStates(true, false);
+        else current.setPrevStates(false, true);
+
         bufferList.set(parentPos, current);
         repo.update(current);
         adapter.submitList(bufferList);
 
         context.startService(execIntent);
-
-//        currentCalendar.set(Calendar.HOUR_OF_DAY, current.getHour());
-//        currentCalendar.set(Calendar.MINUTE, current.getMinute());
-//        AManager = (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-//        testScreenActivityIntent = new Intent(context, NewTaskActivity.class);
-//        testPendingIntent = PendingIntent.getActivity(context, 0, testScreenActivityIntent, PendingIntent.FLAG_IMMUTABLE);
-//        AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(currentCalendar.getTimeInMillis(), testPendingIntent);
-
     }
 
     private void submitList(List<Alarm> oldList, List<Alarm> newList) {

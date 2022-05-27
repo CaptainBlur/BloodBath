@@ -41,6 +41,7 @@ public class AlarmExec extends Service {
         super.onCreate();
         AManager = (android.app.AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
         activeI = new Intent(getApplicationContext(), AlarmActivity.class);
+        Log.d (TAG, "NEXT ALARM AT: " + new Date (AManager.getNextAlarmClock().getTriggerTime()));
     }
 
     /*для будущих поколений: флаги означют то, на каких условиях система запустила сервис,
@@ -48,34 +49,37 @@ public class AlarmExec extends Service {
         Там гемора выше крыши с параллельным запуском сервисов, так что ну его нахрен пока что*/
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d (TAG, "Service started, start id: " + startId);
+        //Log.d (TAG, "Service started, start id: " + startId);
         Calendar currentCalendar = Calendar.getInstance();
         repo = (AlarmRepo) intent.getSerializableExtra("repo");
 
-        AlarmManager.AlarmClockInfo info = AManager.getNextAlarmClock();
-        Alarm firstActive = repo.getFirstActive();
+        Alarm prevPassive = repo.findPrevPassive();
+        Alarm prevActive = repo.findPrevActive();
 
-        try {
-            if (info == null & firstActive != null){//Такой вариант возможен, если другие приложения (при их наличии) не запланировали своих будильников
-                currentCalendar.setTime(firstActive.getInitialTime());
-                Log.d (TAG, "Setting alarm on: " + currentCalendar.getTime());
+        if (prevPassive != null){//todo перевести АМ на бродкаст и ресивер, иначе хрен там заработает
+            prevPassive.setWasPassive(false);
+            repo.update(prevPassive);
 
-                activePI = PendingIntent.getActivity(getApplicationContext(), 0, activeI, PendingIntent.FLAG_IMMUTABLE);
-                info = new AlarmManager.AlarmClockInfo(currentCalendar.getTimeInMillis(), activePI);
-                AManager.setAlarmClock(info, activePI);
+            String hour = String.valueOf(prevPassive.getHour());
+            int ID = Integer.parseInt(hour.concat(String.valueOf(prevPassive.getMinute())));
 
-            }
-
-            else if (firstActive != null) {
-                Log.d (TAG, "Found planned alarm: " + new Date(info.getTriggerTime()));
-
-                activePI = PendingIntent.getActivity(getApplicationContext(), 0, activeI, PendingIntent.FLAG_IMMUTABLE);
-                AManager.cancel(activePI);
-                }
+            activePI = PendingIntent.getActivity(getApplicationContext(), ID, activeI, PendingIntent.FLAG_IMMUTABLE);
+            info = new AlarmManager.AlarmClockInfo(prevPassive.getInitialTime().getTime(), activePI);
+            AManager.setAlarmClock(info, activePI);
+            Log.d (TAG, "Setting alarm with id: " + ID);
         }
-        catch (NullPointerException e){
-            e.printStackTrace();
+        else if (prevActive != null){
+            prevActive.setWasActive(false);
+            repo.update(prevActive);
+
+            String hour = String.valueOf(prevActive.getHour());
+            int ID = Integer.parseInt(hour.concat(String.valueOf(prevActive.getMinute())));
+
+            activePI = PendingIntent.getActivity(getApplicationContext(), ID, activeI, PendingIntent.FLAG_IMMUTABLE);
+            AManager.cancel(activePI);
+            Log.d (TAG, "Cancelling alarm with id: " + ID);
         }
+        Log.d (TAG, "NEXT ALARM AT: " + new Date (AManager.getNextAlarmClock().getTriggerTime()));
 
         stopSelf();
         return super.onStartCommand(intent, flags, startId);
