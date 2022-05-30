@@ -22,12 +22,13 @@ import java.util.Date;
 Должен самостоятельно определять, стоит ли будильник уже, и сравнивать его с ближайшим включённым из БД
  */
 public class AlarmExec extends Service {
-    private final String TAG = "TAG_AEserv";
+    private final String TAG = "TAG_AExec";
     private AlarmRepo repo;
+    private boolean AMinitialized = false;
 
     private AlarmManager AManager;
     private AlarmManager.AlarmClockInfo info;
-    private Intent activeI;
+    private Intent broadcastI;
     private PendingIntent activePI;
 
     @Nullable
@@ -40,8 +41,8 @@ public class AlarmExec extends Service {
     public void onCreate() {
         super.onCreate();
         AManager = (android.app.AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
-        activeI = new Intent(getApplicationContext(), AlarmActivity.class);
-        Log.d (TAG, "NEXT ALARM AT: " + new Date (AManager.getNextAlarmClock().getTriggerTime()));
+        broadcastI = new Intent(getApplicationContext(), AlarmReceiver.class);
+        Log.d (TAG, "Creating. NEXT ALARM AT: " + new Date (AManager.getNextAlarmClock().getTriggerTime()));
     }
 
     /*для будущих поколений: флаги означют то, на каких условиях система запустила сервис,
@@ -60,10 +61,9 @@ public class AlarmExec extends Service {
             prevPassive.setWasPassive(false);
             repo.update(prevPassive);
 
-            String hour = String.valueOf(prevPassive.getHour());
-            int ID = Integer.parseInt(hour.concat(String.valueOf(prevPassive.getMinute())));
+            int ID = Integer.parseInt(String.valueOf(prevPassive.getHour()).concat(String.valueOf(prevPassive.getMinute())));
 
-            activePI = PendingIntent.getActivity(getApplicationContext(), ID, activeI, PendingIntent.FLAG_IMMUTABLE);
+            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);
             info = new AlarmManager.AlarmClockInfo(prevPassive.getInitialTime().getTime(), activePI);
             AManager.setAlarmClock(info, activePI);
             Log.d (TAG, "Setting alarm with id: " + ID);
@@ -72,16 +72,15 @@ public class AlarmExec extends Service {
             prevActive.setWasActive(false);
             repo.update(prevActive);
 
-            String hour = String.valueOf(prevActive.getHour());
-            int ID = Integer.parseInt(hour.concat(String.valueOf(prevActive.getMinute())));
+            int ID = Integer.parseInt(String.valueOf(prevActive.getHour()).concat(String.valueOf(prevActive.getMinute())));
 
-            activePI = PendingIntent.getActivity(getApplicationContext(), ID, activeI, PendingIntent.FLAG_IMMUTABLE);
+            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);
             AManager.cancel(activePI);
             Log.d (TAG, "Cancelling alarm with id: " + ID);
         }
         Log.d (TAG, "NEXT ALARM AT: " + new Date (AManager.getNextAlarmClock().getTriggerTime()));
 
-        stopSelf();
+        //stopSelf();
         return super.onStartCommand(intent, flags, startId);
     }
 }

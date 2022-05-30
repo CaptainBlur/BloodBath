@@ -1,10 +1,16 @@
 package com.vova9110.bloodbath.Database;
 
+import android.content.Context;
+import android.content.Intent;
 import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 
+import com.vova9110.bloodbath.AlarmReceiver;
+
 import java.io.Serializable;
+import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -70,17 +76,17 @@ public class AlarmRepo implements Serializable {
         return result;
     }
 
-    public Alarm getFirstActive(){
-        Callable<Alarm> callable = () -> alarmDao.getFirstActive();
-        Future<Alarm> future = executor.submit(callable);
-        Alarm result = null;
+    public List<Alarm> getActives(){
+        Callable<List<Alarm>> callable = () -> alarmDao.getActives();
+        Future<List<Alarm>> future = executor.submit(callable);
+        List<Alarm> result = null;
         try{
             result = future.get();
         } catch (CancellationException | ExecutionException | InterruptedException e){
             e.printStackTrace();
             Log.d (TAG, "EXECUTION FAILED!");
         }
-        if (result != null) Log.d (TAG, "first: " + result.getHour() + result.getMinute());
+        if (result != null) Log.d (TAG, "active alarms count: " + result.size());
         return result;
     }
 }

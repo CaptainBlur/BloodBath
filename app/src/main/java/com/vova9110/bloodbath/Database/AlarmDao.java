@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Update;
 
+import java.util.LinkedList;
 import java.util.List;
 
 @Dao
@@ -26,8 +27,8 @@ public interface AlarmDao {
     @Query("SELECT * FROM alarms_table")
     LiveData<List<Alarm>> getLD();
 
-    @Query("SELECT * FROM alarms_table WHERE onOffState ORDER BY initialTime ASC LIMIT 1")
-    Alarm getFirstActive ();
+    @Query("SELECT * FROM alarms_table WHERE onOffState ORDER BY initialTime ASC")
+    List<Alarm> getActives ();
 
     @Query("SELECT * FROM alarms_table WHERE wasPassive LIMIT 1")
     Alarm getWasPassive ();

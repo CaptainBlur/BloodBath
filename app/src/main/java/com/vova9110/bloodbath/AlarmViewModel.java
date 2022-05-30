@@ -1,6 +1,9 @@
 package com.vova9110.bloodbath;
 
+import android.app.AlarmManager;
 import android.app.Application;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
 
@@ -8,10 +11,15 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.room.Room;
 
+import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.Database.AlarmDao;
 import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmRepo;
 
+import java.util.Date;
+import java.util.List;
+
+import javax.inject.Inject;
 import javax.inject.Singleton;
 
 import dagger.Component;
@@ -19,17 +27,38 @@ import dagger.Module;
 import dagger.Provides;
 
 public class  AlarmViewModel extends AndroidViewModel {
-    public final String TAG = "AVM";
+    public final String TAG = "TAG_AVM";
     private final AppComponent component;
+    private final Application app;
+    @Inject
+    public AlarmRepo repo;
 
     public AlarmViewModel(Application app) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
         super(app);
         component = DaggerAppComponent.builder().dBModule(new DBModule(app)).build();
+        this.app = app;
         component.inject(this);
+        Log.d (TAG, "Creating VM. Setting erased alarms if needed");
 
+        refreshActives();
     }
     AppComponent getComponent(){ return component; }
 
+    private void refreshActives(){
+        AlarmManager AM = ((android.app.AlarmManager) app.getApplicationContext().getSystemService(Context.ALARM_SERVICE));
+        Intent broadcastI = new Intent(app.getApplicationContext(), AlarmReceiver.class);
+        List<Alarm> actives = repo.getActives();
+
+        for (Alarm active : actives){
+            int ID = Integer.parseInt(String.valueOf(active.getHour()).concat(String.valueOf(active.getMinute())));
+            Log.d (TAG, "setting: " + ID);
+
+            PendingIntent PI = PendingIntent.getBroadcast(app.getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);
+            AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(active.getInitialTime().getTime(), PI);
+            AM.setAlarmClock(info, PI);
+        }
+        Log.d (TAG, "NEXT ALARM AT: " + new Date(AM.getNextAlarmClock().getTriggerTime()));
+    }
 }
 @Singleton
 @Component(modules = DBModule.class)

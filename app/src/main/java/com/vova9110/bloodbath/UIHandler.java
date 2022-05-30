@@ -188,7 +188,7 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
     и уже на основании этого времени повторять через определённые промежутки.
     Но во всех остальных случаях, в базу данных помещаются Алармы без времени певого срабатывания
      */
-    public void updateItem(int parentPos, boolean switcherState) {//todo добавить флаги повтора в enum
+    public void updateItem(int parentPos, boolean switcherState) {//todo добавить флаги повтора в enum. Нужно записывать в БД время следующего срабатывания, и обновлять его сразу после этого срабатывания, на основании флагов
         Log.d (TAG, "Updating item " + parentPos + ", state: " + switcherState);
         prepare();
         bufferList.addAll(oldList);

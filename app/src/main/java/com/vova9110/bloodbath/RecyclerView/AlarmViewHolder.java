@@ -40,7 +40,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         FAB = view.findViewById(R.id.floatingActionButton);
 
         hourPicker.setMinValue(0); hourPicker.setMaxValue(24);
-        minutePicker.setMinValue(0); minutePicker.setMaxValue(60);
+        minutePicker.setMinValue(0); minutePicker.setMaxValue(59);
     }
 
     static AlarmViewHolder create(ViewGroup parent, UIHandler handler) {
