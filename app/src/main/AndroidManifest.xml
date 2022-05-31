@@ -4,6 +4,10 @@
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
+    <uses-sdk android:minSdkVersion="27"
+        android:targetSdkVersion="30"
+        android:maxSdkVersion="31" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -12,13 +16,16 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BloodBath">
         <receiver
-            android:name=".AlarmReceiver"
+            android:name=".AlarmDeployReceiver"
             android:enabled="true"
             android:exported="false" />
 
         <activity
             android:name=".AlarmActivity"
-            android:exported="false" />
+            android:showOnLockScreen="true"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            />
         <activity
             android:name=".NewTaskActivity"
             android:exported="false" />

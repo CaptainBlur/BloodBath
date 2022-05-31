@@ -15,9 +15,12 @@ import com.vova9110.bloodbath.Database.AlarmRepo;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 
 /*
-Главной функцией является установка ближайшего будильника и его снятие, при необходимости. Вызывается вручную в ряде случаев, и автоматически только после старта системы
+Главной функцией является установка ближайшего будильника и его снятие, при необходимости.
+Вызывается просле обновления ,
+а также после с
 Дополнительная функция - вывод уведомления о приближающемся будильнике
 Должен самостоятельно определять, стоит ли будильник уже, и сравнивать его с ближайшим включённым из БД
  */
@@ -41,7 +44,7 @@ public class AlarmExec extends Service {
     public void onCreate() {
         super.onCreate();
         AManager = (android.app.AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
-        broadcastI = new Intent(getApplicationContext(), AlarmReceiver.class);
+        broadcastI = new Intent(getApplicationContext(), AlarmDeployReceiver.class);
         Log.d (TAG, "Creating. NEXT ALARM AT: " + new Date (AManager.getNextAlarmClock().getTriggerTime()));
     }
 
@@ -56,15 +59,17 @@ public class AlarmExec extends Service {
 
         Alarm prevPassive = repo.findPrevPassive();
         Alarm prevActive = repo.findPrevActive();
+        List<Alarm> actives = repo.getActives();
+        AlarmManager.AlarmClockInfo NCInfo = AManager.getNextAlarmClock();
 
-        if (prevPassive != null){//todo перевести АМ на бродкаст и ресивер, иначе хрен там заработает
+        if (prevPassive != null){//Если сервис был вызван для обновления состояния одного будильника, то проверяются первые два условия
             prevPassive.setWasPassive(false);
             repo.update(prevPassive);
 
             int ID = Integer.parseInt(String.valueOf(prevPassive.getHour()).concat(String.valueOf(prevPassive.getMinute())));
 
-            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);
-            info = new AlarmManager.AlarmClockInfo(prevPassive.getInitialTime().getTime(), activePI);
+            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, 0);
+            info = new AlarmManager.AlarmClockInfo(prevPassive.getTriggerTime().getTime(), activePI);
             AManager.setAlarmClock(info, activePI);
             Log.d (TAG, "Setting alarm with id: " + ID);
         }
@@ -74,13 +79,24 @@ public class AlarmExec extends Service {
 
             int ID = Integer.parseInt(String.valueOf(prevActive.getHour()).concat(String.valueOf(prevActive.getMinute())));
 
-            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);
+            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_NO_CREATE);
             AManager.cancel(activePI);
             Log.d (TAG, "Cancelling alarm with id: " + ID);
         }
+        else if (actives.size()!=0 & !NCInfo.getShowIntent().getCreatorPackage().matches(getApplicationContext().getPackageName())){//Если непосредственно перед вызовом не меняли состояний будильников, значит, все будильники нужно выставить заново
+            actives = repo.getActives();
+            for (Alarm active : actives){
+                int ID = Integer.parseInt(String.valueOf(active.getHour()).concat(String.valueOf(active.getMinute())));
+
+                Log.d (TAG, "setting: " + ID);
+                PendingIntent PI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, 0);
+                AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(active.getTriggerTime().getTime(), PI);
+                AManager.setAlarmClock(info, PI);
+            }
+        }
         Log.d (TAG, "NEXT ALARM AT: " + new Date (AManager.getNextAlarmClock().getTriggerTime()));
 
-        //stopSelf();
+        stopSelf();
         return super.onStartCommand(intent, flags, startId);
     }
 }

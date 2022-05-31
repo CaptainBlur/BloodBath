@@ -1,10 +1,13 @@
 package com.vova9110.bloodbath;
 
+import static android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION;
+
 import android.app.AlarmManager;
 import android.app.Application;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -33,6 +36,7 @@ public class  AlarmViewModel extends AndroidViewModel {
     @Inject
     public AlarmRepo repo;
 
+
     public AlarmViewModel(Application app) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
         super(app);
         component = DaggerAppComponent.builder().dBModule(new DBModule(app)).build();
@@ -40,24 +44,17 @@ public class  AlarmViewModel extends AndroidViewModel {
         component.inject(this);
         Log.d (TAG, "Creating VM. Setting erased alarms if needed");
 
-        refreshActives();
+        checkPermission();
+        //app.getApplicationContext().startService(execIntent);
+        //checkNRefreshActives();
     }
     AppComponent getComponent(){ return component; }
 
-    private void refreshActives(){
-        AlarmManager AM = ((android.app.AlarmManager) app.getApplicationContext().getSystemService(Context.ALARM_SERVICE));
-        Intent broadcastI = new Intent(app.getApplicationContext(), AlarmReceiver.class);
-        List<Alarm> actives = repo.getActives();
-
-        for (Alarm active : actives){
-            int ID = Integer.parseInt(String.valueOf(active.getHour()).concat(String.valueOf(active.getMinute())));
-            Log.d (TAG, "setting: " + ID);
-
-            PendingIntent PI = PendingIntent.getBroadcast(app.getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);
-            AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(active.getInitialTime().getTime(), PI);
-            AM.setAlarmClock(info, PI);
-        }
-        Log.d (TAG, "NEXT ALARM AT: " + new Date(AM.getNextAlarmClock().getTriggerTime()));
+    private void checkPermission (){
+        Context context = app.getApplicationContext();
+        Intent intent = new Intent(ACTION_MANAGE_OVERLAY_PERMISSION);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (!Settings.canDrawOverlays(context)) context.startActivity(intent);
     }
 }
 @Singleton

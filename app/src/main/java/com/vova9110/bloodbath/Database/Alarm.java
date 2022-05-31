@@ -14,7 +14,7 @@ public class Alarm{
 
     private int hour;
     private int minute;
-    private Date initialTime;
+    private Date triggerTime;
 
     private boolean onOffState = false;
     private boolean wasActive = false;
@@ -28,10 +28,10 @@ public class Alarm{
     private boolean prefBelongsToAdd = false;
     private boolean addFlag = false;
 
-    public Alarm(int hour, int minute, Date initialTime) {
+    public Alarm(int hour, int minute, Date triggerTime) {
         this.hour = hour;
         this.minute = minute;
-        this.initialTime = initialTime;
+        this.triggerTime = triggerTime;
     }
 
     public int getHour() {
@@ -50,12 +50,12 @@ public class Alarm{
         this.minute = minute;
     }
 
-    public Date getInitialTime() {
-        return initialTime;
+    public Date getTriggerTime() {
+        return triggerTime;
     }
 
-    public void setInitialTime(Date initialTime) {
-        this.initialTime = initialTime;
+    public void setTriggerTime(Date triggerTime) {
+        this.triggerTime = triggerTime;
     }
 
     public boolean isOnOffState() {

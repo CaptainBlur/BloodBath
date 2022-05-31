@@ -204,7 +204,7 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         Log.d (TAG, "sending: " + currentCalendar.get(Calendar.DATE) + currentCalendar.get(Calendar.HOUR_OF_DAY) + currentCalendar.get(Calendar.MINUTE));
 
         current.setOnOffState(switcherState);
-        current.setInitialTime(currentCalendar.getTime());
+        current.setTriggerTime(currentCalendar.getTime());
         if (switcherState) current.setPrevStates(true, false);
         else current.setPrevStates(false, true);
 

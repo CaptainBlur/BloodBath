@@ -1,16 +1,10 @@
 package com.vova9110.bloodbath.Database;
 
-import android.content.Context;
-import android.content.Intent;
 import android.util.Log;
 
 import androidx.lifecycle.LiveData;
 
-import com.vova9110.bloodbath.AlarmReceiver;
-
 import java.io.Serializable;
-import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;

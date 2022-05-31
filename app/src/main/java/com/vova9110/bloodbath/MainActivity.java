@@ -35,6 +35,8 @@
     LDObserver ldObserver;
     @Inject
     public UIHandler mHandler;
+    @Inject
+    public Intent execIntent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +47,7 @@
         // Get a new or existing ViewModel from the ViewModelProvider.
         mAlarmViewModel = new ViewModelProvider(this).get(AlarmViewModel.class);
         mAlarmViewModel.getComponent().inject(this);
+        getApplicationContext().startService(execIntent);
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
         adapter = new AlarmListAdapter(mHandler);
         recyclerView.setAdapter(adapter);
@@ -101,4 +104,9 @@
             return;
         }
     }
-}
+
+     @Override
+     protected void onDestroy() {
+         super.onDestroy();
+     }
+ }
