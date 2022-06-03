@@ -40,6 +40,7 @@
         </activity>
 
         <service android:name=".AlarmExec" />
+        <service android:name=".AlarmExecDedicated" />
     </application>
 
 </manifest>

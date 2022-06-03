@@ -27,6 +27,9 @@ public interface AlarmDao {
     @Query("SELECT * FROM alarms_table")
     LiveData<List<Alarm>> getLD();
 
+    @Query("SELECT * FROM alarms_table")
+    List<Alarm> getAll();
+
     @Query("SELECT * FROM alarms_table WHERE onOffState ORDER BY triggerTime ASC")
     List<Alarm> getActives ();
 

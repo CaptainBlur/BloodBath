@@ -1120,7 +1120,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         }
         else if (this.prefParentPos != 666 && this.prefParentPos == prefParentPos && prefVisibility){//Настройки уже выкладывались, старая материнская позиция, строку видно
             FLAG_NOTIFY = HIDE_PREF;
-            handlerCallback.removePref();
+            handlerCallback.removePref(false);
             Log.d (TAG, "HIDING PREF");
         }
         else if (this.prefParentPos != 666 && this.prefParentPos != prefParentPos && prefVisibility){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
@@ -1144,6 +1144,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             handlerCallback.removeNPassPrefToAdapter(this.prefParentPos, prefPos);
             prefVisibility = true;
             Log.d (TAG, "HIDING and LAYING OUT PREF");
+        }
+    }
+
+    @Override
+    public void hideOnResume() {
+        if (prefVisibility){
+            FLAG_NOTIFY = HIDE_PREF;
+            handlerCallback.removePref(true);
         }
     }
 }

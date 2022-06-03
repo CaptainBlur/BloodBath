@@ -18,16 +18,13 @@ import java.util.Date;
 import java.util.List;
 
 /*
-Главной функцией является установка ближайшего будильника и его снятие, при необходимости.
-Вызывается просле обновления ,
-а также после с
+Главной функцией является занос будильников в пул AlarmManager
+Вызывается после обновления состояния одного будильника или после перезагрузки/перезапуска приложения,
 Дополнительная функция - вывод уведомления о приближающемся будильнике
-Должен самостоятельно определять, стоит ли будильник уже, и сравнивать его с ближайшим включённым из БД
  */
 public class AlarmExec extends Service {
-    private final String TAG = "TAG_AExec";
+    private final String TAG = "TAG_A-Exec";
     private AlarmRepo repo;
-    private boolean AMinitialized = false;
 
     private AlarmManager AManager;
     private AlarmManager.AlarmClockInfo info;
@@ -40,20 +37,14 @@ public class AlarmExec extends Service {
         return null;
     }
 
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        AManager = (android.app.AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
-        broadcastI = new Intent(getApplicationContext(), AlarmDeployReceiver.class);
-        Log.d (TAG, "Creating. NEXT ALARM AT: " + new Date (AManager.getNextAlarmClock().getTriggerTime()));
-    }
-
     /*для будущих поколений: флаги означют то, на каких условиях система запустила сервис,
         а стартИД обозначает идентификатор хоста, запустившего сервис. Чтобы остановить сервис, вызванный конкретным хостом, используют stopSelfResult.
         Там гемора выше крыши с параллельным запуском сервисов, так что ну его нахрен пока что*/
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        //Log.d (TAG, "Service started, start id: " + startId);
+        AManager = (android.app.AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
+        broadcastI = new Intent(getApplicationContext(), AlarmDeployReceiver.class);
+        Log.d (TAG, "Starting service. NEXT ALARM AT: " + new Date (AManager.getNextAlarmClock().getTriggerTime()));
         Calendar currentCalendar = Calendar.getInstance();
         repo = (AlarmRepo) intent.getSerializableExtra("repo");
 
@@ -71,7 +62,7 @@ public class AlarmExec extends Service {
             activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, 0);
             info = new AlarmManager.AlarmClockInfo(prevPassive.getTriggerTime().getTime(), activePI);
             AManager.setAlarmClock(info, activePI);
-            Log.d (TAG, "Setting alarm with id: " + ID);
+            Log.d (TAG, "Setting changed alarm with id: " + ID);
         }
         else if (prevActive != null){
             prevActive.setWasActive(false);
@@ -81,14 +72,14 @@ public class AlarmExec extends Service {
 
             activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_NO_CREATE);
             AManager.cancel(activePI);
-            Log.d (TAG, "Cancelling alarm with id: " + ID);
+            Log.d (TAG, "Cancelling changed alarm with id: " + ID);
         }
         else if (actives.size()!=0 & !NCInfo.getShowIntent().getCreatorPackage().matches(getApplicationContext().getPackageName())){//Если непосредственно перед вызовом не меняли состояний будильников, значит, все будильники нужно выставить заново
             actives = repo.getActives();
             for (Alarm active : actives){
                 int ID = Integer.parseInt(String.valueOf(active.getHour()).concat(String.valueOf(active.getMinute())));
 
-                Log.d (TAG, "setting: " + ID);
+                Log.d (TAG, "setting erased: " + ID);
                 PendingIntent PI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, 0);
                 AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(active.getTriggerTime().getTime(), PI);
                 AManager.setAlarmClock(info, PI);

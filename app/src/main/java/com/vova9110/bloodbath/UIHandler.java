@@ -215,6 +215,10 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         context.startService(execIntent);
     }
 
+    public void onResumeUpdate(){
+        rlmCallback.hideOnResume();
+    }
+
     private void submitList(List<Alarm> oldList, List<Alarm> newList) {
         DiffUtil.DiffResult result = DiffUtil.calculateDiff(new ListDiff(oldList, newList));
         adapter.submitList(newList);
@@ -225,7 +229,7 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
     public void passPrefToAdapter(int parentPos, int prefPos) {
         //Log.d (TAG, "" + parentPos + prefPos);
         prepare();
-        bufferList.addAll(oldList);
+        bufferList = repo.getAll();
         Alarm parent = bufferList.get(parentPos);
 
         int addAlarmPos; int i = 0; boolean flag;
@@ -248,9 +252,12 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
     }
 
     @Override
-    public void removePref() {
+    public void removePref(boolean pullDataset) {
         prepare();
-        bufferList.addAll(oldList);
+
+        if (pullDataset) bufferList = repo.getAll();
+        else bufferList.addAll(oldList);
+
         bufferList.remove(prefAlarm);
         submitList(oldList, bufferList);
     }

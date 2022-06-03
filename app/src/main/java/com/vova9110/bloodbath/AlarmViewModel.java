@@ -35,6 +35,8 @@ public class  AlarmViewModel extends AndroidViewModel {
     private final Application app;
     @Inject
     public AlarmRepo repo;
+    @Inject
+    public Intent execIntent;
 
 
     public AlarmViewModel(Application app) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
@@ -45,15 +47,14 @@ public class  AlarmViewModel extends AndroidViewModel {
         Log.d (TAG, "Creating VM. Setting erased alarms if needed");
 
         checkPermission();
-        //app.getApplicationContext().startService(execIntent);
-        //checkNRefreshActives();
+        app.getApplicationContext().startService(execIntent);
     }
     AppComponent getComponent(){ return component; }
 
     private void checkPermission (){
         Context context = app.getApplicationContext();
         Intent intent = new Intent(ACTION_MANAGE_OVERLAY_PERMISSION);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK + Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
         if (!Settings.canDrawOverlays(context)) context.startActivity(intent);
     }
 }
@@ -63,6 +64,7 @@ interface AppComponent {
     void inject (MainActivity MA);
     void inject (AlarmViewModel VM);
     void inject (AlarmExec AE);
+    void inject (AlarmActivity AA);
 }
 
 @Module
@@ -86,7 +88,6 @@ class DBModule{
     @Singleton
     @Provides
     AlarmDao providesDao(@NonNull AlarmDatabase db){//Так выходит, что предыдущий метод предоставляет сюда экземпляр БД
-        Log.d (TAG, "Providing DAO");
         return db.alarmDao();//А мы извлекаем из него Дао, которое используется в конструкторе репозитория
     }
 

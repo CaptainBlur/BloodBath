@@ -16,18 +16,15 @@ public class AlarmDeployReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.d(TAG, "Broadcast received!");
-        AlarmRepo repo = (AlarmRepo) intent.getSerializableExtra("repo");
-        Log.d (TAG, "oads;" + intent);
-
+        Log.d(TAG, "Alarm broadcast received!");
 
         Intent alarmIntent = new Intent(context, AlarmActivity.class);
         alarmIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(alarmIntent);
 
+
 //        Alarm active = repo.getActives().get(0);
 //        Log.d(TAG, "disabling: " + Integer.parseInt(String.valueOf(active.getHour()).concat(String.valueOf(active.getMinute()))));
-//        active.setOnOffState(false);
-//        repo.update(active);
+
     }
 }

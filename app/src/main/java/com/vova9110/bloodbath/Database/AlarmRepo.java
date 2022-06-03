@@ -22,9 +22,7 @@ public class AlarmRepo implements Serializable {
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Inject
-    public AlarmRepo (AlarmDao dao){
-        alarmDao = dao;
-    }
+    public AlarmRepo (AlarmDao dao){ alarmDao = dao; }
 
     public void insert (Alarm alarm){
         executor.execute(() -> alarmDao.insert(alarm));
@@ -41,6 +39,24 @@ public class AlarmRepo implements Serializable {
     public LiveData<List<Alarm>> getLD(){
         return alarmDao.getLD();
     }
+
+    public List<Alarm> getAll() {
+        Callable<List<Alarm>> callable = () -> alarmDao.getAll();
+        Future<List<Alarm>> future = executor.submit(callable);
+        List<Alarm> result = null;
+
+        try{
+            result = future.get();
+        } catch (CancellationException | ExecutionException | InterruptedException e){
+            e.printStackTrace();
+            Log.d (TAG, "EXECUTION FAILED!");
+        }
+
+        result.sort((o1, o2) -> {
+            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
+            else return o1.getMinute() - o2.getMinute();
+        });
+        return result; }
 
     public Alarm findPrevPassive(){
         Callable<Alarm> callable = () -> alarmDao.getWasPassive();

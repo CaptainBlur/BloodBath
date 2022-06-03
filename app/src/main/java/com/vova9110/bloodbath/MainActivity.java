@@ -47,7 +47,6 @@
         // Get a new or existing ViewModel from the ViewModelProvider.
         mAlarmViewModel = new ViewModelProvider(this).get(AlarmViewModel.class);
         mAlarmViewModel.getComponent().inject(this);
-        getApplicationContext().startService(execIntent);
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
         adapter = new AlarmListAdapter(mHandler);
         recyclerView.setAdapter(adapter);
@@ -106,7 +105,9 @@
     }
 
      @Override
-     protected void onDestroy() {
-         super.onDestroy();
+     protected void onResume() {
+        Log.d (TAG, "Resuming");
+        mHandler.onResumeUpdate();
+        super.onResume();
      }
  }
