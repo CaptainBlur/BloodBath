@@ -1,5 +1,6 @@
 package com.vova9110.bloodbath;
 
+import android.app.AlarmManager;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -15,8 +16,6 @@ public class AlarmActivity extends AppCompatActivity {
     private final String TAG = "TAG_AA";
     @Inject
     public AlarmRepo repo;
-    //@Inject
-    //public Intent execIntent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,8 +28,6 @@ public class AlarmActivity extends AppCompatActivity {
 
         new Thread(dismissRunnable).start();
 
-//        execIntent.setClass(getApplicationContext(),AlarmExecDedicated.class);
-//        getApplicationContext().startService(execIntent);
     }
 
     Runnable dismissRunnable = new Runnable() {
