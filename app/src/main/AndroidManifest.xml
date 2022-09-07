@@ -4,10 +4,14 @@
 
     <uses-sdk
         android:maxSdkVersion="31"
-        android:minSdkVersion="27"
+        android:minSdkVersion="29"
         android:targetSdkVersion="30" />
 
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
 
     <application
         android:allowBackup="true"
@@ -16,10 +20,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.BloodBath">
-        <service
-            android:name=".ActivenessDetectionService"
+        <service android:name=".ActivenessDetectionService"
             android:enabled="true"
-            android:exported="false"></service>
+            android:exported="false"/>
 
         <receiver
             android:name=".AlarmDeployReceiver"
@@ -45,7 +48,6 @@
         </activity>
 
         <service android:name=".AlarmExec" />
-        <service android:name=".AlarmExecDedicated" />
     </application>
 
 </manifest>

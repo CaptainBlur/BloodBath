@@ -1,11 +1,10 @@
  package com.vova9110.bloodbath;
 
- import android.app.AlarmManager;
- import android.content.Context;
  import android.content.Intent;
  import android.os.Bundle;
  import android.util.Log;
  import android.view.View;
+ import android.widget.Button;
  import android.widget.ImageView;
  import android.widget.Toast;
 
@@ -20,7 +19,6 @@
  import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
  import com.vova9110.bloodbath.RecyclerView.RowLayoutManager;
 
- import java.util.Date;
  import java.util.List;
 
  import javax.inject.Inject;
@@ -69,6 +67,13 @@
             if (imageView.getVisibility() == View.INVISIBLE)
                 imageView.setVisibility(View.VISIBLE);
             else imageView.setVisibility(View.INVISIBLE);
+            return true;
+        });
+
+        Button detectionButton = findViewById(R.id.button2);
+        detectionButton.setOnClickListener(view -> getApplicationContext().startService(new Intent(getApplicationContext(),ActivenessDetectionService.class).putExtra("detect", true)));
+        detectionButton.setOnLongClickListener(view ->{
+            getApplicationContext().startService(new Intent(getApplicationContext(),ActivenessDetectionService.class).putExtra("activate", true));
             return true;
         });
     }

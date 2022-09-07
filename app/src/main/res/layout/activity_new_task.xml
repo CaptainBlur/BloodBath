@@ -30,4 +30,5 @@
         android:layout_height="wrap_content"
         android:text="Fill or clear DB" />
 
+
 </LinearLayout>
