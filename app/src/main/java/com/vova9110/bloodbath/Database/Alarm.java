@@ -10,7 +10,7 @@ import androidx.room.Ignore;
 import java.util.Date;
 
 @Entity (tableName = "alarms_table", primaryKeys = {"hour", "minute"})
-public class Alarm{
+public class Alarm {
 
     private int hour;
     private int minute;
