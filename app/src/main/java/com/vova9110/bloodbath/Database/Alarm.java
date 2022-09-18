@@ -20,6 +20,8 @@ public class Alarm {
     private boolean wasActive = false;
     private boolean wasPassive = false;
 
+    private boolean delayed = false;
+
     @Ignore
     private boolean prefFlag = false;
     @Ignore
@@ -101,4 +103,7 @@ public class Alarm {
 
     public void setPrefBelongsToAdd() { this.prefBelongsToAdd = true; }
 
+    public boolean isDelayed() {return delayed;}
+
+    public void setDelayed(boolean delayed) {this.delayed = delayed;}
 }

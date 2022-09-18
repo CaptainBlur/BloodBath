@@ -2,9 +2,7 @@ package com.vova9110.bloodbath;
 
 import static android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION;
 
-import android.app.AlarmManager;
 import android.app.Application;
-import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.provider.Settings;
@@ -14,13 +12,9 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.room.Room;
 
-import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.Database.AlarmDao;
 import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmRepo;
-
-import java.util.Date;
-import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -93,8 +87,8 @@ class DBModule{
 
     @Singleton
     @Provides
-    UIHandler providesHandler(AlarmRepo repo, AlarmDao alarmDao, Intent execIntent){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
-        return new UIHandler(repo, execIntent);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
+    FreeAlarmsHandler providesHandler(AlarmRepo repo, AlarmDao alarmDao, Intent execIntent){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
+        return new FreeAlarmsHandler(repo, execIntent);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
     }
 
     @Provides

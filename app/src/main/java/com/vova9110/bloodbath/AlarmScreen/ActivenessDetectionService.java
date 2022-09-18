@@ -1,4 +1,4 @@
-package com.vova9110.bloodbath;
+package com.vova9110.bloodbath.AlarmScreen;
 
 import android.app.Service;
 import android.content.Context;
@@ -40,6 +40,10 @@ import java.util.TimerTask;
 import org.apache.commons.math3.distribution.LogisticDistribution;
 import org.jtransforms.fft.FloatFFT_1D;
 
+/**
+ * Calling this service only when activeness-flagged alarm has dismissed in the AlarmActivity.
+ * It's not handling repo operations, but receiving current alarm as a Intent extra
+ */
 public class ActivenessDetectionService extends Service {
     private static final String TAG = "TAG_Act-de-ser";
     private customHandlerThread looperThread;
@@ -133,16 +137,16 @@ public class ActivenessDetectionService extends Service {
                 sensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
 
                 //todo сделать проверку разрешения на микро
-                recorder = new AudioRecord.Builder()
-                        .setAudioSource(MediaRecorder.AudioSource.MIC)
-                        .setAudioFormat(new AudioFormat.Builder()
-                                .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
-                                .setSampleRate(sampleRate)
-                                .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
-                                .build())
-                        .setBufferSizeInBytes(AudioRecord.getMinBufferSize(sampleRate,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_FLOAT)*10)
-                        .build();
-                recorder.startRecording();
+//                recorder = new AudioRecord.Builder()
+//                        .setAudioSource(MediaRecorder.AudioSource.MIC)
+//                        .setAudioFormat(new AudioFormat.Builder()
+//                                .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
+//                                .setSampleRate(sampleRate)
+//                                .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+//                                .build())
+//                        .setBufferSizeInBytes(AudioRecord.getMinBufferSize(sampleRate,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_FLOAT)*10)
+//                        .build();
+//                recorder.startRecording();
 
                 detectionHandler.post(() -> {
                     float sum;

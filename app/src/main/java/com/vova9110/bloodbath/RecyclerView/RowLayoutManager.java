@@ -13,7 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.vova9110.bloodbath.HandlerCallback;
 import com.vova9110.bloodbath.R;
 import com.vova9110.bloodbath.RLMCallback;
-import com.vova9110.bloodbath.UIHandler;
+import com.vova9110.bloodbath.FreeAlarmsHandler;
 
 
 public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMCallback {
@@ -75,7 +75,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
 
 
-    public RowLayoutManager(Context parentContext, UIHandler handler){
+    public RowLayoutManager(Context parentContext, FreeAlarmsHandler handler){
         super();
         this.parentContext = parentContext;
         handlerCallback = handler.pullHandlerCallback();

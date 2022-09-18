@@ -17,7 +17,15 @@ import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
-public class UIHandler implements HandlerCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
+/**
+ * Боже мой, как же я устал бороться со всем этим блоком свободных будильников.
+ * При попытке перенести всю логику на Котлин, упростив механизмы доступа, и сократив количество кода (конкретно в этом классе раза в три минимум),
+ * адаптер просто начинает сходить с ума, без всякой на то причины. Я даже не могу перенести сраный Обсёрвер из Мейн Активити сюда, потому что
+ * адаптер перестаёт адекватно работать со списком будильников. Это не имеет смысла, это бесит, это как-то связанно с багами базы данных,
+ * но на данный момент у меня нет столько времени, чтобы переписать и оттестировать такой здоровый кусок логики, чтобы почти убрать запрос данных из БД,
+ * я итак тонну времени на эту срань потратил, будь проклята эта база данных.
+ */
+public class FreeAlarmsHandler implements HandlerCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
     private final String TAG = "TAG_UIH";
     private final AlarmRepo repo;
     private final Intent execIntent;
@@ -36,7 +44,7 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
     private RLMCallback rlmCallback;
     private int prefPos;
 
-    UIHandler(AlarmRepo repo, Intent intent){
+    FreeAlarmsHandler(AlarmRepo repo, Intent intent){
         this.repo = repo;
         addAlarm.setAddFlag(true);
         execIntent = intent;
@@ -45,7 +53,7 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         Log.d(TAG, "Handler instance created");
     }
 
-    public void pass(RecyclerView recyclerView, AlarmListAdapter adapter, MainActivity.LDObserver observer, Context applicationContext, AppComponent component) {
+    public void pass(RecyclerView recyclerView, AlarmListAdapter adapter, MainActivity.LDObserver observer, Context applicationContext) {
         recycler = recyclerView;
         this.adapter = adapter;
         this.observer = observer;

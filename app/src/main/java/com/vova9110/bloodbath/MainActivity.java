@@ -15,6 +15,8 @@
  import androidx.recyclerview.widget.RecyclerView;
 
  import com.google.android.material.floatingactionbutton.FloatingActionButton;
+ import com.vova9110.bloodbath.AlarmScreen.ActivenessDetectionService;
+ import com.vova9110.bloodbath.AlarmScreen.AlarmSupervisor;
  import com.vova9110.bloodbath.Database.Alarm;
  import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
  import com.vova9110.bloodbath.RecyclerView.RowLayoutManager;
@@ -32,9 +34,7 @@
     private static AlarmListAdapter adapter;
     LDObserver ldObserver;
     @Inject
-    public UIHandler mHandler;
-    @Inject
-    public Intent execIntent;
+    public FreeAlarmsHandler mHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,7 +54,7 @@
         ldObserver = new LDObserver();
 
         mHandler.getInitialList().observe(this, ldObserver);
-        mHandler.pass(recyclerView, adapter, ldObserver, getApplicationContext(), mAlarmViewModel.getComponent());
+        mHandler.pass(recyclerView, adapter, ldObserver, getApplicationContext());
         //mHandler.fill();
 
         ImageView imageView = findViewById(R.id.imageView);
@@ -71,11 +71,14 @@
         });
 
         Button detectionButton = findViewById(R.id.button2);
-        detectionButton.setOnClickListener(view -> getApplicationContext().startService(new Intent(getApplicationContext(),ActivenessDetectionService.class).putExtra("detect", true)));
+        detectionButton.setOnClickListener(view -> getApplicationContext().startService(new Intent(getApplicationContext(), ActivenessDetectionService.class).putExtra("detect", true)));
         detectionButton.setOnLongClickListener(view ->{
             getApplicationContext().startService(new Intent(getApplicationContext(),ActivenessDetectionService.class).putExtra("activate", true));
             return true;
         });
+
+        Button startActivityButton = findViewById(R.id.button3);
+        startActivityButton.setOnClickListener(view -> getApplicationContext().startActivity(new Intent(getApplicationContext(), AlarmSupervisor.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
     }
 
      public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -96,6 +99,8 @@
     }
 
     static class LDObserver implements Observer<List<Alarm>> {
+        Alarm addAlarm = null;
+
         @Override
         public void onChanged(List<Alarm> alarms) {
             alarms.sort((o1, o2) -> {

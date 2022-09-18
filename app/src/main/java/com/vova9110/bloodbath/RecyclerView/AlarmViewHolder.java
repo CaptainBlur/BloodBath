@@ -10,7 +10,7 @@ import android.widget.TextView;
 
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.vova9110.bloodbath.UIHandler;
+import com.vova9110.bloodbath.FreeAlarmsHandler;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.R;
 import com.vova9110.bloodbath.RLMCallback;
@@ -25,10 +25,10 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     private final Switch switcher;
     private final com.google.android.material.floatingactionbutton.FloatingActionButton FAB;
 
-    private final UIHandler handler;
+    private final FreeAlarmsHandler handler;
     private final RLMCallback rlmCallback;
 
-    private AlarmViewHolder(View view, UIHandler handler) {
+    private AlarmViewHolder(View view, FreeAlarmsHandler handler) {
         super(view);
         this.handler = handler;
         rlmCallback = handler.pullRLMCallback();
@@ -43,7 +43,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         minutePicker.setMinValue(0); minutePicker.setMaxValue(59);
     }
 
-    static AlarmViewHolder create(ViewGroup parent, UIHandler handler) {
+    static AlarmViewHolder create(ViewGroup parent, FreeAlarmsHandler handler) {
         //В данном случае, когда мы указиваем родительскую ViewGroup в качестве источника LayoutParams, эти самые LP передаются в View при наполнении
         //Конкретно - это те, которые указаны в материнской LinearLayout, ширина и высота всей разметки.
         //Если не передать эти LP, то RLM подхватит LP по умолчанию
