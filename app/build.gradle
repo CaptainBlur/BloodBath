@@ -11,7 +11,7 @@ android {
     defaultConfig {
         applicationId "com.vova9110.bloodbath"
         minSdk 29
-        targetSdk 30
+        targetSdk 33
         versionCode 1
         versionName "1.0"
 
@@ -31,6 +31,7 @@ android {
     buildFeatures {
         viewBinding true
     }
+    namespace 'com.vova9110.bloodbath'
 }
 
 dependencies {
@@ -69,6 +70,6 @@ dependencies {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
     androidTestImplementation "androidx.test.ext:junit:$rootProject.androidxJunitVersion"
-    implementation 'androidx.core:core-ktx:1.9.0'
+    implementation "androidx.core:core-ktx:1.9.0"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }

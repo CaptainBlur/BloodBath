@@ -7,33 +7,35 @@
     tools:context=".AlarmActivity">
 
     <view class="com.vova9110.bloodbath.CustomImageView"
-        android:id="@+id/imageView2"
+        android:id="@+id/alarm_start_view"
         android:layout_width="110dp"
         android:layout_height="110dp"
         android:layout_marginBottom="30dp"
-        app:layout_constraintBottom_toTopOf="@+id/button4"
+        app:layout_constraintBottom_toTopOf="@+id/alarm_delay_view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:srcCompat="@drawable/alarm_draggable_dummy"
         app:tint="#FBC02D" />
 
     <ImageView
-        android:id="@+id/imageView3"
+        android:id="@+id/alarm_dismiss_view"
         android:layout_width="110dp"
         android:layout_height="110dp"
         android:layout_marginBottom="140dp"
-        app:layout_constraintBottom_toTopOf="@+id/imageView2"
+        app:layout_constraintBottom_toTopOf="@+id/alarm_start_view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:srcCompat="@drawable/alarm_draggable_dummy"
         app:tint="#E64A19" />
 
-    <Button
-        android:id="@+id/button4"
+    <TextView
+        android:id="@+id/alarm_delay_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="20dp"
-        android:text="dismiss"
+        android:background="@color/buttonLabel"
+        android:text="delay"
+        android:textSize="24sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

@@ -10,7 +10,6 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
-import com.vova9110.bloodbath.AlarmScreen.AlarmDeployReceiver;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.Database.AlarmRepo;
 
@@ -54,13 +53,14 @@ public class AlarmExec extends Service {
         List<Alarm> actives = repo.getActives();
         AlarmManager.AlarmClockInfo NCInfo = AManager.getNextAlarmClock();
 
+        //todo add formatter
         if (prevPassive != null){//Если сервис был вызван для обновления состояния одного будильника, то проверяются первые два условия
             prevPassive.setWasPassive(false);
             repo.update(prevPassive);
 
             int ID = Integer.parseInt(String.valueOf(prevPassive.getHour()).concat(String.valueOf(prevPassive.getMinute())));
 
-            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, 0);
+            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);
             info = new AlarmManager.AlarmClockInfo(prevPassive.getTriggerTime().getTime(), activePI);
             AManager.setAlarmClock(info, activePI);
             Log.d (TAG, "Setting changed alarm with id: " + ID);
@@ -71,7 +71,7 @@ public class AlarmExec extends Service {
 
             int ID = Integer.parseInt(String.valueOf(prevActive.getHour()).concat(String.valueOf(prevActive.getMinute())));
 
-            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_NO_CREATE);
+            activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_NO_CREATE + PendingIntent.FLAG_IMMUTABLE);
             AManager.cancel(activePI);
             Log.d (TAG, "Cancelling changed alarm with id: " + ID);
         }
@@ -81,7 +81,7 @@ public class AlarmExec extends Service {
                 int ID = Integer.parseInt(String.valueOf(active.getHour()).concat(String.valueOf(active.getMinute())));
 
                 Log.d (TAG, "setting erased: " + ID);
-                PendingIntent PI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, 0);
+                PendingIntent PI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);
                 AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(active.getTriggerTime().getTime(), PI);
                 AManager.setAlarmClock(info, PI);
             }

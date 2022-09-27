@@ -1,13 +1,10 @@
 package com.vova9110.bloodbath
 
+import android.app.NotificationManager
 import android.content.ClipData
 import android.content.Context
-import androidx.appcompat.app.AppCompatActivity
-import com.vova9110.bloodbath.Database.Alarm
-import javax.inject.Inject
-import com.vova9110.bloodbath.Database.AlarmRepo
+import android.graphics.Color
 import android.os.Bundle
-import android.content.Intent
 import android.util.AttributeSet
 import android.util.Log
 import android.view.DragEvent
@@ -15,8 +12,12 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
-import com.vova9110.bloodbath.AlarmScreen.ActivenessDetectionService
-import com.vova9110.bloodbath.AlarmScreen.AlarmSupervisor
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.getSystemService
+import com.vova9110.bloodbath.Database.AlarmRepo
+import java.util.concurrent.TimeUnit
+import javax.inject.Inject
 
 /**
  * This activity has three strictly defined variants of appearance.
@@ -28,44 +29,38 @@ class AlarmActivity : AppCompatActivity() {
     @JvmField
     @Inject
     var repo: AlarmRepo? = null
-    private var current: Alarm? = null
+    var extra = -1
 
     public override fun onCreate(savedInstanceState: Bundle?) {
         Log.d(TAG, "Alarm Activity started")
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_alarm)
         setShowWhenLocked(true)
         setTurnScreenOn(true)
+        setContentView(R.layout.activity_alarm)
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
 
-        DaggerAppComponent.builder().dBModule(DBModule(application)).build().inject(this)
-        if (repo!!.actives.isNotEmpty()) current = repo!!.actives[0] else Log.d(TAG, "onCreate: no actives found. Test run")
+        extra = intent.getIntExtra("type", extra)
+
         listenDragNDrop(
-            this.findViewById<CustomImageView>(R.id.imageView2),
-            this.findViewById<ImageView>(R.id.imageView3),
-            null,
+            this.findViewById(R.id.alarm_start_view),
+            this.findViewById(R.id.alarm_dismiss_view),
+            this.findViewById(R.id.alarm_delay_view),
             ::dismissFun,
-            null)
+            ::delayFun)
     }
 
     private fun listenDragNDrop(
-        startView: CustomImageView, dismissView: ImageView, delayView: TextView?,
-        dismissBlock: (ImageView)->Unit, delayBlock: ((TextView)->Unit)?){
-
-        dismissView.setOnDragListener {
-                v, event ->
-            if (event.action==DragEvent.ACTION_DROP){
-                dismissBlock(v as ImageView)
-
-                startView.alpha=1f
-            }
-            true
-        }
+        startView: CustomImageView, dismissView: ImageView, delayView: TextView,
+        dismissBlock: (CustomImageView, ImageView) -> Unit, delayBlock: ((CustomImageView, TextView) -> Unit),
+    ){
+        if (extra==AlarmSupervisor.DELAYED) delayView.visibility=View.INVISIBLE
 
         //We are only interested in DOWN action here
         //Also, startView handling exclusively in this (context) function,
         //Outside of two drag listeners
         startView.setOnTouchListener {
                 view, motionEvent->
+            println(motionEvent.action)
             if (motionEvent.action==MotionEvent.ACTION_DOWN){
                 view.startDragAndDrop(ClipData.newPlainText("draggableIcon", "draggableIcon"),View.DragShadowBuilder(view), null, 0)
                 view.alpha=0f
@@ -73,22 +68,41 @@ class AlarmActivity : AppCompatActivity() {
             view.performClick()
             false
         }
-
+        //However, an essential logic placed in functions outside of this scope
+        dismissView.setOnDragListener { v, event ->
+//            println(event.action)
+            if (event.action==DragEvent.ACTION_DROP) dismissBlock(startView, v as ImageView)
+            else if (event.action==DragEvent.ACTION_DRAG_ENDED) startView.alpha=1f
+            true
+        }
+        delayView.setOnDragListener{ v, event->
+            if (event.action==DragEvent.ACTION_DROP) delayBlock(startView, v as TextView)
+            true
+        }
     }
 
-    private fun dismissFun(dismissView: ImageView){
-        if (current!=null){
-            Thread {
-                Log.d(TAG, "Alarm " + current?.hour + current?.minute + " dismissed")
-                current?.isOnOffState = false
-                repo!!.update(current)
-            }.start()
-            //todo pass current's enum here
-            applicationContext.startService(Intent(applicationContext, ActivenessDetectionService::class.java).putExtra("current", "current"))
-        }
-        else{
-            Log.d(TAG, "dismissFun: not launching ActivenessDetector yet")
-        }
+    private fun dismissFun(startView: CustomImageView, dismissView: ImageView){
+        startView.x = dismissView.x
+        startView.y = dismissView.y
+        dismissView.visibility = View.INVISIBLE
+        startView.alpha=1f
+
+        setResult(AlarmSupervisor.DISMISSED)
+        Thread {
+            TimeUnit.SECONDS.sleep(2 )
+            finish()
+        }.start()
+    }
+
+    private fun delayFun(startView: CustomImageView, delayView: TextView){
+        delayView.setBackgroundColor(Color.parseColor("#FBC02D"))
+        startView.visibility=View.INVISIBLE
+
+        setResult(AlarmSupervisor.DELAYED)
+        Thread {
+            TimeUnit.SECONDS.sleep(2 )
+            finish()
+        }.start()
     }
 }
 
@@ -98,7 +112,7 @@ class CustomImageView: androidx.appcompat.widget.AppCompatImageView{
     constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int): super(context, attrs, defStyleAttr)
 
     override fun performClick(): Boolean {
-        //todo add accessibility here
+        //todo add some accessibility here
         return super.performClick()
     }
 }

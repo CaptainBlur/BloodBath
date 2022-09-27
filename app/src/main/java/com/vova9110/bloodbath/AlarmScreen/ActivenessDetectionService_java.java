@@ -7,23 +7,16 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.media.AudioFormat;
 import android.media.AudioRecord;
-import android.media.MediaRecorder;
-import android.os.Build;
-import android.os.Debug;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.Looper;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.util.Log;
 import android.widget.Toast;
-
-import androidx.annotation.RequiresApi;
 
 import com.elvishew.xlog.LogLevel;
 import com.elvishew.xlog.XLog;
@@ -32,19 +25,18 @@ import com.elvishew.xlog.printer.AndroidPrinter;
 import com.elvishew.xlog.printer.file.FilePrinter;
 import com.elvishew.xlog.printer.file.naming.FileNameGenerator;
 
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import org.apache.commons.math3.distribution.LogisticDistribution;
 import org.jtransforms.fft.FloatFFT_1D;
 
 /**
  * Calling this service only when activeness-flagged alarm has dismissed in the AlarmActivity.
- * It's not handling repo operations, but receiving current alarm as a Intent extra
+ * It's not handling repo operations, but receiving current alarm as a Intent extra,
+ * and handling it's own notifications.
  */
-public class ActivenessDetectionService extends Service {
+public class ActivenessDetectionService_java extends Service {
     private static final String TAG = "TAG_Act-de-ser";
     private customHandlerThread looperThread;
     private Handler detectionHandler;
@@ -263,17 +255,17 @@ public class ActivenessDetectionService extends Service {
     }
     
 
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(TAG, "service Entered");
-        if (intent.getBooleanExtra("activate",false)){
-            PH.activate();
-        }
-        if (intent.getBooleanExtra("detect", false))
-        detectionHandler.post(()->{
-            PH.detectNoise();
-        });
-        return super.onStartCommand(intent, flags, startId);
-    }
+//    public int onStartCommand(Intent intent, int flags, int startId) {
+//        Log.d(TAG, "service Entered");
+//        if (intent.getBooleanExtra("activate",false)){
+//            PH.activate();
+//        }
+//        if (intent.getBooleanExtra("detect", false))
+//        detectionHandler.post(()->{
+//            PH.detectNoise();
+//        });
+//        return super.onStartCommand(intent, flags, startId);
+//    }
 
 
     public IBinder onBind(Intent intent) {

@@ -1,11 +1,11 @@
 package com.vova9110.bloodbath;
 
-import static android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION;
-
 import android.app.Application;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
-import android.provider.Settings;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -24,7 +24,7 @@ import dagger.Module;
 import dagger.Provides;
 
 public class  AlarmViewModel extends AndroidViewModel {
-    public final String TAG = "TAG_AVM";
+    private final String TAG = "TAG_AVM";
     private final AppComponent component;
     private final Application app;
     @Inject
@@ -40,25 +40,36 @@ public class  AlarmViewModel extends AndroidViewModel {
         component.inject(this);
         Log.d (TAG, "Creating VM. Setting erased alarms if needed");
 
-        checkPermission();
+        checkLaunchPreferences();
         app.getApplicationContext().startService(execIntent);
     }
     AppComponent getComponent(){ return component; }
 
-    private void checkPermission (){
-        Context context = app.getApplicationContext();
-        Intent intent = new Intent(ACTION_MANAGE_OVERLAY_PERMISSION);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK + Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
-        if (!Settings.canDrawOverlays(context)) context.startActivity(intent);
+    private void checkLaunchPreferences (){
+        SharedPreferences prefs = app.getSharedPreferences(MainActivity.PREFERENCES_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+
+        boolean notificationChannelsSet = prefs.getBoolean("notificationChannelsSet", false);
+        if (!notificationChannelsSet) {
+            NotificationManager manager = (NotificationManager) app.getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
+            String name1 = app.getString(R.string.firing_notification_channel_name);
+            NotificationChannel channel1 = new NotificationChannel("firing", name1, NotificationManager.IMPORTANCE_HIGH);
+            manager.createNotificationChannel(channel1);
+
+            Log.d(TAG, "checkLaunchPreferences: Setting notification channels");
+            editor.putBoolean("notificationChannelsSet", true);
+            editor.apply();
+        }
     }
 }
 @Singleton
 @Component(modules = DBModule.class)
 interface AppComponent {
-    void inject (MainActivity MA);
-    void inject (AlarmViewModel VM);
-    void inject (AlarmExec AE);
-    void inject (AlarmActivity AA);
+    void inject(MainActivity MA);
+    void inject(AlarmViewModel VM);
+    void inject(AlarmExec AE);
+    void inject(NotificationService NS);
+    void inject(AlarmSupervisor AS);
 }
 
 @Module
