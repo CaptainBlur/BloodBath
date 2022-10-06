@@ -54,6 +54,8 @@ public class  AlarmViewModel extends AndroidViewModel {
             NotificationManager manager = (NotificationManager) app.getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
             String name1 = app.getString(R.string.firing_notification_channel_name);
             NotificationChannel channel1 = new NotificationChannel("firing", name1, NotificationManager.IMPORTANCE_HIGH);
+            //todo set dummy notification sound
+//                    .setSound();
             manager.createNotificationChannel(channel1);
 
             Log.d(TAG, "checkLaunchPreferences: Setting notification channels");

@@ -46,8 +46,7 @@ public class ActivenessDetectionService_java extends Service {
     public void onCreate() {
         Log.d(TAG, "service Created");
         PH = new PointsHandler();
-    }
-
+    } 
 
 
     private class PointsHandler{

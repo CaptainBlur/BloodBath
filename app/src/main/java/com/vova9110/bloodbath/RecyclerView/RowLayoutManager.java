@@ -1091,7 +1091,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
     @Override
     public void onScrollStateChanged (int state){
-        if (state == RecyclerView.SCROLL_STATE_IDLE){//Чисто лог выводим
+        if (state == RecyclerView.SCROLL_STATE_IDLE && getItemCount()!=0){//Чисто лог выводим
             Log.d (TAG, "Row " + mAnchorRowPos + ", Top baseline: " + mTopBaseline + ", first cache index: " + mViewCache.keyAt(0) + ", last cache index: " + mViewCache.keyAt(mViewCache.size() - 1));
         }
     }

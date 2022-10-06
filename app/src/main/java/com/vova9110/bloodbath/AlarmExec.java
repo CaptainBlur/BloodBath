@@ -13,6 +13,7 @@ import androidx.annotation.Nullable;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.Database.AlarmRepo;
 
+import java.text.DecimalFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -52,13 +53,13 @@ public class AlarmExec extends Service {
         Alarm prevActive = repo.findPrevActive();
         List<Alarm> actives = repo.getActives();
         AlarmManager.AlarmClockInfo NCInfo = AManager.getNextAlarmClock();
+        DecimalFormat df = new DecimalFormat("00");
 
-        //todo add formatter
         if (prevPassive != null){//Если сервис был вызван для обновления состояния одного будильника, то проверяются первые два условия
             prevPassive.setWasPassive(false);
             repo.update(prevPassive);
 
-            int ID = Integer.parseInt(String.valueOf(prevPassive.getHour()).concat(String.valueOf(prevPassive.getMinute())));
+            int ID = Integer.parseInt(df.format(prevPassive.getHour()).concat(df.format(prevPassive.getMinute())));
 
             activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);
             info = new AlarmManager.AlarmClockInfo(prevPassive.getTriggerTime().getTime(), activePI);
@@ -69,7 +70,7 @@ public class AlarmExec extends Service {
             prevActive.setWasActive(false);
             repo.update(prevActive);
 
-            int ID = Integer.parseInt(String.valueOf(prevActive.getHour()).concat(String.valueOf(prevActive.getMinute())));
+            int ID = Integer.parseInt(df.format(prevActive.getHour()).concat(df.format(prevActive.getMinute())));
 
             activePI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_NO_CREATE + PendingIntent.FLAG_IMMUTABLE);
             AManager.cancel(activePI);
@@ -78,7 +79,7 @@ public class AlarmExec extends Service {
         else if (actives.size()!=0 & !NCInfo.getShowIntent().getCreatorPackage().matches(getApplicationContext().getPackageName())){//Если непосредственно перед вызовом не меняли состояний будильников, значит, все будильники нужно выставить заново
             actives = repo.getActives();
             for (Alarm active : actives){
-                int ID = Integer.parseInt(String.valueOf(active.getHour()).concat(String.valueOf(active.getMinute())));
+                int ID = Integer.parseInt(df.format(active.getHour()).concat(df.format(active.getMinute())));
 
                 Log.d (TAG, "setting erased: " + ID);
                 PendingIntent PI = PendingIntent.getBroadcast(getApplicationContext(), ID, broadcastI, PendingIntent.FLAG_IMMUTABLE);

@@ -1,5 +1,6 @@
 package com.vova9110.bloodbath
 
+import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -60,6 +61,9 @@ class NotificationService : Service() {
             .setSmallIcon(R.drawable.ic_clock_alarm)
             .setContentTitle("Alarm in some time")
             .setContentText("Time to wake up!")
+            .setOngoing(true)
+            .setShowWhen(false)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setFullScreenIntent(fullscreenIntent, true)
             .addAction(dismiss)
         if (current?.isDelayed == false) builder.addAction(delay)

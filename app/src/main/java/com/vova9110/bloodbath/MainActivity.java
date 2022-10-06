@@ -72,9 +72,9 @@
         });
 
         Button detectionButton = findViewById(R.id.button2);
-        detectionButton.setOnClickListener(view -> getApplicationContext().startService(new Intent(getApplicationContext(), ActivenessDetectionService.class).putExtra("detect", true)));
+        detectionButton.setOnClickListener(view -> getApplicationContext().startService(new Intent(getApplicationContext(), ActivenessDetectionService.class)));
         detectionButton.setOnLongClickListener(view ->{
-            getApplicationContext().startService(new Intent(getApplicationContext(), ActivenessDetectionService.class).putExtra("activate", true));
+            getApplicationContext().startService(new Intent(getApplicationContext(), ActivenessDetectionService.class).putExtra("stopCall", true));
             return true;
         });
 
