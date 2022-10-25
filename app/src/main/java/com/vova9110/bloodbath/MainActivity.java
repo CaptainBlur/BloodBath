@@ -15,7 +15,8 @@
  import androidx.recyclerview.widget.RecyclerView;
 
  import com.google.android.material.floatingactionbutton.FloatingActionButton;
- import com.vova9110.bloodbath.AlarmScreen.ActivenessDetectionService;
+ import com.vova9110.bloodbath.AlarmScreenBackground.ActivenessDetectionService;
+ import com.vova9110.bloodbath.Database.TimeSInfo;
  import com.vova9110.bloodbath.Database.Alarm;
  import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
  import com.vova9110.bloodbath.RecyclerView.RowLayoutManager;
@@ -72,10 +73,25 @@
         });
 
         Button detectionButton = findViewById(R.id.button2);
-        detectionButton.setOnClickListener(view -> getApplicationContext().startService(new Intent(getApplicationContext(), ActivenessDetectionService.class)));
+//        detectionButton.setOnClickListener(view -> getApplicationContext().startService());
         detectionButton.setOnLongClickListener(view ->{
             getApplicationContext().startService(new Intent(getApplicationContext(), ActivenessDetectionService.class).putExtra("stopCall", true));
             return true;
+        });
+        detectionButton.setOnClickListener(view -> {
+            Intent intent = new Intent(getApplicationContext(), ActivenessDetectionService.class).putExtra("info",
+                    new TimeSInfo(null,
+                            null,
+                            15,
+                            2.2f,
+                            0,
+                            5,
+                            40,
+                            90,
+                            8 * 60,
+                            15 * 60
+                    ));
+            getApplicationContext().startForegroundService(intent);
         });
 
         Button startActivityButton = findViewById(R.id.button3);

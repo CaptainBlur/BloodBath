@@ -9,6 +9,7 @@ import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.core.app.NotificationChannelCompat;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.room.Room;
 
@@ -52,11 +53,24 @@ public class  AlarmViewModel extends AndroidViewModel {
         boolean notificationChannelsSet = prefs.getBoolean("notificationChannelsSet", false);
         if (!notificationChannelsSet) {
             NotificationManager manager = (NotificationManager) app.getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
-            String name1 = app.getString(R.string.firing_notification_channel_name);
-            NotificationChannel channel1 = new NotificationChannel("firing", name1, NotificationManager.IMPORTANCE_HIGH);
-            //todo set dummy notification sound
+
+            NotificationChannel channel1 = new NotificationChannel("firing", app.getString(R.string.firing_notification_channel_name), NotificationManager.IMPORTANCE_HIGH);
+            //todo set dummy notification sound and no vibration
 //                    .setSound();
+            channel1.enableVibration(false);
             manager.createNotificationChannel(channel1);
+
+            NotificationChannel channel2 = new NotificationChannel("activeness", app.getString(R.string.activeness_detection_notification_channel_name), NotificationManager.IMPORTANCE_HIGH);
+            //todo set required sound and vibration, this is for start and end
+//                    .setSound();
+            channel2.enableVibration(true);
+            manager.createNotificationChannel(channel2);
+
+            NotificationChannel channel3 = new NotificationChannel("warning", app.getString(R.string.warning_notification_channel_name), NotificationManager.IMPORTANCE_DEFAULT);
+            //todo set dummy sound
+//                    .setSound();
+            channel3.enableVibration(true);
+            manager.createNotificationChannel(channel3);
 
             Log.d(TAG, "checkLaunchPreferences: Setting notification channels");
             editor.putBoolean("notificationChannelsSet", true);
@@ -70,8 +84,7 @@ interface AppComponent {
     void inject(MainActivity MA);
     void inject(AlarmViewModel VM);
     void inject(AlarmExec AE);
-    void inject(NotificationService NS);
-    void inject(AlarmSupervisor AS);
+    void inject(AlarmDeployReceiver ADR);
 }
 
 @Module

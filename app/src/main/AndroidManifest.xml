@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
@@ -18,12 +19,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BloodBath" >
         <service
-            android:name=".NotificationService"
+            android:name=".AlarmScreenBackground.NotificationService"
             android:enabled="true"
-            android:exported="false" >
+            android:exported="false">
         </service>
         <service
-            android:name=".AlarmScreen.ActivenessDetectionService"
+            android:name=".AlarmScreenBackground.ActivenessDetectionService"
             android:enabled="true"
             android:exported="false" />
 
@@ -33,7 +34,7 @@
             android:exported="false" />
 
         <activity
-            android:name=".AlarmSupervisor"
+            android:name=".AlarmScreenBackground.AlarmSupervisor"
             android:excludeFromRecents="true"
             android:exported="false"
             android:taskAffinity="" />
@@ -41,7 +42,8 @@
             android:name=".AlarmActivity"
             android:excludeFromRecents="true"
             android:exported="false"
-            android:showOnLockScreen="true" />
+            android:showOnLockScreen="true"
+            android:keepScreenOn="true"/>
         <activity
             android:name=".NewTaskActivity"
             android:exported="false" />

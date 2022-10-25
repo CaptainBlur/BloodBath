@@ -1,4 +1,4 @@
-package com.vova9110.bloodbath.AlarmScreen;
+package com.vova9110.bloodbath.AlarmScreenBackground;
 
 import android.app.Service;
 import android.content.Context;
@@ -128,16 +128,7 @@ public class ActivenessDetectionService_java extends Service {
                 sensor = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
 
                 //todo сделать проверку разрешения на микро
-//                recorder = new AudioRecord.Builder()
-//                        .setAudioSource(MediaRecorder.AudioSource.MIC)
-//                        .setAudioFormat(new AudioFormat.Builder()
-//                                .setEncoding(AudioFormat.ENCODING_PCM_FLOAT)
-//                                .setSampleRate(sampleRate)
-//                                .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
-//                                .build())
-//                        .setBufferSizeInBytes(AudioRecord.getMinBufferSize(sampleRate,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_FLOAT)*10)
-//                        .build();
-//                recorder.startRecording();
+
 
                 detectionHandler.post(() -> {
                     float sum;

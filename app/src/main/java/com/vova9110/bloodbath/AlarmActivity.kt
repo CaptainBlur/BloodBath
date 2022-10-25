@@ -1,9 +1,9 @@
 package com.vova9110.bloodbath
 
-import android.app.NotificationManager
 import android.content.ClipData
 import android.content.Context
 import android.graphics.Color
+import android.media.AudioManager
 import android.os.Bundle
 import android.util.AttributeSet
 import android.util.Log
@@ -14,10 +14,8 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.content.getSystemService
-import com.vova9110.bloodbath.Database.AlarmRepo
+import com.vova9110.bloodbath.AlarmScreenBackground.AlarmSupervisor
 import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 
 /**
  * This activity has three strictly defined variants of appearance.
@@ -26,9 +24,6 @@ import javax.inject.Inject
  */
 class AlarmActivity : AppCompatActivity() {
     private val TAG = "TAG_AScreenA"
-    @JvmField
-    @Inject
-    var repo: AlarmRepo? = null
     var extra = -1
 
     public override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,6 +33,7 @@ class AlarmActivity : AppCompatActivity() {
         setTurnScreenOn(true)
         setContentView(R.layout.activity_alarm)
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        volumeControlStream = AudioManager.STREAM_ALARM
 
         extra = intent.getIntExtra("type", extra)
 

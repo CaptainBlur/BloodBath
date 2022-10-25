@@ -1,6 +1,5 @@
-package com.vova9110.bloodbath
+package com.vova9110.bloodbath.AlarmScreenBackground
 
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -8,11 +7,9 @@ import android.util.Log
 import androidx.activity.result.ActivityResultCallback
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.NotificationManagerCompat
-import com.vova9110.bloodbath.AlarmScreen.ActivenessDetectionService
+import com.vova9110.bloodbath.AlarmActivity
 import com.vova9110.bloodbath.Database.Alarm
 import com.vova9110.bloodbath.Database.AlarmRepo
-import javax.inject.Inject
 
 /*
 * ActivityResultCallback and NotificationService sends result of user's choice here
@@ -27,8 +24,7 @@ class AlarmSupervisor : AppCompatActivity() {
         const val DELAYED = 3
     }
 
-    var repo: AlarmRepo? = null
-        @Inject set
+    private lateinit var repo: AlarmRepo
     private var current: Alarm? = null
     private var waitingForResult = false
 
@@ -37,9 +33,9 @@ class AlarmSupervisor : AppCompatActivity() {
         Log.d(TAG, "Supervisor: onCreate ${intent.getIntExtra("action", -1)}")
 
         @Suppress("DEPRECATION")
-        if (android.os.Build.VERSION.SDK_INT>=android.os.Build.VERSION_CODES.TIRAMISU) repo = intent.getSerializableExtra("repo", AlarmRepo::class.java)
-        else repo = intent.getSerializableExtra("repo") as AlarmRepo
-        val actives = repo!!.actives
+        repo = if (android.os.Build.VERSION.SDK_INT>=android.os.Build.VERSION_CODES.TIRAMISU) intent.getSerializableExtra("repo", AlarmRepo::class.java)!!
+        else intent.getSerializableExtra("repo") as AlarmRepo
+        val actives = repo.actives
         if (actives.isNotEmpty()) current = actives[0] else Log.d(TAG, "no actives found. Test run")
         val action = intent.getIntExtra("action", -1).also { Log.d(TAG, "onCreate: $it received") }
 
@@ -61,28 +57,28 @@ class AlarmSupervisor : AppCompatActivity() {
         super.onSaveInstanceState(outState)
     }
 
-    private fun dismiss(){
-        Thread {
-            Log.d(TAG, "Alarm " + current?.hour + current?.minute + " dismissed")
-            current?.isOnOffState = false
-            repo!!.update(current)
-        }.start()
-        //todo pass current's enum here
-        //applicationContext.startService(Intent(applicationContext, ActivenessDetectionService::class.java).putExtra("current", "current"))
-        if (current!!.hour==77 && current!!.minute==77) repo!!.deleteOne(77,77)
-        (applicationContext.getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancel(NotificationService.firingNotificationID)
-        finish()
-    }
     private fun delay (){
         Thread {
             Log.d(TAG, "Alarm " + current?.hour + current?.minute + " delayed")
             current?.isDelayed=true
-            repo!!.update(current)
+            repo.update(current)
+        }.start()
+        if (current!!.hour==77 && current!!.minute==77) repo.deleteOne(77,77)
+
+        applicationContext.startService(Intent(applicationContext, NotificationService::class.java).putExtra("stop", true))
+        finish()
+    }
+    private fun dismiss(){
+        Thread {
+            Log.d(TAG, "Alarm " + current?.hour + current?.minute + " dismissed")
+            current?.isOnOffState = false
+            repo.update(current)
         }.start()
         //todo pass current's enum here
         //applicationContext.startService(Intent(applicationContext, ActivenessDetectionService::class.java).putExtra("current", "current"))
-        if (current!!.hour==77 && current!!.minute==77) repo!!.deleteOne(77,77)
-        (applicationContext.getSystemService(NOTIFICATION_SERVICE) as NotificationManager).cancel(NotificationService.firingNotificationID)
+        if (current!!.hour==77 && current!!.minute==77) repo.deleteOne(77,77)
+
+        applicationContext.startService(Intent(applicationContext, NotificationService::class.java).putExtra("stop", true))
         finish()
     }
 
