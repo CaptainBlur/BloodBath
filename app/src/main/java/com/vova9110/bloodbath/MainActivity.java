@@ -1,5 +1,6 @@
  package com.vova9110.bloodbath;
 
+ import android.annotation.SuppressLint;
  import android.content.Intent;
  import android.os.Bundle;
  import android.util.Log;
@@ -32,7 +33,7 @@
     public static final int NEW_TASK_ACTIVITY_REQUEST_CODE = 1;
     public static final int FILL_DB = 3;
     public static final int CLEAR_DB = 4;
-    private AlarmViewModel mAlarmViewModel;
+    private MainViewModel mMainViewModel;
     private static AlarmListAdapter adapter;
     LDObserver ldObserver;
     @Inject
@@ -45,8 +46,8 @@
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
 
         // Get a new or existing ViewModel from the ViewModelProvider.
-        mAlarmViewModel = new ViewModelProvider(this).get(AlarmViewModel.class);
-        mAlarmViewModel.getComponent().inject(this);
+        mMainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
+        mMainViewModel.getComponent().inject(this);
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
         adapter = new AlarmListAdapter(mHandler);
         recyclerView.setAdapter(adapter);
@@ -120,6 +121,7 @@
     }
 
     static class LDObserver implements Observer<List<Alarm>> {
+        @SuppressLint("NotifyDataSetChanged")
         @Override
         public void onChanged(List<Alarm> alarms) {
             alarms.sort((o1, o2) -> {
@@ -129,7 +131,6 @@
             adapter.submitList(alarms);
             adapter.notifyDataSetChanged();
             Log.d(TAG, "Time to initial layout! List size: " + alarms.size());
-            return;
         }
     }
 

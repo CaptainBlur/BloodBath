@@ -1,4 +1,4 @@
-package com.vova9110.bloodbath;
+package com.vova9110.bloodbath.RecyclerView;
 
 public interface HandlerCallback {
     void passPrefToAdapter(int parentPos, int prefPos);

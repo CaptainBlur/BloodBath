@@ -83,7 +83,7 @@ class ActivenessDetectionService: Service() {
             launched = true
         }
         else if (!launched) Log.e(TAG, "onStartCommand: trying to stop, but not launched yet")
-        else if (stopCall==true) controller.stop()
+        else if (stopCall==true) with(controller) {cancelNotifications(); stop()}
 
         return super.onStartCommand(intent, flags, startId)
     }
@@ -97,7 +97,12 @@ class ActivenessDetectionService: Service() {
     }
 
     override fun onDestroy() {//Use it in case of emergency exit
-        if (!stopped) controller.stop()
+        if (!stopped){
+            Log.d(TAG, "stopService")
+            stopped = true//In the end of work, Controller will call this function anyway
+            customThread.interrupt()
+            wakeLock.release()
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder = TODO("Not yet implemented")
@@ -119,10 +124,10 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         const val FLAG_EXPIRED = -5
         const val FLAG_STEPS_ENDED = -2
         const val FLAG_SOUND_ENDED = -3
-        const val FLAG_BORDERLINE_ENDED = -4
 
         const val NOT_CREATE = 1
         const val NOT_END = 2
+        const val NOT_END_EXTERNAL = 8
         const val NOT_STALLED = 3
         const val NOT_SNOOZED = 7
         const val NOT_WARNING = 6
@@ -137,8 +142,8 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         //And adding it in our disposables collection
         val endSubj = AsyncSubject.create<Int>()
         compDis.add(endSubj.subscribe {
-            handleNotifications(NOT_END, it); Log.d(TAG,
-            "end signal received: $it. Exiting now")
+            Log.d(TAG, "end signal received: $it. Exiting now")
+            handleNotifications(NOT_END, it)
             stop()
         })
 
@@ -189,6 +194,10 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
             .setShowWhen(false)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(true)
+        val warning = NotificationCompat.Builder(context, "warning")
+            .setSmallIcon(R.drawable.ic_clock_alarm)
+            .setShowWhen(false)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         val notificationID = 20
         val warningID = 30
 
@@ -210,13 +219,9 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
                 manager.notify(notificationID, notification.build())
             }
             NOT_WARNING->{
-                val warning = NotificationCompat.Builder(context, "warning")
-                    .setSmallIcon(R.drawable.ic_clock_alarm)
+                warning
                     .setContentTitle("Warning")
                     .setContentText("доигрался сука")
-                    .setOngoing(false)
-                    .setShowWhen(false)
-                    .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 manager.notify(warningID, warning.build())
             }
             NOT_STALLED->{
@@ -232,17 +237,18 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
                 manager.notify(notificationID, notification.build())
             }
             NOT_END->{
-                notification
-                    .setOnlyAlertOnce(false)
-                    .setOngoing(false)
+                warning
+                    .setChannelId("activeness")
+                    .setContentTitle("Activeness detection")
                 when (value) {
-                    FLAG_STEPS_ENDED -> notification.setContentText("steps ended")
-                    FLAG_SOUND_ENDED -> notification.setContentText("sound ended")
-                    FLAG_EXPIRED -> notification.setContentText("expired")
+                    FLAG_STEPS_ENDED -> warning.setContentText("steps ended")
+                    FLAG_SOUND_ENDED -> warning.setContentText("sound ended")
+                    FLAG_EXPIRED -> warning.setContentText("expired")
                 }
-                manager.cancel(warningID)
-                manager.notify(notificationID, notification.build())
+                manager.cancelAll()
+                manager.notify(warningID, warning.build())
             }
+            NOT_END_EXTERNAL-> manager.cancelAll()
         }
     }
 
@@ -568,4 +574,5 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
             player = null
         stopService()
     }
+    fun cancelNotifications() = handleNotifications(NOT_END_EXTERNAL)
 }

@@ -56,33 +56,6 @@ public class AlarmRepo implements Serializable {
             if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
             else return o1.getMinute() - o2.getMinute();
         });
-        return result; }
-
-    public Alarm findPrevPassive(){
-        Callable<Alarm> callable = () -> alarmDao.getWasPassive();
-        Future<Alarm> future = executor.submit(callable);
-        Alarm result = null;
-        try{
-            result = future.get();
-        } catch (CancellationException | ExecutionException | InterruptedException e){
-            e.printStackTrace();
-            Log.d (TAG, "EXECUTION FAILED!");
-        }
-        if (result != null) Log.d (TAG, "wasPassive: " + result.getHour() + result.getMinute());
-        return result;
-    }
-
-    public Alarm findPrevActive(){
-        Callable<Alarm> callable = () -> alarmDao.getWasActive();
-        Future<Alarm> future = executor.submit(callable);
-        Alarm result = null;
-        try{
-            result = future.get();
-        } catch (CancellationException | ExecutionException | InterruptedException e){
-            e.printStackTrace();
-            Log.d (TAG, "EXECUTION FAILED!");
-        }
-        if (result != null) Log.d (TAG, "wasActive: " + result.getHour() + result.getMinute());
         return result;
     }
 

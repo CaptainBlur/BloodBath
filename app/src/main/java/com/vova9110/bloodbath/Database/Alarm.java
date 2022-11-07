@@ -15,12 +15,13 @@ public class Alarm {
     private int hour;
     private int minute;
     private Date triggerTime;
+    private Date extraTime;
 
     private boolean onOffState = false;
-    private boolean wasActive = false;
-    private boolean wasPassive = false;
 
     private boolean delayed = false;
+    private boolean preliminaryFired = false;
+    private boolean preliminaryPermit = false;
 
     @Ignore
     private boolean prefFlag = false;
@@ -66,27 +67,6 @@ public class Alarm {
 
     public void setOnOffState(boolean onOffState) { this.onOffState = onOffState; }
 
-    public boolean isWasActive() {
-        return wasActive;
-    }
-
-    public void setWasActive(boolean wasActive) {
-        this.wasActive = wasActive;
-    }
-
-    public boolean isWasPassive() {
-        return wasPassive;
-    }
-
-    public void setWasPassive(boolean wasPassive) {
-        this.wasPassive = wasPassive;
-    }
-
-    public void setPrevStates(boolean wasPassive, boolean wasActive){
-        this.wasPassive = wasPassive;
-        this.wasActive = wasActive;
-    }
-
     public void setAddFlag(boolean addFlag) { this.addFlag = addFlag; }
 
     public boolean isAddFlag() { return addFlag; }
@@ -106,4 +86,16 @@ public class Alarm {
     public boolean isDelayed() {return delayed;}
 
     public void setDelayed(boolean delayed) {this.delayed = delayed;}
+
+    public boolean isPreliminaryFired() {return preliminaryFired;}
+
+    public void setPreliminaryFired(boolean preliminaryFired) {this.preliminaryFired = preliminaryFired;}
+
+    public boolean isPreliminaryPermit() {return preliminaryPermit;}
+
+    public void setPreliminaryPermit(boolean preliminaryPermit) {this.preliminaryPermit = preliminaryPermit;}
+
+    public Date getExtraTime() {return extraTime;}
+
+    public void setExtraTime(Date extraTime) {this.extraTime = extraTime;}
 }

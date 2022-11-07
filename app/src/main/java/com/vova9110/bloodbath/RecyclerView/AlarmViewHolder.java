@@ -13,7 +13,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.vova9110.bloodbath.FreeAlarmsHandler;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.R;
-import com.vova9110.bloodbath.RLMCallback;
 
 import java.util.Calendar;
 

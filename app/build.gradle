@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId "com.vova9110.bloodbath"
-        minSdk 29
+        minSdk 27
         targetSdk 33
         versionCode 1
         versionName "1.0"

@@ -9,10 +9,10 @@ import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
-import androidx.core.app.NotificationChannelCompat;
 import androidx.lifecycle.AndroidViewModel;
 import androidx.room.Room;
 
+import com.vova9110.bloodbath.AlarmScreenBackground.AlarmExec;
 import com.vova9110.bloodbath.Database.AlarmDao;
 import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmRepo;
@@ -24,7 +24,7 @@ import dagger.Component;
 import dagger.Module;
 import dagger.Provides;
 
-public class  AlarmViewModel extends AndroidViewModel {
+public class MainViewModel extends AndroidViewModel {
     private final String TAG = "TAG_AVM";
     private final AppComponent component;
     private final Application app;
@@ -34,7 +34,7 @@ public class  AlarmViewModel extends AndroidViewModel {
     public Intent execIntent;
 
 
-    public AlarmViewModel(Application app) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
+    public MainViewModel(Application app) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
         super(app);
         component = DaggerAppComponent.builder().dBModule(new DBModule(app)).build();
         this.app = app;
@@ -82,9 +82,9 @@ public class  AlarmViewModel extends AndroidViewModel {
 @Component(modules = DBModule.class)
 interface AppComponent {
     void inject(MainActivity MA);
-    void inject(AlarmViewModel VM);
-    void inject(AlarmExec AE);
+    void inject(MainViewModel VM);
     void inject(AlarmDeployReceiver ADR);
+    void inject(ExecReceiver ER);
 }
 
 @Module
