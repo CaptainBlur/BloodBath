@@ -35,6 +35,7 @@ class NotificationService : Service() {
         if (intent?.getBooleanExtra("stop", false)==false) {
             manager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+            @Suppress("DEPRECATION")
             repo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) intent.getSerializableExtra(
                     "repo",
                     AlarmRepo::class.java)!!

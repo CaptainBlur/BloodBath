@@ -7,4 +7,7 @@ public interface HandlerCallback {
     void deleteItem (int pos);
     void addItem (int hour, int minute);
     void changeItem (int oldPos, int hour, int minute);
+    void updateItem(int parentPos, boolean switcherState);
+
+    RLMCallback pullRLMCallback();
 }

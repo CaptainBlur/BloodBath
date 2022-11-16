@@ -113,7 +113,13 @@ class DBModule{
 
     @Singleton
     @Provides
-    FreeAlarmsHandler providesHandler(AlarmRepo repo, AlarmDao alarmDao, Intent execIntent){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
+    Context providesContext(@NonNull Application app){//Так выходит, что предыдущий метод предоставляет сюда экземпляр БД
+        return app.getApplicationContext();//А мы извлекаем из него Дао, которое используется в конструкторе репозитория
+    }
+
+    @Singleton
+    @Provides
+    FreeAlarmsHandler providesHandler(AlarmRepo repo, Intent execIntent){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
         return new FreeAlarmsHandler(repo, execIntent);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
     }
 

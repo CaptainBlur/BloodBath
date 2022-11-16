@@ -78,6 +78,7 @@ public class FreeAlarmsHandler implements HandlerCallback { // Репозито�
     public void passRLMCallback (RLMCallback callback){
         this.rlmCallback = callback;
     }
+    @Override
     public RLMCallback pullRLMCallback(){
         return rlmCallback;
     }
@@ -242,6 +243,7 @@ public class FreeAlarmsHandler implements HandlerCallback { // Репозито�
     }
 
     //Updates existing alarm's data. Can directly correspond to the Exec
+    @Override
     public void updateItem(int parentPos, boolean switcherState) {//todo добавить флаги повтора в enum. Нужно записывать в БД время следующего срабатывания, и обновлять его сразу после этого срабатывания, на основании флагов
         Log.d (TAG, "Updating item " + parentPos + ", state: " + switcherState);
         prepare();

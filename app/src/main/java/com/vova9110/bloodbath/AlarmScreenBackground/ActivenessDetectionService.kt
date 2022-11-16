@@ -16,7 +16,6 @@ import android.media.AudioRecord
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.*
-import android.text.Html
 import android.util.Log
 import android.util.SparseIntArray
 import androidx.core.app.NotificationCompat
@@ -33,6 +32,10 @@ import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.observers.DisposableObserver
 import io.reactivex.rxjava3.subjects.AsyncSubject
 import io.reactivex.rxjava3.subjects.PublishSubject
+import uk.me.berndporr.iirj.Butterworth
+import java.io.BufferedOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.floor
@@ -79,7 +82,7 @@ class ActivenessDetectionService: Service() {
             info!!
             Log.d(TAG, "onStartCommand, launching with passed info: ${info.firingHour}:${info.firingMinute}")
 
-            controller = Controller (::stopService, applicationContext, activenessHandler!!, info, this)
+            controller = Controller (::stopService, applicationContext, activenessHandler!!, info, this, intent.getBooleanExtra("testMode", false), intent.getBooleanExtra("fileOutput", false))
             launched = true
         }
         else if (!launched) Log.e(TAG, "onStartCommand: trying to stop, but not launched yet")
@@ -109,7 +112,7 @@ class ActivenessDetectionService: Service() {
 }
 
 
-private class Controller(val stopService: ()->Unit, val context: Context, val handler: Handler, val info: TimeSInfo, val service: Service){
+private class Controller(val stopService: ()->Unit, val context: Context, val handler: Handler, val info: TimeSInfo, val service: Service, val testMode: Boolean, val fileOutput: Boolean){
     lateinit var sManager: SensorManager
     lateinit var eventListener: SensorEventListener
     lateinit var recorder: AudioRecord
@@ -137,6 +140,7 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
     init {
         handleNotifications(NOT_CREATE)
         player = returnPlayer(context, info)
+        Log.d(TAG, "Controller: initialized. Test mode: $testMode, output: $fileOutput")
 
         //Dispatching all terminal messages in one subject,
         //And adding it in our disposables collection
@@ -153,26 +157,27 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         var progressCache = 0
         val contObserver = object: DisposableObserver<Int>() {//Means continuous observer
             override fun onNext(t: Int) {
-            handler.post{
-                when (t) {
-                    FLAG_STALLED -> {
-                        if (!timerSet) {
-                            setupRemovable(true, contSubj, endSubj); timerSet = true
+                handler.post{
+                    when (t) {
+                        FLAG_STALLED -> {
+                            if (!timerSet) {
+                                setupRemovable(true, contSubj, endSubj); timerSet = true
+                            }
+                            handleNotifications(NOT_STALLED, progressCache)
                         }
-                        handleNotifications(NOT_STALLED, progressCache)
-                    }
-                    FLAG_WARNING -> handleNotifications(NOT_WARNING, progressCache)
-                    FLAG_SNOOZED -> handleNotifications(NOT_SNOOZED, progressCache).also { player?.start() }
-                    else -> {
-                        if (timerSet) {
-                            setupRemovable(false, contSubj, endSubj); timerSet = false;
-                            if (player?.isPlaying == true) player?.pause()
+                        FLAG_WARNING -> handleNotifications(NOT_WARNING, progressCache)
+                        FLAG_SNOOZED -> handleNotifications(NOT_SNOOZED, progressCache).also { player?.start() }
+                        else -> {
+                            if (timerSet) {
+                                setupRemovable(false, contSubj, endSubj); timerSet = false;
+                                if (player?.isPlaying == true) player?.pause()
+                            }
+                            if (t!=0) handleNotifications(NOT_PROGRESS, t); progressCache = t
                         }
-                        handleNotifications(NOT_PROGRESS, t); progressCache = t
                     }
+                    Log.d(TAG, "informing $t")
                 }
-                Log.d(TAG, "informing $t")
-            }            }
+            }
             override fun onError(e: Throwable):Unit = throw e
             override fun onComplete() {}
         }.also { compDis.add(it) }//in case of urgent exit we dispose it along with others
@@ -181,7 +186,7 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)
             startSound(endSubj)
 
-        setupRemovable(true, contSubj, endSubj)
+        if (!testMode) setupRemovable(true, contSubj, endSubj)
     }
 
     //Here, we just handle user notifications, not performing control for actions, except for the terminal one
@@ -204,18 +209,22 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         when (key){
             NOT_CREATE->{
                 manager.cancelAll()
-                notification
+                if (!testMode) notification
                     .setContentText("create")
                     .setProgress(100,0, true)
+                else notification
+                    .setContentText("points count: not detected yet")
                 manager.notify(notificationID, notification.build())
                 service.startForeground(notificationID, notification.build())
                 Log.d(TAG, "handleNotifications: service set to foreground")
             }
             NOT_PROGRESS->{
                 manager.cancel(warningID)
-                notification
+                if (!testMode) notification
                     .setContentText("progress")
                     .setProgress(100, value, false)
+                else notification
+                    .setContentText("points count: $value")
                 manager.notify(notificationID, notification.build())
             }
             NOT_WARNING->{
@@ -252,6 +261,7 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         }
     }
 
+    //Now it detects steps plus approximately 1/3 of inaccuracy on top. Can't do better for now
     private fun startSteps(observer: Observer<Int>, endSubject: AsyncSubject<Int>): PublishSubject<Int>{
         val subj = PublishSubject.create<Int>()
         subj.subscribeWith(observer)
@@ -260,113 +270,287 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         sManager = context.getSystemService(android.hardware.SensorManager::class.java)
         val sensor = sManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
 
-        val bounceTime = 6 //peek time in periods
-        val threshold = info.threshold //peek threshold in m/s
-        val idleTime = 200L //time in which point can't be acquired again, in mS
-        val sampleTime = 25000 //time in the terms of SensorManager class
+        val sampleTime = 20000//this is the target sample time for the given sensor in uS. The fastest I can get from mine
+        val bufferTargetPeriodMillis = 2000//in mS
+        val bufferTargetPeriod = (bufferTargetPeriodMillis.toDouble() * 10.0.pow(6).toInt()).toLong()//in nS
 
-        fun stepsCapsule(): SensorEventListener{//Just a wrapper around 'detectPoint' and 'stepsSupervisor' functions
-            val activeTime = info.duration * 1000 //time in which user needs to be active in order to earn all points, in mS
-            var lastPoint = -1
-            var lastValue = -1
 
-            val stepsSupervisor: (Int)-> Unit = { pC ->
-                if (pC*idleTime < activeTime && pC!=lastPoint && pC!= FLAG_STALLED) {//receiving progress signals
-                    val pointsTotal = activeTime/idleTime
-                    val percent = (((pC.toFloat())/pointsTotal)*100).toInt()
-                    if (lastValue!=percent) subj.onNext(percent)
-                    lastValue = percent
-                    lastPoint = pC
-                }
-                else if (pC==FLAG_STALLED && lastValue!= FLAG_STALLED){//activeness stalled
-                    subj.onNext(FLAG_STALLED)
-                    lastValue = FLAG_STALLED
-                }
-                else if (pC*idleTime >= activeTime){
-                    subj.onComplete()
-                    with(endSubject) {
-                        onNext(FLAG_STEPS_ENDED)
-                        onComplete()
-                    }
-                }
-            }
+        //Just a wrapper around 'detectPoint' and 'stepsSupervisor' functions
+        //All logic belongs to here
+        fun stepsCapsule(): SensorEventListener{
 
+            val isTestEnabled = testMode
+            val activeTime = info.duration //time in which user needs to be active in order to earn all points, in mS
             var pointsCount = 0
-            var debouncerWorking = true //the whole sequence starts with debouncer
-            var debouncerPoints = 0
-            var waiterCounter = 0
 
-            val debounceWindowDur = 20//number of periods(idle times)
-            val debounceWindowPointsCondition = 5//how many points user should acquire in the window
-            val debounceDelay = 3 * 1000 * 2//time in which we consider user stalled the process, in mS
-            val debouncerBuffer = BooleanArray(debounceWindowDur).toList().toMutableList()
-            //This functions represent an intermediate level of controlling points acquiring
-            //We filter activeness noise, and detecting whether user stopped moving, by switching between them
-            fun debouncer(isThereAProgress: Boolean): Boolean {
-                Collections.rotate(debouncerBuffer, 1)
-                debouncerBuffer[0] = isThereAProgress
-                debouncerPoints = 0
-                for (i in debouncerBuffer) if (i) debouncerPoints++
-                return if (debouncerPoints==0) false
-                else debouncerPoints>=debounceWindowPointsCondition
-            }
-            fun waiter(isThereAProgress: Boolean): Boolean {//An evil waiter, waits for user to stop moving
-                if (isThereAProgress) waiterCounter = 0
-                else waiterCounter++
-                return waiterCounter>=(debounceDelay.toFloat()/(sampleTime/1000).toFloat())
-            }
+            fun supervisor(points: Int) {
+                val percent: Int
+                pointsCount+=points*2
 
-            var operator: (Boolean)-> Boolean
-            val startTime = SystemClock.elapsedRealtimeNanos()
-            var lastPeakTime = 0L
-            var cnt = 0
-            val resultMas = DoubleArray(1000000)
-            val detectPoint: (SensorEvent)-> Unit = {
-                val elapsedTime: Long =
-                    (it.timestamp - startTime) / 1000000 //time since detection started
-                val result = sqrt(
-                    it.values[0].toDouble().pow(2.0)
-                        + it.values[1].toDouble().pow(2.0)
-                        + it.values[2].toDouble().pow(2.0))
-                resultMas[cnt] = result
-                var sum = 0.0
-                val avg: Float
+                if (points>0 && !isTestEnabled) {
+                    percent = (pointsCount.toDouble() / activeTime * 100).toInt()
 
-                operator = if (debouncerWorking) ::debouncer else ::waiter
-                if (cnt > bounceTime) { //excluding first 6 results to avoid error
-                    for (i in cnt - bounceTime until cnt) {
-                        sum += resultMas[i]
-                    }
-                    avg = sum.toFloat() / bounceTime.toFloat()
-                    if (avg > threshold && elapsedTime >= lastPeakTime + idleTime) {//Point acquiring condition
-                        if (debouncerWorking && operator(true)){//If user passed debouncer. If no, we just don't do a thing
-                            Log.d(TAG, "\tstepsCapsule: debouncer released")
-                            pointsCount += debouncerPoints
-                            stepsSupervisor(pointsCount)
-                            waiterCounter = 0
-                            debouncerWorking = false
-                        }
-                        else if (!debouncerWorking && !operator(true)) {//If waiter not complaining, we just counting. It just can't when we throw trues to it
-                            pointsCount++
-                            stepsSupervisor(pointsCount)
-                        }
-                        lastPeakTime = elapsedTime
-                    }
-                    else if (elapsedTime >= lastPeakTime + idleTime) {
-                        operator(false)
-                        if (!debouncerWorking && operator(false)){
-                            Log.d(TAG, "\tstepsCapsule: waiter released")
-                            debouncerBuffer.replaceAll { false }
-                            debouncerWorking=true
-                            stepsSupervisor(FLAG_STALLED)
+                    if (percent < 100) subj.onNext(percent)
+                    else {
+                        subj.onComplete()
+                        with(endSubject) {
+                            onNext(FLAG_STEPS_ENDED)
+                            onComplete()
                         }
                     }
                 }
-                cnt++
+                else if (!isTestEnabled) subj.onNext(FLAG_STALLED)
+                else subj.onNext(pointsCount)
+            }
+
+            val isOutputEnabled = fileOutput
+            var outputEstablished = false
+            var timeCounter = 0f
+            var output: BufferedOutputStream? = null
+
+            fun outputController(xMass: DoubleArray, yMass: DoubleArray, zMass: DoubleArray, crossArray: DoubleArray = DoubleArray(xMass.size), thresholdArray: DoubleArray = DoubleArray(xMass.size), conditionArray: DoubleArray = DoubleArray(xMass.size), counterArray: DoubleArray = DoubleArray(xMass.size)){
+                if (!outputEstablished && isOutputEnabled) {
+                    val c = Calendar.getInstance().apply { time = Date(System.currentTimeMillis()) }
+                    val fileName = "CSV_${c.get(Calendar.DATE)}_${c.get(Calendar.HOUR_OF_DAY)}:${c.get(Calendar.MINUTE)}:${c.get(Calendar.SECOND)}.txt"
+                    val outputFile = File(context.getExternalFilesDir(null), fileName)
+                    try {
+                        if (!outputFile.createNewFile()){
+                            Log.e(TAG, "\tCSVOutput: file already exists. Replacing")
+                            outputFile.delete()
+                            outputFile.createNewFile()
+                        }
+                        else Log.d(TAG, "\tCSVOutput: file created, name: $fileName")
+                    } catch (e: Exception) {
+                        Log.e(TAG, e.toString())
+                    }
+                    output = BufferedOutputStream(FileOutputStream(outputFile))
+
+                    val titlesString = "timestamp,xVal,yVal,zVal,null-cross,threshold,condition,bounce\n"
+                    output!!.write(titlesString.toByteArray())
+                    output!!.flush()
+
+                    outputEstablished = true
+                }
+                if (isOutputEnabled){
+                    val builder = StringBuilder()
+                    val timeStep = bufferTargetPeriodMillis.toFloat() / xMass.size
+
+                    for (i in xMass.indices){
+                        builder.append(timeCounter.toInt().toString(), ",")
+                        builder.append(xMass[i].toString(), ",")
+                        builder.append(yMass[i].toString(), ",")
+                        builder.append(zMass[i].toString(), ",")
+                        if (crossArray[i]!=0.0 && counterArray[i]==0.0) builder.append(crossArray[i].toString(), ","); else builder.append(",")
+                        if (thresholdArray[i]!=0.0 && conditionArray[i]==0.0 && counterArray[i]==0.0) builder.append(thresholdArray[i].toString(), ","); else builder.append(",")
+                        if (conditionArray[i]!=0.0 && counterArray[i]==0.0) builder.append(conditionArray[i].toString(), ","); else builder.append(",")
+                        if (counterArray[i]!=0.0) builder.append(counterArray[i])
+
+                        builder.append("\n")
+                        timeCounter+=timeStep
+                    }
+                    output!!.write(builder.toString().toByteArray())
+                    output!!.flush()
+                }
+            }
+
+
+            /*
+            This function corresponds directly to the Supervisor
+            And with output function, after detection performed
+            */
+            var prevValX = 0.0
+            var prevValY = 0.0
+            var prevValZ = 0.0
+
+            val flagsBufferX = BooleanArray(6)
+            val flagsBufferY = BooleanArray(6)
+            val flagsBufferZ = BooleanArray(6)
+
+            var idleCountX = 0
+            var idleCountY = 0
+            var idleCountZ = 0
+
+            //This function called every time we receive buffered data from refiner
+            fun detect(xMass: DoubleArray, yMass: DoubleArray, zMass: DoubleArray) {
+
+                //This function used to scan every sample one by one. It doesn't know about which axis it scans
+                fun detectAxis(
+                    iterator: Int,
+                    prevVal: Double,
+                    currVal: Double,
+                    crossArray: DoubleArray,
+                    thresholdArray: DoubleArray,
+                    conditionArray: DoubleArray,
+                    counterArray: DoubleArray,
+                    flagsBuffer: BooleanArray,
+                    iC: Int
+                ): Int {
+                    /*
+                    prevHalfWaveCounted = flagsBuffer[0]
+                    currHalfWaveCounted = flagsBuffer[1]
+                    cross = flagsBuffer[2]
+                    bounceCache3 = flagsBuffer[3]
+                    bounceCache2 = flagsBuffer[4]
+                    writePrevPoint = flagsBuffer[5]
+                    */
+                    //Looks like hell, yeah. Fuck off, I'm tired after work
+                    var idleCount = iC
+
+                    fun bounce(currWaveCounted: Boolean = false){
+                        if (!currWaveCounted) {flagsBuffer[4] = false; flagsBuffer[3] = false}
+                        else if (!flagsBuffer[3] && !flagsBuffer[4]) flagsBuffer[4] = true
+                        else if (!flagsBuffer[3]){
+                            flagsBuffer[3] = true
+                            flagsBuffer[4] = true
+                            flagsBuffer[5] = true
+
+                            counterArray[iterator] = currVal
+                        }
+                        else if (flagsBuffer[4]) counterArray[iterator] = currVal
+                    }
+
+                    if (0.0 in prevVal..currVal || 0.0 in currVal..prevVal) {
+                        crossArray[iterator] = currVal
+                        if (!flagsBuffer[2]) flagsBuffer[2] = true
+                        else flagsBuffer[0] = false
+                        if (idleCount > 4) bounce(); else idleCount++
+
+                        flagsBuffer[1] = false
+                        if (flagsBuffer[5]){ counterArray[iterator] = currVal; flagsBuffer[5]=false}
+                    }
+                    if (info.threshold in prevVal..currVal || info.threshold in currVal..prevVal || -info.threshold in prevVal..currVal || -info.threshold in currVal..prevVal) {
+                        if (!flagsBuffer[0] && !flagsBuffer[1]) {//Threshold exceeded on first halfWave
+                            flagsBuffer[2] = false;
+                            flagsBuffer[0] = true
+                        } else {
+                            if (flagsBuffer[2]) {//Condition happened
+                                conditionArray[iterator] = currVal
+                                flagsBuffer[0] = false
+                                flagsBuffer[1] = true
+                                flagsBuffer[2] = false
+
+                                idleCount = 0
+                                bounce(true)
+                            }
+                        }
+                        thresholdArray[iterator] = currVal
+                    }
+                    return idleCount
+                }
+
+                //Before we start scan, we need to initialize input and output data first
+                val crossArrayX = DoubleArray(xMass.size)
+                val crossArrayY = DoubleArray(xMass.size)
+                val crossArrayZ = DoubleArray(xMass.size)
+                val thresholdArrayX = DoubleArray(xMass.size)
+                val thresholdArrayY = DoubleArray(xMass.size)
+                val thresholdArrayZ = DoubleArray(xMass.size)
+                val conditionArrayX = DoubleArray(xMass.size)
+                val conditionArrayY = DoubleArray(xMass.size)
+                val conditionArrayZ = DoubleArray(xMass.size)
+                val counterArrayX = DoubleArray(xMass.size)
+                val counterArrayY = DoubleArray(xMass.size)
+                val counterArrayZ = DoubleArray(xMass.size)
+
+                for (i in xMass.indices){
+                    idleCountX = detectAxis(i, prevValX, xMass[i], crossArrayX, thresholdArrayX, conditionArrayX, counterArrayX, flagsBufferX, idleCountX)
+                    prevValX = xMass[i]
+                }
+                for (i in yMass.indices){
+                    idleCountY = detectAxis(i, prevValY, yMass[i], crossArrayY, thresholdArrayY, conditionArrayY, counterArrayY, flagsBufferY, idleCountY)
+                    prevValY = yMass[i]
+                }
+                for (i in zMass.indices){
+                    idleCountZ = detectAxis(i, prevValZ, zMass[i], crossArrayZ, thresholdArrayZ, conditionArrayZ, counterArrayZ, flagsBufferZ, idleCountZ)
+                    prevValZ = zMass[i]
+                }
+
+                val countX = counterArrayX.count {it!=0.0}
+                val countY = counterArrayY.count {it!=0.0}
+                val countZ = counterArrayZ.count {it!=0.0}
+                when (maxOf(countX, countY, countZ)){
+                    0 ->{
+                        Log.d(TAG, "\t\tdetect: not detected")
+                        outputController(xMass,yMass,zMass)
+                        supervisor(0)
+                    }
+                    countX -> {
+                        Log.d(TAG, "\t\tdetect: X chosen")
+                        outputController(xMass,yMass,zMass, crossArrayX, thresholdArrayX, conditionArrayX, counterArrayX)
+                        supervisor(countX)
+                    }
+                    countY -> {
+                        Log.d(TAG, "\t\tdetect: Y chosen")
+                        outputController(xMass,yMass,zMass, crossArrayY, thresholdArrayY, conditionArrayY, counterArrayY)
+                        supervisor(countY)
+                    }
+                    countZ -> {
+                        Log.d(TAG, "\t\tdetect: Z chosen")
+                        outputController(xMass,yMass,zMass, crossArrayZ, thresholdArrayZ, conditionArrayZ, counterArrayZ)
+                        supervisor(countZ)
+                    }
+                }
+            }
+
+            /*
+            This function combines all the logic defined before
+            It collects data from the Sensor and refines it to pass in the detect function consequently
+            It also relies on one subsidiary function to establish and close CSV file output of refined (but still undetected) data if needed
+            */
+            var bufferStartTime = -1L//time in which writing to buffer started
+            lateinit var rawBufferX: DoubleArray
+            lateinit var rawBufferY: DoubleArray
+            lateinit var rawBufferZ: DoubleArray
+            val initialSize = (bufferTargetPeriodMillis * 10.0.pow(3) / sampleTime) * 1.5
+            var samplesWrote = 0
+
+            val refine: (SensorEvent)-> Unit = {
+                if (bufferStartTime==-1L){
+                    bufferStartTime = SystemClock.elapsedRealtimeNanos()
+                    rawBufferX = DoubleArray(initialSize.toInt())
+                    rawBufferY = DoubleArray(initialSize.toInt())
+                    rawBufferZ = DoubleArray(initialSize.toInt())
+                }
+                //how many nanos passed since writing started
+                val bufferElapsedTime: Long = it.timestamp - bufferStartTime
+
+                if (bufferElapsedTime <= bufferTargetPeriod){//During writing
+                    rawBufferX[samplesWrote] = it.values[0].toDouble()
+                    rawBufferY[samplesWrote] = it.values[1].toDouble()
+                    rawBufferZ[samplesWrote] = it.values[2].toDouble()
+                    samplesWrote++
+                }
+                else {
+                    val clearedBufferX = DoubleArray(samplesWrote) {i -> if (i==0) it.values[0].toDouble() else 0.0}
+                    val clearedBufferY = DoubleArray(samplesWrote) {i -> if (i==0) it.values[1].toDouble() else 0.0}
+                    val clearedBufferZ = DoubleArray(samplesWrote) {i -> if (i==0) it.values[2].toDouble() else 0.0}
+
+                    for (i in 0 until samplesWrote){
+                        if (rawBufferX[i]!=0.0) clearedBufferX[i] = rawBufferX[i]
+                        if (rawBufferY[i]!=0.0) clearedBufferY[i] = rawBufferY[i]
+                        if (rawBufferZ[i]!=0.0) clearedBufferZ[i] = rawBufferZ[i]
+                    }
+
+                    bufferStartTime = it.timestamp//period of time since writing to buffer started
+                    rawBufferX = DoubleArray(initialSize.toInt())
+                    rawBufferY = DoubleArray(initialSize.toInt())
+                    rawBufferZ = DoubleArray(initialSize.toInt())
+                    samplesWrote = 1
+
+                    val samplingFreq = (1.0 / (sampleTime.toDouble() * 10.0.pow(-6)))
+                    val filter = Butterworth()
+                    filter.bandPass(6, samplingFreq, 1.5, 1.4)
+
+                    val refinedBufferX = DoubleArray(clearedBufferX.size) {i -> filter.filter(clearedBufferX[i])}
+                    val refinedBufferY = DoubleArray(clearedBufferY.size) {i -> filter.filter(clearedBufferY[i])}
+                    val refinedBufferZ = DoubleArray(clearedBufferZ.size) {i -> filter.filter(clearedBufferZ[i])}
+
+                    detect(refinedBufferX, refinedBufferY, refinedBufferZ)
+                }
             }
 
             return object: SensorEventListener{
-                override fun onSensorChanged(event: SensorEvent) = detectPoint(event)
+                override fun onSensorChanged(event: SensorEvent) = refine(event)
 
                 override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int): Unit = Unit
             }
@@ -538,7 +722,7 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
     }
 
     //This observable serves to the 'snoozed' indication
-    lateinit var dis: Disposable
+    var dis: Disposable? = null
     var snoozedDelay = info.timeSnoozed
     private fun setupRemovable(activate: Boolean, subj: PublishSubject<Int>, endSubject: AsyncSubject<Int>){
         if (activate){ Log.d(TAG, "\t\t\tremovable timer activated with delay $snoozedDelay")
@@ -556,7 +740,7 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         }
         else {
             Log.d(TAG, "\t\t\tremovable timer unactivated")
-            dis.dispose()
+            dis?.dispose()
         }
     }
 

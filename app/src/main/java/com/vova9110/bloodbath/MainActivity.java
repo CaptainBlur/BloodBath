@@ -83,8 +83,8 @@
             Intent intent = new Intent(getApplicationContext(), ActivenessDetectionService.class).putExtra("info",
                     new TimeSInfo(null,
                             null,
-                            15,
-                            2.2f,
+                            50,
+                            1.5f,
                             0,
                             5,
                             40,
@@ -92,6 +92,8 @@
                             8 * 60,
                             15 * 60
                     ));
+            intent.putExtra("testMode", false);
+            intent.putExtra("fileOutput", false);
             getApplicationContext().startForegroundService(intent);
         });
 
