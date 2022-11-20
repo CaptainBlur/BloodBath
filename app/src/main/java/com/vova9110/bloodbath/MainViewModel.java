@@ -17,6 +17,8 @@ import com.vova9110.bloodbath.Database.AlarmDao;
 import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmRepo;
 
+import org.apache.commons.math3.geometry.spherical.oned.ArcsSet;
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
@@ -25,9 +27,10 @@ import dagger.Module;
 import dagger.Provides;
 
 public class MainViewModel extends AndroidViewModel {
-    private final String TAG = "TAG_AVM";
+    public final static String PREFERENCES_NAME = "prefs";
     private final AppComponent component;
     private final Application app;
+    private SplitLogger.SLCompanion sl;
     @Inject
     public AlarmRepo repo;
     @Inject
@@ -36,10 +39,13 @@ public class MainViewModel extends AndroidViewModel {
 
     public MainViewModel(Application app) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
         super(app);
+        SplitLogger.initialize(app,false);
+        sl = new SplitLogger.SLCompanion(false, this.getClass().getName(), false);
+
         component = DaggerAppComponent.builder().dBModule(new DBModule(app)).build();
         this.app = app;
         component.inject(this);
-        Log.d (TAG, "Creating VM. Setting erased alarms if needed");
+        sl.f("Creating VM. Setting erased alarms if needed");
 
         checkLaunchPreferences();
         app.getApplicationContext().startService(execIntent);
@@ -47,11 +53,10 @@ public class MainViewModel extends AndroidViewModel {
     AppComponent getComponent(){ return component; }
 
     private void checkLaunchPreferences (){
-        SharedPreferences prefs = app.getSharedPreferences(MainActivity.PREFERENCES_NAME, Context.MODE_PRIVATE);
+        SharedPreferences prefs = app.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
 
-        boolean notificationChannelsSet = prefs.getBoolean("notificationChannelsSet", false);
-        if (!notificationChannelsSet) {
+        if (!prefs.getBoolean("notificationChannelsSet", false)) {
             NotificationManager manager = (NotificationManager) app.getApplicationContext().getSystemService(Context.NOTIFICATION_SERVICE);
 
             NotificationChannel channel1 = new NotificationChannel("firing", app.getString(R.string.firing_notification_channel_name), NotificationManager.IMPORTANCE_HIGH);
@@ -72,10 +77,16 @@ public class MainViewModel extends AndroidViewModel {
             channel3.enableVibration(true);
             manager.createNotificationChannel(channel3);
 
-            Log.d(TAG, "checkLaunchPreferences: Setting notification channels");
+            sl.fp("Setting notification channels");
             editor.putBoolean("notificationChannelsSet", true);
-            editor.apply();
         }
+
+        if (!prefs.getBoolean("appExitedProperly", false) && !prefs.getBoolean("firstLaunch", true)){
+            sl.ip("urgent app exit detected!");
+        }
+        editor.putBoolean("appExitedProperly", false);
+        editor.putBoolean("firstLaunch", false);
+        editor.apply();
     }
 }
 @Singleton

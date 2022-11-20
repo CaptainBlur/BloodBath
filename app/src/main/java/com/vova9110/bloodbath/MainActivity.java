@@ -1,9 +1,12 @@
  package com.vova9110.bloodbath;
 
+ import static com.vova9110.bloodbath.MainViewModel.PREFERENCES_NAME;
+
  import android.annotation.SuppressLint;
+ import android.content.Context;
  import android.content.Intent;
+ import android.content.SharedPreferences;
  import android.os.Bundle;
- import android.util.Log;
  import android.view.View;
  import android.widget.Button;
  import android.widget.ImageView;
@@ -15,6 +18,7 @@
  import androidx.lifecycle.ViewModelProvider;
  import androidx.recyclerview.widget.RecyclerView;
 
+ import com.elvishew.xlog.LogLevel;
  import com.google.android.material.floatingactionbutton.FloatingActionButton;
  import com.vova9110.bloodbath.AlarmScreenBackground.ActivenessDetectionService;
  import com.vova9110.bloodbath.Database.TimeSInfo;
@@ -22,13 +26,22 @@
  import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
  import com.vova9110.bloodbath.RecyclerView.RowLayoutManager;
 
+ import java.io.Console;
  import java.util.List;
+ import java.util.logging.ConsoleHandler;
+ import java.util.logging.Filter;
+ import java.util.logging.Formatter;
+ import java.util.logging.Handler;
+ import java.util.logging.Level;
+ import java.util.logging.LogRecord;
+ import java.util.logging.Logger;
+ import java.util.logging.SimpleFormatter;
 
  import javax.inject.Inject;
 
  public class MainActivity extends AppCompatActivity{
      private final static String TAG = "TAG_MA";
-     public final static String PREFERENCES_NAME = "prefs";
+     private static SplitLogger.SLCompanion sl;
 
     public static final int NEW_TASK_ACTIVITY_REQUEST_CODE = 1;
     public static final int FILL_DB = 3;
@@ -51,6 +64,7 @@
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
         adapter = new AlarmListAdapter(mHandler);
         recyclerView.setAdapter(adapter);
+        sl = new SplitLogger.SLCompanion(false, this.getClass().getName(), false);
 
         //recyclerView.setLayoutManager(new GridLayoutManager(this,1, RecyclerView.VERTICAL, false));
         recyclerView.setLayoutManager(new RowLayoutManager(this, mHandler));
@@ -93,7 +107,7 @@
                             15 * 60
                     ));
             intent.putExtra("testMode", false);
-            intent.putExtra("fileOutput", false);
+            intent.putExtra("fileOutput", true);
             getApplicationContext().startForegroundService(intent);
         });
 
@@ -122,6 +136,7 @@
         }
     }
 
+    //Выглядит как говно, я знаю, чекни описание во FreeAlarmsHandler
     static class LDObserver implements Observer<List<Alarm>> {
         @SuppressLint("NotifyDataSetChanged")
         @Override
@@ -132,14 +147,26 @@
             });
             adapter.submitList(alarms);
             adapter.notifyDataSetChanged();
-            Log.d(TAG, "Time to initial layout! List size: " + alarms.size());
+            sl.fr("Time to initial layout! List size: " + alarms.size());
         }
     }
 
      @Override
      protected void onResume() {
-        Log.d (TAG, "Resuming");
+        sl.i("Resuming");
         mHandler.onResumeUpdate();
         super.onResume();
      }
+
+     @Override
+     protected void onStop() {
+         SharedPreferences prefs = getApplicationContext().getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+         SharedPreferences.Editor editor = prefs.edit();
+
+         editor.putBoolean("appExitedProperly", true);
+         editor.apply();
+         sl.i("Intentional exit detected!");
+         super.onStop();
+     }
+
  }

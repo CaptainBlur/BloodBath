@@ -25,6 +25,7 @@ import com.vova9110.bloodbath.AlarmScreenBackground.StftFilter.NewWindowListener
 import com.vova9110.bloodbath.AlarmScreenBackground.StftFilter.Processor
 import com.vova9110.bloodbath.Database.TimeSInfo
 import com.vova9110.bloodbath.R
+import com.vova9110.bloodbath.SplitLogger
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.core.Observer
 import io.reactivex.rxjava3.disposables.CompositeDisposable
@@ -279,6 +280,7 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         //All logic belongs to here
         fun stepsCapsule(): SensorEventListener{
 
+            var output: BufferedOutputStream? = null
             val isTestEnabled = testMode
             val activeTime = info.duration //time in which user needs to be active in order to earn all points, in mS
             var pointsCount = 0
@@ -296,6 +298,7 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
                         with(endSubject) {
                             onNext(FLAG_STEPS_ENDED)
                             onComplete()
+                            if (output!=null) output!!.close()
                         }
                     }
                 }
@@ -306,13 +309,15 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
             val isOutputEnabled = fileOutput
             var outputEstablished = false
             var timeCounter = 0f
-            var output: BufferedOutputStream? = null
 
             fun outputController(xMass: DoubleArray, yMass: DoubleArray, zMass: DoubleArray, crossArray: DoubleArray = DoubleArray(xMass.size), thresholdArray: DoubleArray = DoubleArray(xMass.size), conditionArray: DoubleArray = DoubleArray(xMass.size), counterArray: DoubleArray = DoubleArray(xMass.size)){
                 if (!outputEstablished && isOutputEnabled) {
                     val c = Calendar.getInstance().apply { time = Date(System.currentTimeMillis()) }
                     val fileName = "CSV_${c.get(Calendar.DATE)}_${c.get(Calendar.HOUR_OF_DAY)}:${c.get(Calendar.MINUTE)}:${c.get(Calendar.SECOND)}.txt"
-                    val outputFile = File(context.getExternalFilesDir(null), fileName)
+                    val parentDir = File(context.getExternalFilesDir(null), "step_counter_logs")
+                    val outputFile = File(parentDir, fileName)
+                    println("\t" + SplitLogger.manageDirectory(parentDir))
+
                     try {
                         if (!outputFile.createNewFile()){
                             Log.e(TAG, "\tCSVOutput: file already exists. Replacing")
