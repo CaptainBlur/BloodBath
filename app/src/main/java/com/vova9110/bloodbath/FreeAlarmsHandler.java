@@ -9,7 +9,6 @@ import androidx.lifecycle.LiveData;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.vova9110.bloodbath.AlarmScreenBackground.AlarmExec;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.Database.AlarmRepo;
 import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;

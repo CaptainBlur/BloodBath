@@ -14,7 +14,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
+@Singleton
 public class AlarmRepo implements Serializable {
 
     private final String TAG = "TAG_AR";
@@ -22,7 +24,7 @@ public class AlarmRepo implements Serializable {
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @Inject
-    public AlarmRepo (AlarmDao dao){ alarmDao = dao; }
+    public AlarmRepo(AlarmDao dao){alarmDao = dao;}
 
     public void insert (Alarm alarm){
         executor.execute(() -> alarmDao.insert(alarm));

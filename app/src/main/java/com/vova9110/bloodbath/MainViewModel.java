@@ -6,7 +6,6 @@ import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.lifecycle.AndroidViewModel;
@@ -17,7 +16,15 @@ import com.vova9110.bloodbath.Database.AlarmDao;
 import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmRepo;
 
-import org.apache.commons.math3.geometry.spherical.oned.ArcsSet;
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.file.Files;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -49,6 +56,24 @@ public class MainViewModel extends AndroidViewModel {
 
         checkLaunchPreferences();
         app.getApplicationContext().startService(execIntent);
+
+        File[] list = getApplication().createDeviceProtectedStorageContext().getFilesDir().listFiles();
+        assert list != null;
+        for (File file : list) {
+            try {
+                sl.i(file.getName());
+                Files.delete(file.toPath());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        File file = new File (getApplication().createDeviceProtectedStorageContext().getFilesDir().getPath() + "/459.tmp");
+//        try {
+//            FileInputStream stream = getApplication().createDeviceProtectedStorageContext().openFileInput("459.tmp");
+//            BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
     }
     AppComponent getComponent(){ return component; }
 
@@ -82,7 +107,7 @@ public class MainViewModel extends AndroidViewModel {
         }
 
         if (!prefs.getBoolean("appExitedProperly", false) && !prefs.getBoolean("firstLaunch", true)){
-            sl.ip("urgent app exit detected!");
+            sl.ip("!!!urgent app exit detected!!!");
         }
         editor.putBoolean("appExitedProperly", false);
         editor.putBoolean("firstLaunch", false);
@@ -106,7 +131,7 @@ class DBModule{
 
     public DBModule (Application app){
         this.app = app;
-        db = Room.databaseBuilder(app, AlarmDatabase.class, "alarms_database").build();//Особенность метода build такова, что каждый раз при входе с приложение, создаётся БД,
+        db = Room.databaseBuilder(app.getApplicationContext().createDeviceProtectedStorageContext(), AlarmDatabase.class, "alarms_database").build();//Особенность метода build такова, что каждый раз при входе с приложение, создаётся БД,
         //поэтому она и создаётся у нас один раз при инициализации Dagger (он создаёт все модули один раз)
     }
 
@@ -135,9 +160,9 @@ class DBModule{
     }
 
     @Provides
-    Intent providesIntent (AlarmRepo alarmRepo){
+    Intent providesIntent (AlarmRepo alarmRepoJava){
         Intent execIntent = new Intent(app.getApplicationContext(), AlarmExec.class);
-        execIntent.putExtra("repo", alarmRepo);
+        execIntent.putExtra("repo", alarmRepoJava);
         return execIntent;
     }
 }
