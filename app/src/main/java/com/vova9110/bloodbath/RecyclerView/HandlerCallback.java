@@ -1,4 +1,4 @@
-package com.vova9110.bloodbath;
+package com.vova9110.bloodbath.RecyclerView;
 
 public interface HandlerCallback {
     void passPrefToAdapter(int parentPos, int prefPos);
@@ -7,4 +7,7 @@ public interface HandlerCallback {
     void deleteItem (int pos);
     void addItem (int hour, int minute);
     void changeItem (int oldPos, int hour, int minute);
+    void updateItem(int parentPos, boolean switcherState);
+
+    RLMCallback pullRLMCallback();
 }

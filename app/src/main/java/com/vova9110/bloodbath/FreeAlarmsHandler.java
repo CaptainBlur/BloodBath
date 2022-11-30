@@ -3,6 +3,7 @@ package com.vova9110.bloodbath;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.lifecycle.LiveData;
 import androidx.recyclerview.widget.DiffUtil;
@@ -11,14 +12,25 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.Database.AlarmRepo;
 import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
+import com.vova9110.bloodbath.RecyclerView.HandlerCallback;
+import com.vova9110.bloodbath.RecyclerView.RLMCallback;
 
 import java.util.Calendar;
 import java.util.LinkedList;
 import java.util.List;
 
-public class UIHandler implements HandlerCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
+/**
+ * Боже мой, как же я устал бороться со всем этим блоком свободных будильников.
+ * При попытке перенести всю логику на Котлин, упростив механизмы доступа, и сократив количество кода (конкретно в этом классе раза в три),
+ * ресайклер просто начинает сходить с ума, безо всякой на то причины. Я даже не могу перенести сраный Обсёрвер из Мейн Активити сюда, поскольку начинается какая-то херня:
+ * в реалтайме, при удалении хотя бы одного элемента из списка, ресайклер либо заново байндит все вьюшки, либо вываливает в РЛМ лист с вьюшками без позиции.
+ * Что самое интересное, механизм в данном случае практически идентичный тому, что используется при удлении префа из списка, а он работает как часы.
+ * На данный момент у меня нет столько времени, чтобы переоределять методы в RecyclerView, так что этот кусок приложения останется громоздким и некрасивым.
+ */
+public class FreeAlarmsHandler implements HandlerCallback { // Репозиторий предоставляет абстрактный доступ к базе данных, то есть представлен в роли API (так они советуют делать)
     private final String TAG = "TAG_UIH";
     private final AlarmRepo repo;
+    private final Intent srcIntent;
     private final Intent execIntent;
 
     private RecyclerView recycler;
@@ -35,16 +47,17 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
     private RLMCallback rlmCallback;
     private int prefPos;
 
-    UIHandler(AlarmRepo repo, Intent intent){
+    FreeAlarmsHandler(AlarmRepo repo, Intent intent){
         this.repo = repo;
         addAlarm.setAddFlag(true);
-        execIntent = intent;
+        srcIntent = intent;
+        execIntent = new Intent(srcIntent);
 
         roomLD = repo.getLD();//При создани репозитория мы передаём этот список в MA,
         Log.d(TAG, "Handler instance created");
     }
 
-    public void pass(RecyclerView recyclerView, AlarmListAdapter adapter, MainActivity.LDObserver observer, Context applicationContext, AppComponent component) {
+    public void pass(RecyclerView recyclerView, AlarmListAdapter adapter, MainActivity.LDObserver observer, Context applicationContext) {
         recycler = recyclerView;
         this.adapter = adapter;
         this.observer = observer;
@@ -64,6 +77,7 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
     public void passRLMCallback (RLMCallback callback){
         this.rlmCallback = callback;
     }
+    @Override
     public RLMCallback pullRLMCallback(){
         return rlmCallback;
     }
@@ -105,11 +119,35 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         bufferList.remove(current);
         repo.deleteOne(current.getHour(), current.getMinute());
 
+        execIntent.replaceExtras(srcIntent);
+        execIntent.putExtra("prevActive", true);
+        if (current.getTriggerTime()!=null) execIntent.putExtra("triggerTime", current.getTriggerTime().getTime());
+        context.startService(execIntent);
+
         adapter.submitList(bufferList);
         if (prefRemoved) recycler.post(()-> adapter.notifyItemRemoved(prefPos));
         recycler.post(()-> adapter.notifyItemRemoved(currentPos));
     }
 
+    public void addTest(int delay){
+        Toast.makeText(context, "Alarm will be launched in " + delay + " sec", Toast.LENGTH_SHORT).show();
+
+        Calendar currentCalendar = Calendar.getInstance();
+        currentCalendar.setTimeInMillis(System.currentTimeMillis());
+        currentCalendar.set(Calendar.MILLISECOND, 0);
+        currentCalendar.add(Calendar.SECOND, delay);
+
+        Alarm current = new Alarm(77,77, currentCalendar.getTime());
+        current.setOnOffState(true);
+        repo.insert(current);
+
+        execIntent.replaceExtras(srcIntent);
+        execIntent.putExtra("prevPassive", true);
+        execIntent.putExtra("triggerTime", current.getTriggerTime().getTime());
+        context.startService(execIntent);
+    }
+
+    //New items always provided with off state
     @Override
     public void addItem(int hour, int minute) {
         int currentPos;
@@ -143,6 +181,8 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         recycler.post(()-> adapter.notifyItemInserted(currentPos));
     }
 
+    //Changes main time of the alarm. ALso we need to edit Exec's recordings about both old and new ones
+    //Every changed item acquires triggerTime
     @Override
     public void changeItem(int oldPos, int hour, int minute) {
         int currentPos;
@@ -164,12 +204,14 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
 
         Alarm current = bufferList.get(oldPos);
         repo.deleteOne(current.getHour(), current.getMinute());
+        execIntent.replaceExtras(srcIntent);
+        execIntent.putExtra("prevActive", true);
+        if (current.getTriggerTime()!=null) execIntent.putExtra("triggerTime", current.getTriggerTime().getTime());
+        context.startService(execIntent);
 
         current.setHour(hour);
         current.setMinute(minute);
-        current.setOnOffState(false);
 
-        repo.insert(current);
         bufferList.sort((o1, o2) -> {
             if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
             else return o1.getMinute() - o2.getMinute();
@@ -180,14 +222,27 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
         if (prefRemoved) recycler.post(()-> adapter.notifyItemRemoved(prefPos));
         recycler.post(()-> adapter.notifyItemRemoved(oldPos));
         recycler.post(()-> adapter.notifyItemInserted(currentPos));
+
+        execIntent.replaceExtras(srcIntent);
+        if (current.isOnOffState()) execIntent.putExtra("prevPassive", true);
+        else execIntent.putExtra("prevActive", true);
+
+        Calendar currentCalendar = Calendar.getInstance();
+        currentCalendar.setTimeInMillis(System.currentTimeMillis());
+        currentCalendar.set(Calendar.MILLISECOND, 0);
+        currentCalendar.set(Calendar.SECOND, 0);
+        currentCalendar.set(Calendar.MINUTE, current.getMinute());
+        currentCalendar.set(Calendar.HOUR_OF_DAY, current.getHour());
+        if (currentCalendar.getTimeInMillis() <= System.currentTimeMillis()) currentCalendar.roll(Calendar.DATE, true);
+
+        current.setTriggerTime(currentCalendar.getTime());
+        repo.insert(current);
+        execIntent.putExtra("triggerTime", currentCalendar.getTimeInMillis());
+        context.startService(execIntent);
     }
 
-    /*
-    Немного сложности добавляет необходимость встраивания повторения будильников
-    Для того, чтобы запустить его хотя бы один раз, нужно присвоить ему время первого срабатывания,
-    и уже на основании этого времени повторять через определённые промежутки.
-    Но во всех остальных случаях, в базу данных помещаются Алармы без времени певого срабатывания
-     */
+    //Updates existing alarm's data. Can directly correspond to the Exec
+    @Override
     public void updateItem(int parentPos, boolean switcherState) {//todo добавить флаги повтора в enum. Нужно записывать в БД время следующего срабатывания, и обновлять его сразу после этого срабатывания, на основании флагов
         Log.d (TAG, "Updating item " + parentPos + ", state: " + switcherState);
         prepare();
@@ -205,13 +260,19 @@ public class UIHandler implements HandlerCallback { // Репозиторий п
 
         current.setOnOffState(switcherState);
         current.setTriggerTime(currentCalendar.getTime());
-        if (switcherState) current.setPrevStates(true, false);
-        else current.setPrevStates(false, true);
 
         bufferList.set(parentPos, current);
         repo.update(current);
         adapter.submitList(bufferList);
 
+        /*
+        We always need to clear extras
+        Independently of the previous on/off state we need to inform Exec about new one
+         */
+        execIntent.replaceExtras(srcIntent);
+        if (switcherState) execIntent.putExtra("prevPassive", true);
+        else execIntent.putExtra("prevActive", true);
+        execIntent.putExtra("triggerTime", currentCalendar.getTime().getTime());
         context.startService(execIntent);
     }
 

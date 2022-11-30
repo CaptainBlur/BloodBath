@@ -32,10 +32,4 @@ public interface AlarmDao {
 
     @Query("SELECT * FROM alarms_table WHERE onOffState ORDER BY triggerTime ASC")
     List<Alarm> getActives ();
-
-    @Query("SELECT * FROM alarms_table WHERE wasPassive LIMIT 1")
-    Alarm getWasPassive ();
-
-    @Query("SELECT * FROM alarms_table WHERE wasActive LIMIT 1")
-    Alarm getWasActive ();
 }

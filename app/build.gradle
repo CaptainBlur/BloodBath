@@ -1,14 +1,17 @@
 plugins {
     id 'com.android.application'
+    id 'kotlin-android'
+    id 'kotlin-kapt'
 }
+apply plugin: 'kotlin-android'
 
 android {
-    compileSdk 30
+    compileSdk 33
 
     defaultConfig {
         applicationId "com.vova9110.bloodbath"
-        minSdk 29
-        targetSdk 30
+        minSdk 27
+        targetSdk 33
         versionCode 1
         versionName "1.0"
 
@@ -28,6 +31,7 @@ android {
     buildFeatures {
         viewBinding true
     }
+    namespace 'com.vova9110.bloodbath'
 }
 
 dependencies {
@@ -39,11 +43,18 @@ dependencies {
 
     // Room components
     implementation "androidx.room:room-runtime:$rootProject.roomVersion"
-    implementation 'com.google.dagger:dagger:2.41'
-    implementation 'com.github.wendykierp:JTransforms:3.1'
-    annotationProcessor 'com.google.dagger:dagger-compiler:2.41'
+    implementation "androidx.room:room-ktx:$rootProject.roomVersion"
+    kapt "androidx.room:room-compiler:$rootProject.roomVersion"
     annotationProcessor "androidx.room:room-compiler:$rootProject.roomVersion"
     androidTestImplementation "androidx.room:room-testing:$rootProject.roomVersion"
+
+    //Other
+    implementation 'com.github.wendykierp:JTransforms:3.1'
+    annotationProcessor 'com.google.dagger:dagger-compiler:2.43.2'
+    implementation 'com.google.dagger:dagger:2.43.2'
+    kapt 'com.google.dagger:dagger-compiler:2.43.2'
+    implementation 'io.reactivex.rxjava3:rxjava:3.1.5'
+    implementation group: 'uk.me.berndporr', name:'iirj', version: '1.5'
 
     // Lifecycle components
     implementation "androidx.lifecycle:lifecycle-viewmodel:$rootProject.lifecycleVersion"
@@ -61,4 +72,6 @@ dependencies {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
     androidTestImplementation "androidx.test.ext:junit:$rootProject.androidxJunitVersion"
+    implementation "androidx.core:core-ktx:1.9.0"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }

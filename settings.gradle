@@ -8,4 +8,3 @@ dependencyResolutionManagement {
 }
 rootProject.name = "Blood Bath"
 include ':app'
-include ':spectrum-analyzer'

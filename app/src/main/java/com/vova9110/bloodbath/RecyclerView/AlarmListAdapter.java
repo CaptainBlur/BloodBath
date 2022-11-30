@@ -5,7 +5,6 @@ import android.view.ViewGroup;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.vova9110.bloodbath.UIHandler;
 import com.vova9110.bloodbath.Database.Alarm;
 
 import java.util.LinkedList;
@@ -13,21 +12,21 @@ import java.util.List;
 
 public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder>{
     private final String TAG = "TAG_ALA";
-    private UIHandler repo;
+    private HandlerCallback hCallback;
     private List<Alarm> mList = new LinkedList<>();
 
-    public AlarmListAdapter(UIHandler repo) {
-        this.repo = repo;
+    public AlarmListAdapter(HandlerCallback hCallback) {
+        this.hCallback = hCallback;
     }
 
     @NonNull
     @Override
-    public AlarmViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        return AlarmViewHolder.create(parent, repo );
+    public AlarmViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        return AlarmViewHolder.create(parent, hCallback);
     }
 
     @Override
-    public void onBindViewHolder(AlarmViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull AlarmViewHolder holder, int position) {
         Alarm current = mList.get(position);
         //Log.d (TAG, "" + current.isAddFlag() + current.isPrefBelongsToAdd());
         if (current.isAddFlag()) holder.bindAddAlarm();

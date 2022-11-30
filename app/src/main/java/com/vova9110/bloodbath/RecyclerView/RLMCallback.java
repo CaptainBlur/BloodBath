@@ -1,4 +1,4 @@
-package com.vova9110.bloodbath;
+package com.vova9110.bloodbath.RecyclerView;
 
 public interface RLMCallback {
     void notifyBaseClick (int prefParentPos);

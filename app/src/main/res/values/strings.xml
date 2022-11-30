@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Blood Bath</string>
+    <string name="app_name">Your Alarm</string>
     <string name="add_task">Adding new task</string>
     <string name="hint_task">Task...</string>
     <string name="button_save">Save</string>
@@ -7,4 +7,7 @@
     <string name="title_activity_active_alarm">ActiveAlarmActivity</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="firing_notification_channel_name">Firing alarms</string>
+    <string name="activeness_detection_notification_channel_name">Activeness detection</string>
+    <string name="warning_notification_channel_name">Warning informing</string>
 </resources>
