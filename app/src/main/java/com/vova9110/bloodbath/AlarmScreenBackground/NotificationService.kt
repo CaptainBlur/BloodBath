@@ -72,8 +72,8 @@ class NotificationService : Service() {
         with(supervisorIntent) {
             this.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK + Intent.FLAG_ACTIVITY_CLEAR_TASK + Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
             this.putExtra("repo", repo)//We'll pass repo in the Supervisor anyway
-            if (current?.isDelayed == false) this.putExtra("action", AlarmSupervisor.MAIN_CALL)
-            else this.putExtra("action", AlarmSupervisor.DELAYED)
+//            if (current?.isDelayed == false) this.putExtra("action", AlarmSupervisor.MAIN_CALL)
+//            else this.putExtra("action", AlarmSupervisor.DELAYED)
         }
 
         val fullscreenIntent = PendingIntent.getActivity(applicationContext, 0, supervisorIntent,
@@ -93,7 +93,7 @@ class NotificationService : Service() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setFullScreenIntent(fullscreenIntent, true)
             .addAction(dismiss)
-        if (current?.isDelayed == false) builder.addAction(delay)
+//        if (current?.isDelayed == false) builder.addAction(delay)
         return builder
     }
     companion object{

@@ -9,8 +9,8 @@ import android.widget.Switch;
 import android.widget.TextView;
 
 import androidx.recyclerview.widget.RecyclerView;
-
-import com.vova9110.bloodbath.FreeAlarmsHandler;
+import com.vova9110.bloodbath.AlarmsUI.HandlerCallback;
+import com.vova9110.bloodbath.AlarmsUI.RLMCallback;
 import com.vova9110.bloodbath.Database.Alarm;
 import com.vova9110.bloodbath.R;
 
@@ -27,10 +27,10 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     private final HandlerCallback hCallback;
     private final RLMCallback rlmCallback;
 
-    private AlarmViewHolder(View view, HandlerCallback hCallback) {
+    private AlarmViewHolder(View view, HandlerCallback c) {
         super(view);
-        this.hCallback = hCallback;
-        rlmCallback = hCallback.pullRLMCallback();
+        this.hCallback = c;
+        rlmCallback = c.pullRLMCallback();
 
         timeView = view.findViewById(R.id.timeWindow);
         hourPicker = view.findViewById(R.id.picker_h);
@@ -40,6 +40,11 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
         hourPicker.setMinValue(0); hourPicker.setMaxValue(24);
         minutePicker.setMinValue(0); minutePicker.setMaxValue(59);
+    }
+
+    public int getPosVerify(){
+        return 0;
+        //todo вставить ассерт сюда
     }
 
     static AlarmViewHolder create(ViewGroup parent, HandlerCallback hCallback) {
@@ -54,13 +59,21 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     @Override
     public boolean onLongClick(View v) {
         Log.d (TAG, "notify delete click");
-        rlmCallback.updateDatasetEvent(getAdapterPosition(), RowLayoutManager.MODE_DELETE, -1, -1);
+        if (getAdapterPosition()==-1) {
+            Log.d(TAG, "onClick: ERROR");
+            return false;
+        }
+        hCallback.deleteItem(getAdapterPosition());
         return true;
     }
 
     @Override
     public void onClick(View v) {
         Log.d (TAG, "notify click" + getAdapterPosition());
+        if (getAdapterPosition()==-1) {
+            Log.d(TAG, "onClick: ERROR");
+            return;
+        }
         rlmCallback.notifyBaseClick(getAdapterPosition());
     }
 
@@ -69,7 +82,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         timeView.setVisibility(View.VISIBLE); hourPicker.setVisibility(View.GONE); minutePicker.setVisibility(View.GONE); switcher.setVisibility(View.GONE); FAB.setVisibility(View.GONE);
         timeView.setOnClickListener(this);
         timeView.setOnLongClickListener(this);
-        //Log.d (TAG, "binding " + getAdapterPosition() + getOldPosition());
+        Log.d (TAG, "binding " + getAdapterPosition());
 
         timeView.setText(String.format("%02d:%02d", hour, minute));
     }
@@ -84,9 +97,9 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     public void bindPref(Alarm current){
         timeView.setVisibility(View.GONE); hourPicker.setVisibility(View.VISIBLE); minutePicker.setVisibility(View.VISIBLE); switcher.setVisibility(View.VISIBLE); FAB.setVisibility(View.VISIBLE);
         Calendar calendar = Calendar.getInstance();
-        //Log.d (TAG, "" + current.isOnOffState() + current.getParentPos());
+        Log.d(TAG, "bindPref: " + getAdapterPosition());
 
-        if (!current.isPrefBelongsToAdd()) {
+        if (!current.getPrefBelongsToAdd()) {
             hourPicker.setValue(current.getHour());
             minutePicker.setValue(current.getMinute());
         }
@@ -98,17 +111,17 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
             switcher.setVisibility(View.INVISIBLE);
         }
 
-        if (current.isPrefBelongsToAdd()) FAB.setOnClickListener(view ->{
+        if (current.getPrefBelongsToAdd()) FAB.setOnClickListener(view ->{
             Log.d (TAG, "notify adding click");
-            rlmCallback.updateDatasetEvent(getAdapterPosition(), RowLayoutManager.MODE_ADD, hourPicker.getValue(), minutePicker.getValue());
+            hCallback.addItem(hourPicker.getValue(), minutePicker.getValue());
         });
         else FAB.setOnClickListener(view ->{
             Log.d (TAG, "notify changing click");
-            rlmCallback.updateDatasetEvent(current.getParentPos(), RowLayoutManager.MODE_CHANGE, hourPicker.getValue(), minutePicker.getValue());
+            hCallback.changeItem(getAdapterPosition(), hourPicker.getValue(), minutePicker.getValue());
         });
 
         switcher.setOnCheckedChangeListener(null);
-        switcher.setChecked(current.isOnOffState());
-        switcher.setOnCheckedChangeListener((buttonView, isChecked) -> hCallback.updateItem(current.getParentPos(), isChecked));
+        switcher.setChecked(current.getEnabled());
+        switcher.setOnCheckedChangeListener((buttonView, isChecked) -> hCallback.updateOneState(current.getParentPos(), isChecked));
     }
 }

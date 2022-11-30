@@ -24,12 +24,12 @@ public interface AlarmDao {
     @Query("DELETE FROM alarms_table WHERE hour = :hour AND minute = :minute")
     void deleteOne (int hour, int minute);
 
-    @Query("SELECT * FROM alarms_table")
+    @Query("SELECT * FROM alarms_table ORDER BY hour AND minute")
     LiveData<List<Alarm>> getLD();
 
-    @Query("SELECT * FROM alarms_table")
+    @Query("SELECT * FROM alarms_table ORDER BY hour AND minute")
     List<Alarm> getAll();
 
-    @Query("SELECT * FROM alarms_table WHERE onOffState ORDER BY triggerTime ASC")
+    @Query("SELECT * FROM alarms_table WHERE enabled ORDER BY triggerTime ASC")
     List<Alarm> getActives ();
 }

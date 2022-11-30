@@ -1,10 +1,12 @@
 package com.vova9110.bloodbath.RecyclerView;
 
+import android.util.Log;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.vova9110.bloodbath.AlarmsUI.HandlerCallback;
 import com.vova9110.bloodbath.Database.Alarm;
 
 import java.util.LinkedList;
@@ -15,22 +17,22 @@ public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder>{
     private HandlerCallback hCallback;
     private List<Alarm> mList = new LinkedList<>();
 
-    public AlarmListAdapter(HandlerCallback hCallback) {
+    public AlarmListAdapter(HandlerCallback hCallback, List<Alarm> initialList) {
         this.hCallback = hCallback;
+        this.mList.addAll(initialList);
     }
 
     @NonNull
     @Override
-    public AlarmViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public AlarmViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         return AlarmViewHolder.create(parent, hCallback);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull AlarmViewHolder holder, int position) {
+    public void onBindViewHolder(AlarmViewHolder holder, int position) {
         Alarm current = mList.get(position);
-        //Log.d (TAG, "" + current.isAddFlag() + current.isPrefBelongsToAdd());
-        if (current.isAddFlag()) holder.bindAddAlarm();
-        else if (current.isPrefFlag()) holder.bindPref(current);
+        if (current.getAddFlag()) holder.bindAddAlarm();
+        else if (current.getPrefFlag()) holder.bindPref(current);
         else holder.bind(current.getHour(), current.getMinute());
     }
 

@@ -12,6 +12,7 @@ import androidx.lifecycle.AndroidViewModel;
 import androidx.room.Room;
 
 import com.vova9110.bloodbath.AlarmScreenBackground.AlarmExec;
+import com.vova9110.bloodbath.AlarmsUI.FreeAlarmsHandler;
 import com.vova9110.bloodbath.Database.AlarmDao;
 import com.vova9110.bloodbath.Database.AlarmDatabase;
 import com.vova9110.bloodbath.Database.AlarmRepo;
@@ -55,7 +56,7 @@ public class MainViewModel extends AndroidViewModel {
         sl.f("Creating VM. Setting erased alarms if needed");
 
         checkLaunchPreferences();
-        app.getApplicationContext().startService(execIntent);
+//        app.getApplicationContext().startService(execIntent);
 
         File[] list = getApplication().createDeviceProtectedStorageContext().getFilesDir().listFiles();
         assert list != null;

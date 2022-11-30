@@ -60,7 +60,7 @@ class AlarmSupervisor : AppCompatActivity() {
     private fun delay (){
         Thread {
             Log.d(TAG, "Alarm " + current?.hour + current?.minute + " delayed")
-            current?.isDelayed=true
+//            current?.isDelayed=true
             repo.update(current)
         }.start()
         if (current!!.hour==77 && current!!.minute==77) repo.deleteOne(77,77)
@@ -71,7 +71,7 @@ class AlarmSupervisor : AppCompatActivity() {
     private fun dismiss(){
         Thread {
             Log.d(TAG, "Alarm " + current?.hour + current?.minute + " dismissed")
-            current?.isOnOffState = false
+//            current?.isOnOffState = false
             repo.update(current)
         }.start()
         //todo pass current's enum here

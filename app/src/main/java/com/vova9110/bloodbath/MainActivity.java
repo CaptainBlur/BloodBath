@@ -21,6 +21,7 @@
  import com.elvishew.xlog.LogLevel;
  import com.google.android.material.floatingactionbutton.FloatingActionButton;
  import com.vova9110.bloodbath.AlarmScreenBackground.ActivenessDetectionService;
+ import com.vova9110.bloodbath.AlarmsUI.FreeAlarmsHandler;
  import com.vova9110.bloodbath.Database.TimeSInfo;
  import com.vova9110.bloodbath.Database.Alarm;
  import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
@@ -48,7 +49,6 @@
     public static final int CLEAR_DB = 4;
     private MainViewModel mMainViewModel;
     private static AlarmListAdapter adapter;
-    LDObserver ldObserver;
     @Inject
     public FreeAlarmsHandler mHandler;
 
@@ -62,16 +62,17 @@
         mMainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
         mMainViewModel.getComponent().inject(this);
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
-        adapter = new AlarmListAdapter(mHandler);
-        recyclerView.setAdapter(adapter);
+        recyclerView.setAdapter(mHandler.pollForList());
+        recyclerView.setLayoutManager(new RowLayoutManager(this, mHandler));
+        mHandler.setRecycler(recyclerView);
+
         sl = new SplitLogger.SLCompanion(false, this.getClass().getName(), false);
 
         //recyclerView.setLayoutManager(new GridLayoutManager(this,1, RecyclerView.VERTICAL, false));
-        recyclerView.setLayoutManager(new RowLayoutManager(this, mHandler));
-        ldObserver = new LDObserver();
+//        ldObserver = new LDObserver();
 
-        mHandler.getInitialList().observe(this, ldObserver);
-        mHandler.pass(recyclerView, adapter, ldObserver, getApplicationContext());
+//        mHandler.getInitialList().observe(this, ldObserver);
+//        mHandler.pass(recyclerView, adapter, ldObserver, getApplicationContext());
         //mHandler.fill();
 
         ImageView imageView = findViewById(R.id.imageView);
@@ -136,25 +137,10 @@
         }
     }
 
-    //Выглядит как говно, я знаю, чекни описание во FreeAlarmsHandler
-    static class LDObserver implements Observer<List<Alarm>> {
-        @SuppressLint("NotifyDataSetChanged")
-        @Override
-        public void onChanged(List<Alarm> alarms) {
-            alarms.sort((o1, o2) -> {
-                if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
-                else return o1.getMinute() - o2.getMinute();
-            });
-            adapter.submitList(alarms);
-            adapter.notifyDataSetChanged();
-            sl.fr("Time to initial layout! List size: " + alarms.size());
-        }
-    }
-
      @Override
      protected void onResume() {
         sl.i("Resuming");
-        mHandler.onResumeUpdate();
+//        mHandler.onResumeUpdate();
         super.onResume();
      }
 

@@ -5,6 +5,7 @@ import android.util.Log;
 import androidx.lifecycle.LiveData;
 
 import java.io.Serializable;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
@@ -14,17 +15,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import javax.inject.Inject;
-import javax.inject.Singleton;
 
-@Singleton
 public class AlarmRepo implements Serializable {
 
     private final String TAG = "TAG_AR";
     private static AlarmDao alarmDao;
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    @Inject
-    public AlarmRepo(AlarmDao dao){alarmDao = dao;}
+    @Inject 
+    public AlarmRepo (AlarmDao dao){ alarmDao = dao; }
 
     public void insert (Alarm alarm){
         executor.execute(() -> alarmDao.insert(alarm));
@@ -54,12 +53,37 @@ public class AlarmRepo implements Serializable {
             Log.d (TAG, "EXECUTION FAILED!");
         }
 
-        result.sort((o1, o2) -> {
-            if (o1.getHour() != o2.getHour()) return o1.getHour() - o2.getHour();
-            else return o1.getMinute() - o2.getMinute();
-        });
+        if (result==null) return new LinkedList<Alarm>();
         return result;
     }
+
+//    public Alarm findPrevPassive(){
+//        Callable<Alarm> callable = () -> alarmDao.getWasPassive();
+//        Future<Alarm> future = executor.submit(callable);
+//        Alarm result = null;
+//        try{
+//            result = future.get();
+//        } catch (CancellationException | ExecutionException | InterruptedException e){
+//            e.printStackTrace();
+//            Log.d (TAG, "EXECUTION FAILED!");
+//        }
+//        if (result != null) Log.d (TAG, "wasPassive: " + result.getHour() + result.getMinute());
+//        return result;
+//    }
+//
+//    public Alarm findPrevActive(){
+//        Callable<Alarm> callable = () -> alarmDao.getWasActive();
+//        Future<Alarm> future = executor.submit(callable);
+//        Alarm result = null;
+//        try{
+//            result = future.get();
+//        } catch (CancellationException | ExecutionException | InterruptedException e){
+//            e.printStackTrace();
+//            Log.d (TAG, "EXECUTION FAILED!");
+//        }
+//        if (result != null) Log.d (TAG, "wasActive: " + result.getHour() + result.getMinute());
+//        return result;
+//    }
 
     public List<Alarm> getActives(){
         Callable<List<Alarm>> callable = () -> alarmDao.getActives();
