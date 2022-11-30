@@ -2,6 +2,7 @@ package com.vova9110.bloodbath
 
 import android.content.Context
 import android.util.Log
+import android.util.SparseArray
 import java.io.BufferedReader
 import java.io.BufferedWriter
 import java.io.File
@@ -23,9 +24,9 @@ import java.util.regex.Pattern
 class SplitLogger private constructor() {
 
     companion object {
-        private var mainLogger: Logger? = null
-        private var alarmLogger: Logger? = null
-        private var extractLogs: (() -> Unit)? = null
+        private val mainLogger: Logger = Logger.getAnonymousLogger()
+        private var initialized: Boolean = false
+        private val TAG = "SplitLogger"
 
         private val logcatHandler = object: Handler(){
             private val f = object: Formatter() {
@@ -81,6 +82,13 @@ class SplitLogger private constructor() {
 
         }
 
+        init {
+            mainLogger.useParentHandlers= false
+            mainLogger.level = Level.ALL
+
+            mainLogger.addHandler(logcatHandler)
+        }
+
         private val fileFormatter = object: Formatter() {
             override fun format(record: LogRecord?): String {
                 val thrown: Throwable? = record!!.thrown
@@ -120,14 +128,15 @@ class SplitLogger private constructor() {
             override fun close() = writer.close()
 
         }
+        
 
         @JvmStatic
-        fun manageDirectory(parentDirectory: File, keepFiles: Int = 4, targetExtension: String = "null", deleteUnmatched: Boolean = false, sl: SLCompanion? = null): String{
+        fun manageDirectory(parentDirectory: File, keepFiles: Int = 4, targetExtension: String = "null", deleteUnmatched: Boolean = false): String{
             var status = parentDirectory.name
-            if (!parentDirectory.exists()) parentDirectory.mkdir().also { status+= "\nNew directory created";sl?.fp(status); return status }
+            if (!parentDirectory.exists()) parentDirectory.mkdir().also { status+= "\nNew directory created"; return status }
 
             val list = parentDirectory.listFiles()!!.toList().toMutableList()
-            if (list.isEmpty()){status+= "\nDirectory is empty";sl?.fp(status); return status}
+            if (list.isEmpty()){status+= "\nDirectory is empty"; return status}
 
             val cleanseBuffer = Array<File?>(list.size) { null }
             var bC = 0
@@ -137,7 +146,7 @@ class SplitLogger private constructor() {
             }
             for (file in cleanseBuffer) if (file!=null) list.remove(file)
 
-            if (list.size<=keepFiles){status+= "\nFiles count satisfies condition"; sl?.fp(status); return status}
+            if (list.size<=keepFiles){status+= "\nFiles count satisfies condition"; return status}
             list.sortBy { element-> element.lastModified() }
             for (file in list.subList(0, list.size - keepFiles)){
                 cleanseBuffer[bC] = file
@@ -151,13 +160,11 @@ class SplitLogger private constructor() {
                     "\nCannot delete file ${file.name}"
                 }
             }
-            sl?.fp(status)
             return status
         }
 
         @JvmStatic
-        fun initialize (context: Context, inAlarmUnit: Boolean = false){
-            val slCompanion = SLCompanion(inAlarmUnit, "SplitLogger", true)
+        fun initialize (context: Context){
 
             fun pullEncrypted() {
                 val encContext = context.createDeviceProtectedStorageContext()
@@ -172,20 +179,13 @@ class SplitLogger private constructor() {
 
                         Files.delete(file.toPath())
                     }
-                    if (buffer.isNotEmpty()) slCompanion.f(buffer.toString())
+                    if (buffer.isNotEmpty()) Log.d("TAG",buffer.toString())
                 }
             }
 
-            if (!inAlarmUnit && mainLogger==null){
+            if (!initialized){
                 val parentDirectory = File(context.getExternalFilesDir(null), "main_unit_logs")
-                mainLogger = Logger.getAnonymousLogger()
-                mainLogger?.useParentHandlers= false
-                mainLogger?.level = Level.ALL
-
-                mainLogger?.addHandler(logcatHandler)
-                //We need to clear directory from .lck files because both handlers can't be closed properly before exiting the application
-                slCompanion.f("***Logcat handler initialized")
-                manageDirectory(parentDirectory, 8, ".log", true, slCompanion)
+                mainLogger.logp(Level.FINE, TAG, "manageDirectory: ", manageDirectory(parentDirectory, 8, ".log", true))
 
                 var timeName = DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT, Locale.getDefault()).format(Calendar.getInstance().time)
                 timeName = timeName.replace(Char(32), Char(95))
@@ -195,64 +195,28 @@ class SplitLogger private constructor() {
                 try {
                     val verboseHandler = FileHandler(parentDirectory.path + "/${timeName}_V_${ID}.log").apply { formatter = fileFormatter; level = Level.ALL }
                     val infoHandler = FileHandler(parentDirectory.path + "/${timeName}_I_${ID}.log").apply { formatter = fileFormatter; level = Level.INFO }
-                    mainLogger?.addHandler(verboseHandler)
-                    mainLogger?.addHandler(infoHandler)
-                    slCompanion.f("***File handlers initialized")
+                    mainLogger.addHandler(verboseHandler)
+                    mainLogger.addHandler(infoHandler)
+                    mainLogger.logp(Level.FINE, TAG, null, "***File handlers initialized")
+
+                    pullEncrypted()
                 } catch (e: Exception) {
-                    slCompanion.s("***Can't initialize file handlers, $e")
-                }
-                pullEncrypted()
-            }
-            else if (!inAlarmUnit) slCompanion.w("***Can't create 'main' logger when it already initialized")
-
-            if (inAlarmUnit && alarmLogger==null){
-                val childName = "alarm_unit_logs"
-                val parentDirectory = File(context.getExternalFilesDir(null), childName)
-                alarmLogger = Logger.getAnonymousLogger()
-                alarmLogger?.useParentHandlers= false
-                alarmLogger?.level = Level.ALL
-
-                alarmLogger?.addHandler(logcatHandler)
-                //We need to clear directory from .lck files because both handlers can't be closed properly before exiting the application
-                slCompanion.f("***Logcat handler initialized")
-                manageDirectory(parentDirectory, 8, ".log", true, slCompanion)
-
-                var timeName = DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT, Locale.getDefault()).format(Calendar.getInstance().time)
-                timeName = timeName.replace(Char(32), Char(95))
-                timeName = timeName.replace(Char(47), Char(46))
-                val ID = Random().nextInt(1000).toString()
-
-                try {
-                    val verboseHandler = FileHandler(parentDirectory.path + "/${timeName}_V_${ID}.log").apply { formatter = fileFormatter; level = Level.ALL }
-                    val infoHandler = FileHandler(parentDirectory.path + "/${timeName}_I_${ID}.log").apply { formatter = fileFormatter; level = Level.INFO }
-                    alarmLogger?.addHandler(verboseHandler)
-                    alarmLogger?.addHandler(infoHandler)
-                    slCompanion.f("***File handlers initialized")
-                } catch (e: Exception) {
-                    slCompanion.s("***Can't initialize file handlers, trying encrypted storage")
+                    mainLogger.logp(Level.SEVERE, TAG, null,"***Can't initialize file handlers, trying encrypted storage")
                     try {
                         val stream = context.createDeviceProtectedStorageContext().openFileOutput("${ID}.tmp", Context.MODE_PRIVATE)
-                        alarmLogger?.addHandler(encryptedHandler(stream))
+                        mainLogger.addHandler(encryptedHandler(stream))
                     } catch (e: FileNotFoundException){
-                        slCompanion.f("***Can't create no file\n${e.message}")
+                        mainLogger.logp(Level.SEVERE, TAG, null,"***Can't create output file\n${e.message}")
                     }
                 }
-                pullEncrypted()
+                initialized = true
             }
-            else if (inAlarmUnit) slCompanion.w("***Can't create 'alarm' logger when it already initialized")
+            else mainLogger.logp(Level.WARNING, TAG, null,"***Logger already initialized")
         }
-    }
 
-    class SLCompanion private constructor (){
-        private var affiliation = 0
-        private var TAG: String = ""
-
-        constructor (className: String, useRawName: Boolean = false): this (){
-            affiliation = if (alarmLogger!=null) 2 else if (mainLogger!=null) 1 else 0
-
-            if (useRawName){ TAG = "TAG_$className"; return}
-
-            val first = Pattern.compile("[A-Z][a-z]*").matcher(className.substring(className.lastIndexOf(Char(46))))
+        private val tags = HashMap<String, String>()
+        private fun createNAddTag(className: String): String{
+            val first = Pattern.compile("[A-Z][a-z]*").matcher(className)
 
             var result = ""
             while (first.find())
@@ -268,50 +232,61 @@ class SplitLogger private constructor() {
             result = "TAG_"
             while (second.find()) result+=second.group()
 
-            TAG = if (result.length <= 23) result else result.substring(0, 23)
-        }
+            val tag = if (result.length <= 23) result else result.substring(0, 23)
 
-        constructor (affiliation: Boolean, className: String, useRawName: Boolean = false): this (className, useRawName){
-            this.affiliation = if (!affiliation) 1 else 2
+            tags[className] = tag
+            return tag
         }
-
 
         private fun printMsg(
             msg: String, logLevel: Level,
             methodPrint: Boolean = false,
             tr: Throwable? = null,
         ){
+            val trace = Thread.currentThread().stackTrace[6]
+            val methodName = if (methodPrint) trace.methodName + ": " else ""
+            val className = trace.className.substringAfterLast(Char(0x2e))
 
-            val methodName = if (methodPrint) Thread.currentThread().stackTrace[5].methodName + ": " else ""
-            try {
-                if (affiliation==1 || affiliation==3) mainLogger!!.logp(logLevel, TAG, methodName, msg, tr)
-                if (affiliation==2 || affiliation==3) alarmLogger!!.logp(logLevel, TAG, methodName, msg, tr)
-                if (affiliation==0) Log.e(TAG, "***Requested logger ($affiliation) not initialized yet***")
-            }
-            catch (e: NullPointerException){
-                Log.e(TAG, "printMsg", e)
-            }
+            val tag: String = if (tags.containsKey(className)) tags[className]!!
+            else createNAddTag(className)
+
+            if (!initialized) mainLogger.logp(Level.WARNING, tag, null,"***Logger working without file output")
+            mainLogger.logp(logLevel, tag, methodName, msg, tr)
         }
 
-
+        @JvmStatic
         fun s(msg: String) = printMsg(msg, Level.SEVERE)
+        @JvmStatic
         fun sp(msg: String) = printMsg(msg, Level.SEVERE, true)
+        @JvmStatic
         fun s(msg: String, tr: Throwable? = null) = printMsg(msg, Level.SEVERE, tr = tr)
+        @JvmStatic
         fun sp(msg: String, tr: Throwable? = null) = printMsg(msg, Level.SEVERE,true, tr)
 
+        @JvmStatic
         fun w(msg: String) = printMsg(msg, Level.WARNING)
+        @JvmStatic
         fun wp(msg: String) = printMsg(msg, Level.WARNING, true)
 
+        @JvmStatic
         fun i(msg: String) = printMsg(msg, Level.INFO)
+        @JvmStatic
         fun ip(msg: String) = printMsg(msg, Level.INFO, true)
 
+        @JvmStatic
         fun f(msg: String) = printMsg(msg, Level.FINE)
+        @JvmStatic
         fun fp(msg: String) = printMsg(msg, Level.FINE, true)
 
+        @JvmStatic
         fun fr(msg: String) = printMsg(msg, Level.FINER)
+        @JvmStatic
         fun frp(msg: String) = printMsg(msg, Level.FINER, true)
 
+        @JvmStatic
         fun fst(msg: String) = printMsg(msg, Level.FINEST)
+        @JvmStatic
         fun fstp(msg: String) = printMsg(msg, Level.FINEST, true)
     }
+
 }

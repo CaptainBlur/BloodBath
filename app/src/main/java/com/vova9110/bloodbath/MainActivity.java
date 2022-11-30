@@ -42,7 +42,7 @@
 
  public class MainActivity extends AppCompatActivity{
      private final static String TAG = "TAG_MA";
-     private static SplitLogger.SLCompanion sl;
+     private SplitLogger sl;
 
     public static final int NEW_TASK_ACTIVITY_REQUEST_CODE = 1;
     public static final int FILL_DB = 3;
@@ -65,8 +65,6 @@
         recyclerView.setAdapter(mHandler.pollForList());
         recyclerView.setLayoutManager(new RowLayoutManager(this, mHandler));
         mHandler.setRecycler(recyclerView);
-
-        sl = new SplitLogger.SLCompanion(false, this.getClass().getName(), false);
 
         //recyclerView.setLayoutManager(new GridLayoutManager(this,1, RecyclerView.VERTICAL, false));
 //        ldObserver = new LDObserver();

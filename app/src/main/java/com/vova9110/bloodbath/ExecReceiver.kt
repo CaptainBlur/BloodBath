@@ -20,12 +20,10 @@ class ExecReceiver : BroadcastReceiver() {
         @Inject set
     override fun onReceive(context: Context, intent: Intent) {
         DaggerAppComponent.builder().dBModule(DBModule(context.applicationContext as Application)).build().inject(this)
-        SplitLogger.initialize(context, true)
-        val sl = SplitLogger.SLCompanion(true, this.javaClass.name, false)
+        SplitLogger.initialize(context)
 
         if (intent.action==Intent.ACTION_LOCKED_BOOT_COMPLETED){
-            sl.i("On boot call received")
-            
+
             val actives = repo!!.actives
             if (actives.isNotEmpty()){
                 val calendar = Calendar.getInstance()
@@ -47,10 +45,8 @@ class ExecReceiver : BroadcastReceiver() {
                 if (System.currentTimeMillis() >= scheduledCalendar.timeInMillis) {
                     val info = AlarmClockInfo(calendar.timeInMillis, activePI)
                     AManager.setAlarmClock(info, activePI)
-                    sl.fr("Setting alarm on: $ID")
                 } else {
                     AManager.setExact(AlarmManager.RTC, scheduledCalendar.timeInMillis, execPI)
-                    sl.fr("Scheduling exec on $execID")
                 }
             }
         }

@@ -52,10 +52,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     public static final int HIDE_N_LAYOUT_PREF = 3;
     public static final int UPDATE_DATASET = 4;
 
-    public static final int REMOVE_ITEM = 5;
-    public static final int INSERT_ITEM = 6;
-    public static final int UPDATE_ITEM = 7;
-
     public static final int MODE_DELETE = 0;
     public static final int MODE_ADD = 1;
     public static final int MODE_CHANGE = 2;
@@ -519,7 +515,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
     @Override
     public void prepareUpdateDataset() {
-        FLAG_NOTIFY = UPDATE_DATASET;//todo всё нормально, только бы со сдвигами разобраться
+        FLAG_NOTIFY = UPDATE_DATASET;
         Log.d(TAG, "UPDATE DATASET");
     }
 
@@ -527,7 +523,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     public void updateDatasetEvent(int position, int mode, int newHour, int newMinute) {
         Log.d (TAG, "UDE, pos " + position + ", mode " + mode);
 
-        FLAG_NOTIFY = UPDATE_DATASET;//todo всё нормально, только бы со сдвигами разобраться
+        FLAG_NOTIFY = UPDATE_DATASET;
         Log.d(TAG, "UPDATE DATASET");
         try {
             switch (mode) {
@@ -678,7 +674,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         rearrangeChildren();
 
         //Окно настроек убирается и добавляется только вместе с прилегающей строкой (снизу или сверху)
-        //todo на все скраповые варианты с окном настроек нужно добавить отдельный высчет строк, чтобы не зависеть от дифа
         switch (direction){
             case (DIR_DOWN):
 
@@ -1084,7 +1079,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         Log.d (TAG, "Cache filled: " + mViewCache.size() + ". from:" + mViewCache.keyAt(0) + " to:" + mViewCache.keyAt(mViewCache.size() - 1));
     }
 
-    private void fillDrawer (RecyclerView.Recycler recycler){//todo проверить теорию о том, что именно выкладка, а не байндинг тормозит скролл
+    private void fillDrawer (RecyclerView.Recycler recycler){
 
     }
 

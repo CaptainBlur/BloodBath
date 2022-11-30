@@ -28,7 +28,7 @@ Finally, there we need to handle casual process of rescheduling alarms after eac
  */
 public class AlarmExec extends Service {
     public static final String IntentAction = "com.vova9110.bloodbath.START_EXEC";
-    private SplitLogger.SLCompanion sl;
+    private SplitLogger sl;
     private AlarmRepo repo;
     private AlarmManager AManager;
 
@@ -40,7 +40,6 @@ public class AlarmExec extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        sl = new SplitLogger.SLCompanion(this.getClass().getName(), false);
 
         AManager = (android.app.AlarmManager) getApplicationContext().getSystemService(Context.ALARM_SERVICE);
 

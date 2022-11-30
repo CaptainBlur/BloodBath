@@ -82,7 +82,6 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         timeView.setVisibility(View.VISIBLE); hourPicker.setVisibility(View.GONE); minutePicker.setVisibility(View.GONE); switcher.setVisibility(View.GONE); FAB.setVisibility(View.GONE);
         timeView.setOnClickListener(this);
         timeView.setOnLongClickListener(this);
-        Log.d (TAG, "binding " + getAdapterPosition());
 
         timeView.setText(String.format("%02d:%02d", hour, minute));
     }

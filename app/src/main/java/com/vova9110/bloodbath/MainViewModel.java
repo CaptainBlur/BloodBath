@@ -38,7 +38,7 @@ public class MainViewModel extends AndroidViewModel {
     public final static String PREFERENCES_NAME = "prefs";
     private final AppComponent component;
     private final Application app;
-    private SplitLogger.SLCompanion sl;
+    private SplitLogger sl;
     @Inject
     public AlarmRepo repo;
     @Inject
@@ -47,8 +47,7 @@ public class MainViewModel extends AndroidViewModel {
 
     public MainViewModel(Application app) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
         super(app);
-        SplitLogger.initialize(app,false);
-        sl = new SplitLogger.SLCompanion(false, this.getClass().getName(), false);
+        SplitLogger.initialize(app);
 
         component = DaggerAppComponent.builder().dBModule(new DBModule(app)).build();
         this.app = app;
@@ -57,24 +56,6 @@ public class MainViewModel extends AndroidViewModel {
 
         checkLaunchPreferences();
 //        app.getApplicationContext().startService(execIntent);
-
-        File[] list = getApplication().createDeviceProtectedStorageContext().getFilesDir().listFiles();
-        assert list != null;
-        for (File file : list) {
-            try {
-                sl.i(file.getName());
-                Files.delete(file.toPath());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        File file = new File (getApplication().createDeviceProtectedStorageContext().getFilesDir().getPath() + "/459.tmp");
-//        try {
-//            FileInputStream stream = getApplication().createDeviceProtectedStorageContext().openFileInput("459.tmp");
-//            BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
     }
     AppComponent getComponent(){ return component; }
 
