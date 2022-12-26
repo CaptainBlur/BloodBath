@@ -2,14 +2,12 @@ package com.vova9110.bloodbath
 
 import android.content.Context
 import android.util.Log
-import android.util.SparseArray
-import java.io.BufferedReader
+import com.google.gson.Gson
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
-import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -21,7 +19,7 @@ import java.util.logging.*
 import java.util.logging.Formatter
 import java.util.regex.Pattern
 
-class SplitLogger private constructor() {
+class SplitLogger() {
 
     companion object {
         private val mainLogger: Logger = Logger.getAnonymousLogger()
@@ -34,9 +32,14 @@ class SplitLogger private constructor() {
                     val thrown: Throwable? = record!!.thrown
                     val sw = StringWriter()
                     val pw = PrintWriter(sw)
-                    if (record.level==Level.FINER) sw.write("\t")
-                    if (record.level==Level.FINEST) sw.write("\t\t")
+                    if (record.level==Level.FINE) sw.write("\t")
+                    if (record.level==Level.FINER) sw.write("\t\t")
+                    if (record.level==Level.FINEST) sw.write("\t\t\t")
                     if (record.sourceMethodName!=null) sw.write(record.sourceMethodName)
+
+//                    val index = record.message.lastIndexOf(Char(0x0a))
+//                    if (index!=-1) record.message.
+
                     sw.write(record.message)
                     sw.write("\n")
                     if (thrown != null) thrown.printStackTrace(pw)
@@ -185,7 +188,7 @@ class SplitLogger private constructor() {
 
             if (!initialized){
                 val parentDirectory = File(context.getExternalFilesDir(null), "main_unit_logs")
-                mainLogger.logp(Level.FINE, TAG, "manageDirectory: ", manageDirectory(parentDirectory, 8, ".log", true))
+                mainLogger.logp(Level.FINE, TAG, "manageDirectory: ", manageDirectory(parentDirectory, 4, ".log", true))
 
                 var timeName = DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT, Locale.getDefault()).format(Calendar.getInstance().time)
                 timeName = timeName.replace(Char(32), Char(95))
@@ -215,19 +218,30 @@ class SplitLogger private constructor() {
         }
 
         private val tags = HashMap<String, String>()
-        private fun createNAddTag(className: String): String{
+
+        private fun getTag(rawClassName: String): Array<String>{
+            //Extracting essentials from raw string
+            var className = rawClassName.substringAfterLast(Char(0x2e))
+            if (Pattern.compile(".*$+").matcher(className).find())
+                className = className.substringBefore(Char(0x24))
+
+            //Trying to find a match in HashMap
+            if (tags.containsKey(className)) return Array(2) { i ->
+                if (i == 0) tags.getValue(className) else className
+            }
+
             val first = Pattern.compile("[A-Z][a-z]*").matcher(className)
 
             var result = ""
             while (first.find())
                 result += when(first.group()){
                     "Main"-> "M:"
-                    "Alarm"-> "A:"
+                    "Alarm","Alarms"-> "A:"
                     "Activity"-> "A"
                     "Handler"-> "H"
                     else-> first.group()
                 }
-            val second = Pattern.compile("[A-Z]:?[a-z]{0,2}[^A-Z^equoaijy]?").matcher(result)
+            val second = Pattern.compile("[A-Z]:?[a-z]{0,3}[^A-Z^equoaijy]?").matcher(result)
 
             result = "TAG_"
             while (second.find()) result+=second.group()
@@ -235,58 +249,160 @@ class SplitLogger private constructor() {
             val tag = if (result.length <= 23) result else result.substring(0, 23)
 
             tags[className] = tag
-            return tag
+            return Array(2) { i ->
+                if (i == 0) tag else className
+            }
         }
 
+        inline fun <reified T : Any>T.printObject(): String{
+            return when (this){
+                is Array<*>->
+                    Gson().toJson(this)
+                is ByteArray-> Gson().toJson(this.toTypedArray())
+                is CharArray-> Gson().toJson(this.toTypedArray())
+                is ShortArray-> Gson().toJson(this.toTypedArray())
+                is IntArray-> Gson().toJson(this.toTypedArray())
+                is LongArray-> Gson().toJson(this.toTypedArray())
+                is FloatArray-> Gson().toJson(this.toTypedArray())
+                is DoubleArray-> Gson().toJson(this.toTypedArray())
+                is BooleanArray-> Gson().toJson(this.toTypedArray())
+
+                else-> this.toString()
+            }
+        }
+        private fun findTrace(trace: Array<StackTraceElement>): StackTraceElement{
+            var i = 0
+            val pattern = Pattern.compile("SplitLogger")
+            for (k in trace.indices){
+                if (pattern.matcher(trace[k].toString()).find()) i = k
+            }
+            return trace[i+1]
+        }
         private fun printMsg(
             msg: String, logLevel: Level,
             methodPrint: Boolean = false,
+            //Using offset for method name getter in case if caller object is gotten from some container like Dagger or System itself
+            callable: Boolean = false,
             tr: Throwable? = null,
         ){
-            val trace = Thread.currentThread().stackTrace[6]
-            val methodName = if (methodPrint) trace.methodName + ": " else ""
-            val className = trace.className.substringAfterLast(Char(0x2e))
+            val offset = if (callable) 1 else 0
+            val trace = findTrace(Thread.currentThread().stackTrace)
+            val methodName = if (methodPrint) trace.methodName.substringAfterLast(Char(0x24)) + ": " else ""
+            //In case if we have caller object in Dagger container
 
-            val tag: String = if (tags.containsKey(className)) tags[className]!!
-            else createNAddTag(className)
+            val tag = getTag(trace.className)[0]
 
             if (!initialized) mainLogger.logp(Level.WARNING, tag, null,"***Logger working without file output")
             mainLogger.logp(logLevel, tag, methodName, msg, tr)
+//            for (trace in thread.stackTrace) mainLogger.logp(Level.INFO, tag, "", trace.toString())
+
+        }
+        private fun printPass(
+            msg: String
+        ){
+            val thread = findTrace(Thread.currentThread().stackTrace)
+
+            val tag = getTag(thread.className)[0]
+            val noTag = tag.substringAfter(Char(0x5f))
+
+            if (!initialized) mainLogger.logp(Level.WARNING, tag, null,"***Logger working without file output")
+            mainLogger.logp(Level.FINE, tag, "", "_$noTag $msg")
         }
 
         @JvmStatic
         fun s(msg: String) = printMsg(msg, Level.SEVERE)
         @JvmStatic
+        fun s(obj: Any) = printMsg(obj.printObject(), Level.SEVERE)
+        @JvmStatic
         fun sp(msg: String) = printMsg(msg, Level.SEVERE, true)
+        @JvmStatic
+        fun sp(obj: Any) = printMsg(obj.printObject(), Level.SEVERE, true)
+        @JvmStatic
+        fun spc(msg: String) = printMsg(msg, Level.SEVERE, true, callable = true)
+        @JvmStatic
+        fun spc(obj: Any) = printMsg(obj.printObject(), Level.SEVERE, true, callable = true)
         @JvmStatic
         fun s(msg: String, tr: Throwable? = null) = printMsg(msg, Level.SEVERE, tr = tr)
         @JvmStatic
-        fun sp(msg: String, tr: Throwable? = null) = printMsg(msg, Level.SEVERE,true, tr)
+        fun s(obj: Any, tr: Throwable? = null) = printMsg(obj.printObject(), Level.SEVERE, tr = tr)
+        @JvmStatic
+        fun sp(msg: String, tr: Throwable? = null) = printMsg(msg, Level.SEVERE,true, tr = tr)
+        @JvmStatic
+        fun sp(obj: Any, tr: Throwable? = null) = printMsg(obj.printObject(), Level.SEVERE,true, tr = tr)
+        @JvmStatic
+        fun spc(msg: String, tr: Throwable? = null) = printMsg(msg, Level.SEVERE,true, true, tr)
+        @JvmStatic
+        fun spc(obj: Any, tr: Throwable? = null) = printMsg(obj.printObject(), Level.SEVERE,true, true, tr)
 
         @JvmStatic
         fun w(msg: String) = printMsg(msg, Level.WARNING)
         @JvmStatic
+        fun w(obj: Any) = printMsg(obj.printObject(), Level.WARNING)
+        @JvmStatic
         fun wp(msg: String) = printMsg(msg, Level.WARNING, true)
+        @JvmStatic
+        fun wp(obj: Any) = printMsg(obj.printObject(), Level.WARNING, true)
+        @JvmStatic
+        fun wpc(msg: String) = printMsg(msg, Level.WARNING, true, true)
+        @JvmStatic
+        fun wpc(obj: Any) = printMsg(obj.printObject(), Level.WARNING, true, true)
 
         @JvmStatic
         fun i(msg: String) = printMsg(msg, Level.INFO)
         @JvmStatic
+        fun i(obj: Any) = printMsg(obj.printObject(), Level.INFO)
+        @JvmStatic
         fun ip(msg: String) = printMsg(msg, Level.INFO, true)
+        @JvmStatic
+        fun ip(obj: Any) = printMsg(obj.printObject(), Level.INFO, true)
+        @JvmStatic
+        fun ipc(msg: String) = printMsg(msg, Level.INFO, true, true)
+        @JvmStatic
+        fun ipc(obj: Any) = printMsg(obj.printObject(), Level.INFO, true, true)
 
         @JvmStatic
         fun f(msg: String) = printMsg(msg, Level.FINE)
         @JvmStatic
+        fun f(obj: Any) = printMsg(obj.printObject(), Level.FINE)
+        @JvmStatic
         fun fp(msg: String) = printMsg(msg, Level.FINE, true)
+        @JvmStatic
+        fun fp(obj: Any) = printMsg(obj.printObject(), Level.FINE, true)
+        @JvmStatic
+        fun fpc(msg: String) = printMsg(msg, Level.FINE, true, true)
+        @JvmStatic
+        fun fpc(obj: Any) = printMsg(obj.printObject(), Level.FINE, true, true)
 
         @JvmStatic
         fun fr(msg: String) = printMsg(msg, Level.FINER)
         @JvmStatic
+        fun fr(obj: Any) = printMsg(obj.printObject(), Level.FINER)
+        @JvmStatic
         fun frp(msg: String) = printMsg(msg, Level.FINER, true)
+        @JvmStatic
+        fun frp(obj: Any) = printMsg(obj.printObject(), Level.FINER, true)
+        @JvmStatic
+        fun frpc(msg: String) = printMsg(msg, Level.FINER, true, true)
+        @JvmStatic
+        fun frpc(obj: Any) = printMsg(obj.printObject(), Level.FINER, true, true)
 
         @JvmStatic
         fun fst(msg: String) = printMsg(msg, Level.FINEST)
         @JvmStatic
+        fun fst(obj: Any) = printMsg(obj.printObject(), Level.FINEST)
+        @JvmStatic
         fun fstp(msg: String) = printMsg(msg, Level.FINEST, true)
+        @JvmStatic
+        fun fstp(obj: Any) = printMsg(obj.printObject(), Level.FINEST, true)
+        @JvmStatic
+        fun fstpc(msg: String) = printMsg(msg, Level.FINEST, true, true)
+        @JvmStatic
+        fun fstpc(obj: Any) = printMsg(obj.printObject(), Level.FINEST, true, true)
+
+        @JvmStatic
+        fun en() = printPass("entered")
+        @JvmStatic
+        fun ex() = printPass("exited")
     }
 
 }

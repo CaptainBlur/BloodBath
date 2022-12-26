@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AndroidTestResultsUserPreferences">
+    <option name="androidTestResultsTableState">
+      <map>
+        <entry key="-1776360238">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Google&#10; Pixel 4" value="120" />
+                  <entry key="Tests" value="360" />
+                  <entry key="adb-9B151FFAZ0074X-tDK9fv._adb-tls-connect._tcp" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="-669020642">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="204" />
+                  <entry key="Google" value="120" />
+                  <entry key="Google&#10; Pixel 4" value="120" />
+                  <entry key="Tests" value="473" />
+                  <entry key="adb-9B151FFAZ0074X-tDK9fv._adb-tls-connect._tcp" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="-346578564">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Google&#10; Pixel 4" value="120" />
+                  <entry key="Tests" value="360" />
+                  <entry key="adb-9B151FFAZ0074X-tDK9fv._adb-tls-connect._tcp" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="72202150">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Google&#10; Pixel 4" value="120" />
+                  <entry key="Tests" value="360" />
+                  <entry key="adb-9B151FFAZ0074X-tDK9fv._adb-tls-connect._tcp" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="143397146">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Google" value="120" />
+                  <entry key="Google&#10; Pixel 4" value="120" />
+                  <entry key="Tests" value="360" />
+                  <entry key="adb-9B151FFAZ0074X-tDK9fv._adb-tls-connect._tcp" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="240404668">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Google&#10; Pixel 4" value="120" />
+                  <entry key="Tests" value="360" />
+                  <entry key="adb-9B151FFAZ0074X-tDK9fv._adb-tls-connect._tcp" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+        <entry key="1004342908">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Google&#10; Pixel 4" value="120" />
+                  <entry key="Tests" value="360" />
+                  <entry key="adb-9B151FFAZ0074X-tDK9fv._adb-tls-connect._tcp" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>

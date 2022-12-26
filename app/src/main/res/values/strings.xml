@@ -8,6 +8,7 @@
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
     <string name="firing_notification_channel_name">Firing alarms</string>
+    <string name="firing_info_notification_channel_name">Upcoming &amp; Snoozed &amp; Missed alarms</string>
     <string name="activeness_detection_notification_channel_name">Activeness detection</string>
-    <string name="warning_notification_channel_name">Warning informing</string>
+    <string name="activeness_detection_notification_info_channel_name">Activeness detection subsidiary</string>
 </resources>

@@ -2,7 +2,6 @@
 
  import static com.vova9110.bloodbath.MainViewModel.PREFERENCES_NAME;
 
- import android.annotation.SuppressLint;
  import android.content.Context;
  import android.content.Intent;
  import android.content.SharedPreferences;
@@ -14,41 +13,31 @@
 
  import androidx.appcompat.app.AppCompatActivity;
  import androidx.appcompat.app.AppCompatDelegate;
- import androidx.lifecycle.Observer;
  import androidx.lifecycle.ViewModelProvider;
  import androidx.recyclerview.widget.RecyclerView;
 
- import com.elvishew.xlog.LogLevel;
  import com.google.android.material.floatingactionbutton.FloatingActionButton;
- import com.vova9110.bloodbath.AlarmScreenBackground.ActivenessDetectionService;
- import com.vova9110.bloodbath.AlarmsUI.FreeAlarmsHandler;
- import com.vova9110.bloodbath.Database.TimeSInfo;
- import com.vova9110.bloodbath.Database.Alarm;
- import com.vova9110.bloodbath.RecyclerView.AlarmListAdapter;
- import com.vova9110.bloodbath.RecyclerView.RowLayoutManager;
+ import com.vova9110.bloodbath.alarmScreenBackground.ActivenessDetectionService;
+ import com.vova9110.bloodbath.alarmScreenBackground.AlarmExecutionDispatch;
+ import com.vova9110.bloodbath.alarmScreenBackground.AlarmRepo;
+ import com.vova9110.bloodbath.alarmScreenBackground.BackgroundUtils;
+ import com.vova9110.bloodbath.alarmsUI.FreeAlarmsHandler;
+ import com.vova9110.bloodbath.alarmScreenBackground.SubInfo;
+ import com.vova9110.bloodbath.database.Alarm;
+ import com.vova9110.bloodbath.recyclerView.RowLayoutManager;
 
- import java.io.Console;
- import java.util.List;
- import java.util.logging.ConsoleHandler;
- import java.util.logging.Filter;
- import java.util.logging.Formatter;
- import java.util.logging.Handler;
- import java.util.logging.Level;
- import java.util.logging.LogRecord;
- import java.util.logging.Logger;
- import java.util.logging.SimpleFormatter;
+ import java.util.Date;
+ import java.util.concurrent.TimeUnit;
 
  import javax.inject.Inject;
 
- public class MainActivity extends AppCompatActivity{
-     private final static String TAG = "TAG_MA";
-     private SplitLogger sl;
+public class MainActivity extends AppCompatActivity{
+    private SplitLogger sl;
 
     public static final int NEW_TASK_ACTIVITY_REQUEST_CODE = 1;
     public static final int FILL_DB = 3;
     public static final int CLEAR_DB = 4;
     private MainViewModel mMainViewModel;
-    private static AlarmListAdapter adapter;
     @Inject
     public FreeAlarmsHandler mHandler;
 
@@ -60,18 +49,11 @@
 
         // Get a new or existing ViewModel from the ViewModelProvider.
         mMainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
-        mMainViewModel.getComponent().inject(this);
+        ((MyApp) getApplicationContext()).component.inject(this);
         RecyclerView recyclerView = findViewById(R.id.recyclerview);
         recyclerView.setAdapter(mHandler.pollForList());
         recyclerView.setLayoutManager(new RowLayoutManager(this, mHandler));
         mHandler.setRecycler(recyclerView);
-
-        //recyclerView.setLayoutManager(new GridLayoutManager(this,1, RecyclerView.VERTICAL, false));
-//        ldObserver = new LDObserver();
-
-//        mHandler.getInitialList().observe(this, ldObserver);
-//        mHandler.pass(recyclerView, adapter, ldObserver, getApplicationContext());
-        //mHandler.fill();
 
         ImageView imageView = findViewById(R.id.imageView);
         FloatingActionButton fab = findViewById(R.id.fab);
@@ -86,39 +68,66 @@
             return true;
         });
 
-        Button detectionButton = findViewById(R.id.button2);
-//        detectionButton.setOnClickListener(view -> getApplicationContext().startService());
-        detectionButton.setOnLongClickListener(view ->{
-            getApplicationContext().startService(new Intent(getApplicationContext(), ActivenessDetectionService.class).putExtra("stopCall", true));
-            return true;
+        //ONLY TEMP THING!!!
+        findViewById(R.id.buttonRepeat)
+                .setOnClickListener(view-> {
+                    mHandler.repeatButton = !mHandler.repeatButton;
+                    view.setBackgroundTintList(this.getColorStateList(R.color.test_color_list));
+                });
+        findViewById(R.id.buttonActiv)
+                .setOnClickListener(view-> {
+                    mHandler.activeButton = !mHandler.activeButton;
+                    view.setBackgroundTintList(this.getColorStateList(R.color.test_color_list));
+                });
+
+        Button startFiringButton = findViewById(R.id.button3);
+        startFiringButton.setOnClickListener(view -> {
+            AlarmRepo repo = ((MyApp) getApplicationContext()).component.getRepo();
+            Alarm current = new Alarm(0,0, true, Alarm.STATE_FIRE);
+            repo.deleteOne(current);
+            current.setTriggerTime(new Date());
+            repo.testInsert(current);
+
+            Intent intent = new Intent(getApplicationContext(), AlarmExecutionDispatch.class);
+            intent.setAction(current.getId());
+
+            getApplicationContext().sendBroadcast(intent);
         });
-        detectionButton.setOnClickListener(view -> {
-            Intent intent = new Intent(getApplicationContext(), ActivenessDetectionService.class).putExtra("info",
-                    new TimeSInfo(null,
-                            null,
-                            50,
-                            1.5f,
-                            0,
-                            5,
-                            40,
-                            90,
-                            8 * 60,
-                            15 * 60
-                    ));
-            intent.putExtra("testMode", false);
-            intent.putExtra("fileOutput", true);
-            getApplicationContext().startForegroundService(intent);
+        startFiringButton.setOnLongClickListener(view-> {
+            new Thread(()->{
+                try {
+                    TimeUnit.SECONDS.sleep(5);
+                } catch (InterruptedException ignored) {}
+
+                AlarmRepo repo = ((MyApp) getApplicationContext()).component.getRepo();
+                Alarm current = new Alarm(0,0, true, Alarm.STATE_FIRE);
+                repo.deleteOne(current);
+                current.setTriggerTime(new Date());
+                repo.testInsert(current);
+
+                Intent intent = new Intent(getApplicationContext(), AlarmExecutionDispatch.class);
+                intent.setAction(current.getId());
+
+                getApplicationContext().sendBroadcast(intent);
+            }).start();
+            return true;
         });
 
-        Button startActivityButton = findViewById(R.id.button3);
-        startActivityButton.setOnClickListener(view -> mHandler.addTest(1));
-        startActivityButton.setOnLongClickListener(view -> {
-            mHandler.addTest(7);
-            return true;
+        Button startDetectionButton = findViewById(R.id.button2);
+        startDetectionButton.setOnClickListener(view-> {
+            AlarmRepo repo = ((MyApp) getApplicationContext()).component.getRepo();
+            Alarm current = new Alarm(0,0, true, Alarm.STATE_FIRE);
+            repo.deleteOne(current);
+            current.setTriggerTime(new Date());
+            repo.testInsert(current);
+            Intent intent = new Intent(getApplicationContext(), ActivenessDetectionService.class);
+            intent.putExtra("info", repo.getTimesInfo(current.getId()));
+
+            getApplicationContext().startForegroundService(intent);
         });
     }
 
-     public void onActivityResult(int requestCode, int resultCode, Intent data) {
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == RESULT_OK) {
@@ -136,21 +145,28 @@
     }
 
      @Override
-     protected void onResume() {
-        sl.i("Resuming");
+    protected void onResume() {
+        sl.en();
+
+        SharedPreferences prefs = getApplicationContext().getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+
+        editor.putBoolean("appExitedProperly", false);
+        editor.apply();
+
 //        mHandler.onResumeUpdate();
         super.onResume();
-     }
+    }
 
      @Override
      protected void onStop() {
+         sl.ex();
          SharedPreferences prefs = getApplicationContext().getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
          SharedPreferences.Editor editor = prefs.edit();
 
          editor.putBoolean("appExitedProperly", true);
          editor.apply();
-         sl.i("Intentional exit detected!");
          super.onStop();
      }
 
- }
+}
