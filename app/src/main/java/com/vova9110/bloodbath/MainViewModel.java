@@ -11,19 +11,25 @@ import android.net.Uri;
 
 import androidx.lifecycle.AndroidViewModel;
 
+import com.vova9110.bloodbath.alarmScreenBackground.AlarmRepo;
+
 public class MainViewModel extends AndroidViewModel {
     public final static String PREFERENCES_NAME = "prefs";
     private final Application app;
     private SplitLogger sl;
 
-    public MainViewModel(Application app) { // Конструктор, в который принимаем параметры, необходимые для создания БД в репозитории
+    public MainViewModel(Application app) {
         super(app);
 
         this.app = app;
+        reassureRepo();
         checkLaunchPreferences();
     }
 
-    private void checkLaunchPreferences (){
+    private void reassureRepo(){
+        ((MyApp) app).component.getRepo().reassureAll();
+    }
+    private void checkLaunchPreferences(){
         SharedPreferences prefs = app.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = prefs.edit();
 
@@ -71,12 +77,13 @@ public class MainViewModel extends AndroidViewModel {
             manager.createNotificationChannel(channel4);
         }
 
-        if (!prefs.getBoolean("appExitedProperly", false) && !prefs.getBoolean("firstLaunch", true)){
+        if (!prefs.getBoolean("appExitedProperly", false) || !prefs.getBoolean("firstLaunch", true)){
             sl.i("###urgent app exit detected###");
         }
 
         editor.putBoolean("appExitedProperly", false);
         editor.putBoolean("firstLaunch", false);
+//        editor.putBoolean("notificationChannelsSet", false);
         editor.apply();
 
     }

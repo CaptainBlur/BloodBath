@@ -18,7 +18,10 @@ import com.vova9110.bloodbath.SplitLogger;
 import com.vova9110.bloodbath.database.Alarm;
 
 import java.text.SimpleDateFormat;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -43,25 +46,40 @@ public class BackgroundUtils {
     private static final int FIRE_PREF = 11;
     private static final int SNOOZE_PREF = 69;
     private static final int MISS_PREF = 29;
+    public static final int UNIVERSAL_NOT_ID = 911;
+
+    public static final String INTERLAYER_EXTRA = "interlayer";
 
     static protected String getGlobalID(Context context){
         SharedPreferences pref = context.getSharedPreferences(MainViewModel.PREFERENCES_NAME, Context.MODE_PRIVATE);
-        String id = pref.getString("global", "null");
-        return id;
+        return pref.getString("global", "null");
     }
-    public static void setGlobalID(Context context, String id){
+    public static void setGlobalID(Context context, AlarmRepo repo){
         SharedPreferences pref = context.getSharedPreferences(MainViewModel.PREFERENCES_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();
-        assert id!=null;
+
+        List<Alarm> repoActives = repo.getActives();
+        if (repoActives.isEmpty()){
+            SplitLogger.frpc("no actives in repo to calculate new globalID");
+            editor.putString("global", "null");
+            editor.apply();
+            return;
+        }
+
+        LinkedList<Alarm> actives = new LinkedList<>(repoActives);
+        actives.sort(Comparator.comparing(Alarm::getTriggerTime));
+        String id = actives.get(0).getId();
+
         editor.putString("global", id);
         editor.apply();
-        sl.frpc("globalID has set for " + id);
+        sl.fstpc("globalID has set for " + id);
     }
 
     static protected void scheduleExact(Context context, String id, String state, long time){
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(context, AlarmExecutionDispatch.class);
+        Intent intent = new Intent(context, FiringControlService.class);
         intent.setAction(id);
+        intent.setFlags(Intent.FLAG_RECEIVER_FOREGROUND);
 
         String composedID;
         switch (state){
@@ -69,27 +87,29 @@ public class BackgroundUtils {
                 sl.sp("Cannot proceed with *STATE_ALL* action");
                 return;
             }
-            case Alarm.STATE_ANTICIPATE: composedID = String.valueOf(ANTICIPATE_PREF);
-            case Alarm.STATE_DISABLE: composedID = String.valueOf(DISABLE_PREF);
-            case Alarm.STATE_FIRE: composedID = String.valueOf(FIRE_PREF);
-            case Alarm.STATE_MISS: composedID = String.valueOf(MISS_PREF);
-            case Alarm.STATE_PREPARE: composedID = String.valueOf(PREPARE_PREF);
-            case Alarm.STATE_SNOOZE: composedID = String.valueOf(SNOOZE_PREF);
-            case Alarm.STATE_SUSPEND: composedID = String.valueOf(SUSPEND_PREF);
+            case Alarm.STATE_ANTICIPATE: composedID = String.valueOf(ANTICIPATE_PREF); break;
+            case Alarm.STATE_DISABLE: composedID = String.valueOf(DISABLE_PREF); break;
+            case Alarm.STATE_FIRE: composedID = String.valueOf(FIRE_PREF); break;
+            case Alarm.STATE_MISS: composedID = String.valueOf(MISS_PREF); break;
+            case Alarm.STATE_PREPARE: composedID = String.valueOf(PREPARE_PREF); break;
+            case Alarm.STATE_SNOOZE: composedID = String.valueOf(SNOOZE_PREF); break;
+            case Alarm.STATE_SUSPEND: composedID = String.valueOf(SUSPEND_PREF); break;
             default: composedID = "";
         }
         composedID+=id;
 
-        PendingIntent pending = PendingIntent.getBroadcast(context, Integer.parseInt(composedID), intent, PendingIntent.FLAG_IMMUTABLE);
-        manager.setExact(AlarmManager.RTC, time, pending);
+        PendingIntent pending = PendingIntent.getForegroundService(context, Integer.parseInt(composedID), intent, PendingIntent.FLAG_IMMUTABLE);
+        manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, time, pending);
 
-        sl.fst("Scheduling exact with id *" + composedID + "* and state *" + state + "* on " + new SimpleDateFormat("*d,EEE,HH:mm*", Locale.getDefault()).format(new Date(time)));
+        sl.fst("Scheduling exact with id *" + composedID + "* (state *" + state + "*) on " + new SimpleDateFormat("*d,EEE,HH:mm*", Locale.getDefault()).format(new Date(time)));
         testListener.onInfoPassed(state, time, AlarmExecutionDispatch.class.getName());
     }
+
     static protected void scheduleAlarm(Context context, String id, String state, long time){
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(context, AlarmExecutionDispatch.class);
+        Intent intent = new Intent(context, FiringControlService.class);
         intent.setAction(id);
+        intent.setFlags(Intent.FLAG_RECEIVER_FOREGROUND);
 
         String composedID;
         switch (state){
@@ -97,18 +117,13 @@ public class BackgroundUtils {
                 sl.sp("Cannot proceed with *STATE_ALL* action");
                 return;
             }
-            case Alarm.STATE_ANTICIPATE: composedID = String.valueOf(ANTICIPATE_PREF);
-            case Alarm.STATE_DISABLE: composedID = String.valueOf(DISABLE_PREF);
-            case Alarm.STATE_FIRE: composedID = String.valueOf(FIRE_PREF);
-            case Alarm.STATE_MISS: composedID = String.valueOf(MISS_PREF);
-            case Alarm.STATE_PREPARE: composedID = String.valueOf(PREPARE_PREF);
-            case Alarm.STATE_SNOOZE: composedID = String.valueOf(SNOOZE_PREF);
-            case Alarm.STATE_SUSPEND: composedID = String.valueOf(SUSPEND_PREF);
+            case Alarm.STATE_FIRE: composedID = String.valueOf(FIRE_PREF); break;
+            case Alarm.STATE_SNOOZE: composedID = String.valueOf(SNOOZE_PREF); break;
             default: composedID = "";
         }
         composedID+=id;
 
-        PendingIntent pending = PendingIntent.getBroadcast(context, Integer.parseInt(composedID), intent, PendingIntent.FLAG_IMMUTABLE);
+        PendingIntent pending = PendingIntent.getForegroundService(context, Integer.parseInt(composedID), intent, PendingIntent.FLAG_IMMUTABLE);
         AlarmManager.AlarmClockInfo info = new AlarmManager.AlarmClockInfo(time, pending);
         manager.setAlarmClock(info, pending);
 
@@ -138,23 +153,24 @@ public class BackgroundUtils {
     }
     static private void cancelParticular (Context context, String id, String state){
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        Intent intent = new Intent(context, AlarmExecutionDispatch.class);
-        intent.setAction(state);
+        Intent intent = new Intent(context, FiringControlService.class);
+        intent.setAction(id);
+        intent.setFlags(Intent.FLAG_RECEIVER_FOREGROUND);
 
         String composedID;
         switch (state){
-            case Alarm.STATE_ANTICIPATE: composedID = String.valueOf(ANTICIPATE_PREF);
-            case Alarm.STATE_DISABLE: composedID = String.valueOf(DISABLE_PREF);
-            case Alarm.STATE_FIRE: composedID = String.valueOf(FIRE_PREF);
-            case Alarm.STATE_MISS: composedID = String.valueOf(MISS_PREF);
-            case Alarm.STATE_PREPARE: composedID = String.valueOf(PREPARE_PREF);
-            case Alarm.STATE_SNOOZE: composedID = String.valueOf(SNOOZE_PREF);
-            case Alarm.STATE_SUSPEND: composedID = String.valueOf(SUSPEND_PREF);
+            case Alarm.STATE_ANTICIPATE: composedID = String.valueOf(ANTICIPATE_PREF); break;
+            case Alarm.STATE_DISABLE: composedID = String.valueOf(DISABLE_PREF); break;
+            case Alarm.STATE_FIRE: composedID = String.valueOf(FIRE_PREF); break;
+            case Alarm.STATE_MISS: composedID = String.valueOf(MISS_PREF); break;
+            case Alarm.STATE_PREPARE: composedID = String.valueOf(PREPARE_PREF); break;
+            case Alarm.STATE_SNOOZE: composedID = String.valueOf(SNOOZE_PREF); break;
+            case Alarm.STATE_SUSPEND: composedID = String.valueOf(SUSPEND_PREF); break;
             default: composedID = "";
         }
         composedID+=id;
 
-        PendingIntent pending = PendingIntent.getBroadcast(context, Integer.parseInt(composedID), intent, PendingIntent.FLAG_IMMUTABLE + PendingIntent.FLAG_CANCEL_CURRENT);
+        PendingIntent pending = PendingIntent.getForegroundService(context, Integer.parseInt(composedID), intent,PendingIntent.FLAG_IMMUTABLE + PendingIntent.FLAG_CANCEL_CURRENT);
         manager.cancel(pending);
     }
 
@@ -170,7 +186,7 @@ public class BackgroundUtils {
             case(Alarm.STATE_MISS): builder.setContentTitle("Missed: " + id); break;
         }
 
-        manager.notify(id + state, 911, builder.build());
+        manager.notify(id + state, UNIVERSAL_NOT_ID, builder.build());
 
         testListener.onNotificationCreated(state);
     }
@@ -181,12 +197,12 @@ public class BackgroundUtils {
             sl.fr("Control cancelling all possible notifications for *" + id + "*");
             testListener.onNotificationCancelled(state);
 
-            manager.cancel(id + Alarm.STATE_MISS, 911);
-            manager.cancel(id + Alarm.STATE_PREPARE, 911);
-            manager.cancel(id + Alarm.STATE_PREPARE_SNOOZE, 911);
+            manager.cancel(id + Alarm.STATE_MISS, UNIVERSAL_NOT_ID);
+            manager.cancel(id + Alarm.STATE_PREPARE, UNIVERSAL_NOT_ID);
+            manager.cancel(id + Alarm.STATE_PREPARE_SNOOZE, UNIVERSAL_NOT_ID);
         }
         else {
-            manager.cancel(id + state, 911);
+            manager.cancel(id + state, UNIVERSAL_NOT_ID);
             sl.fst("Cancelling alarm for state *" + state + "* for *" + id + "*");
             testListener.onNotificationCancelled(state);
         }

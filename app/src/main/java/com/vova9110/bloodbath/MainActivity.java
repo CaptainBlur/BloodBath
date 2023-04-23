@@ -2,6 +2,8 @@
 
  import static com.vova9110.bloodbath.MainViewModel.PREFERENCES_NAME;
 
+ import android.app.AlarmManager;
+ import android.app.PendingIntent;
  import android.content.Context;
  import android.content.Intent;
  import android.content.SharedPreferences;
@@ -21,18 +23,22 @@
  import com.vova9110.bloodbath.alarmScreenBackground.AlarmExecutionDispatch;
  import com.vova9110.bloodbath.alarmScreenBackground.AlarmRepo;
  import com.vova9110.bloodbath.alarmScreenBackground.BackgroundUtils;
+ import com.vova9110.bloodbath.alarmScreenBackground.FiringControlService;
  import com.vova9110.bloodbath.alarmsUI.FreeAlarmsHandler;
  import com.vova9110.bloodbath.alarmScreenBackground.SubInfo;
  import com.vova9110.bloodbath.database.Alarm;
  import com.vova9110.bloodbath.recyclerView.RowLayoutManager;
 
+ import java.text.SimpleDateFormat;
+ import java.util.Calendar;
  import java.util.Date;
+ import java.util.Locale;
  import java.util.concurrent.TimeUnit;
 
  import javax.inject.Inject;
 
 public class MainActivity extends AppCompatActivity{
-    private SplitLogger sl;
+    private SplitLogger sl = new SplitLogger();
 
     public static final int NEW_TASK_ACTIVITY_REQUEST_CODE = 1;
     public static final int FILL_DB = 3;
@@ -47,6 +53,13 @@ public class MainActivity extends AppCompatActivity{
         setContentView(R.layout.activity_main);
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
 
+//        Date firstDate = new Date();
+//        Date secDate = firstDate;
+//        secDate.setTime(secDate.getTime() + 10000);
+//        firstDate = null;
+//        SplitLogger.i(secDate);
+//        SplitLogger.i(firstDate);
+
         // Get a new or existing ViewModel from the ViewModelProvider.
         mMainViewModel = new ViewModelProvider(this).get(MainViewModel.class);
         ((MyApp) getApplicationContext()).component.inject(this);
@@ -58,8 +71,31 @@ public class MainActivity extends AppCompatActivity{
         ImageView imageView = findViewById(R.id.imageView);
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(view -> {
-            Intent intent = new Intent(MainActivity.this, NewTaskActivity.class);
-            startActivityForResult(intent, NEW_TASK_ACTIVITY_REQUEST_CODE);
+            Intent oldIntent = new Intent(MainActivity.this, NewTaskActivity.class);
+            startActivityForResult(oldIntent, NEW_TASK_ACTIVITY_REQUEST_CODE);
+
+
+
+//            Calendar cal = Calendar.getInstance();
+//            cal.roll(Calendar.DATE, true);
+//            cal.set (Calendar.HOUR_OF_DAY, 6);
+//            cal.set (Calendar.MINUTE, 0);
+//            long time = cal.getTimeInMillis();
+//
+//            String id = "0800";
+//            AlarmManager manager = (AlarmManager) this.getApplicationContext().getSystemService(Context.ALARM_SERVICE);
+//            Intent intent = new Intent(this.getApplicationContext(), FiringControlService.class);
+//            intent.setAction(id);
+//            intent.putExtra("interlayer", true);
+//            intent.setFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+//
+//            String composedID = String.valueOf(56);
+//            composedID+=id;
+//
+//            PendingIntent pending = PendingIntent.getForegroundService(this.getApplicationContext(), Integer.parseInt(composedID), intent, PendingIntent.FLAG_IMMUTABLE);
+//            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, time, pending);
+//
+//            sl.fst("Scheduling exact with id *" + composedID + "* and state *" + Alarm.STATE_PREPARE + "* on " + new SimpleDateFormat("*d,EEE,HH:mm*", Locale.getDefault()).format(new Date(time)));
         });
         fab.setOnLongClickListener(v -> {
             if (imageView.getVisibility() == View.INVISIBLE)

@@ -13,13 +13,14 @@
         <TextView
             android:id="@+id/timeWindow"
             style="@style/task_title"
-            android:layout_width="82dp"
-            android:layout_height="wrap_content"
+            android:layout_width="83dp"
+            android:layout_height="29dp"
             android:background="@android:color/holo_orange_light"
             android:lines="1"
             android:paddingHorizontal="10dp"
             android:text="00:00"
             android:textAlignment="center"
+            android:textSize="22.5sp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 

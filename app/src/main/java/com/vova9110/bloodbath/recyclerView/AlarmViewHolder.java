@@ -60,7 +60,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
     @Override
     public boolean onLongClick(View v) {
-        sl.i( "notify delete click: " + getAdapterPosition());
+        sl.i("notify delete click: " + getAdapterPosition());
         if (getAdapterPosition()==-1) {
             sl.sp( "onClick: ERROR");
             return false;

@@ -16,7 +16,6 @@ import android.media.AudioRecord
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.*
-import android.util.Log
 import android.util.SparseIntArray
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat

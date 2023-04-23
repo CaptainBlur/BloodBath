@@ -19,7 +19,7 @@ import java.util.logging.*
 import java.util.logging.Formatter
 import java.util.regex.Pattern
 
-class SplitLogger() {
+class SplitLogger {
 
     companion object {
         private val mainLogger: Logger = Logger.getAnonymousLogger()
@@ -134,7 +134,13 @@ class SplitLogger() {
         
 
         @JvmStatic
-        fun manageDirectory(parentDirectory: File, keepFiles: Int = 4, targetExtension: String = "null", deleteUnmatched: Boolean = false): String{
+        fun manageDirectory(
+            parentDirectory: File,
+            putInFolders: Boolean = false,
+            keepEntities: Short = 4,
+            targetExtension: String = "null",
+            deleteUnmatched: Boolean = false
+        ): String{
             var status = parentDirectory.name
             if (!parentDirectory.exists()) parentDirectory.mkdir().also { status+= "\nNew directory created"; return status }
 
@@ -142,19 +148,29 @@ class SplitLogger() {
             if (list.isEmpty()){status+= "\nDirectory is empty"; return status}
 
             val cleanseBuffer = Array<File?>(list.size) { null }
-            var bC = 0
-            if (deleteUnmatched) for (file in list) if (!Pattern.compile("$targetExtension$").matcher(file.name).find()){
+            var bC = 0 //cleanse buffer count
+
+            if (deleteUnmatched && !putInFolders) {
+                for (file in list) if (!Pattern.compile("$targetExtension$").matcher(file.name).find()) {
+                    cleanseBuffer[bC] = file
+                    bC++
+                }
+            }
+            else if (deleteUnmatched) for (file in list) if (!file.isDirectory) { //don't mind target extension, we're handling directories now
                 cleanseBuffer[bC] = file
                 bC++
             }
             for (file in cleanseBuffer) if (file!=null) list.remove(file)
 
-            if (list.size<=keepFiles){status+= "\nFiles count satisfies condition"; return status}
-            list.sortBy { element-> element.lastModified() }
-            for (file in list.subList(0, list.size - keepFiles)){
-                cleanseBuffer[bC] = file
-                bC++
+            if (list.size <= keepEntities) status+= "\nFiles count satisfies condition"
+            else {
+                list.sortBy { element -> element.lastModified() }
+                for (file in list.subList(0, list.size - keepEntities)) {
+                    cleanseBuffer[bC] = file
+                    bC++
+                }
             }
+
             for (file in cleanseBuffer){
                 if (file!=null) status += try {
                     file.delete()
@@ -188,16 +204,21 @@ class SplitLogger() {
 
             if (!initialized){
                 val parentDirectory = File(context.getExternalFilesDir(null), "main_unit_logs")
-                mainLogger.logp(Level.FINE, TAG, "manageDirectory: ", manageDirectory(parentDirectory, 4, ".log", true))
+                mainLogger.logp(Level.FINE, TAG, "manageDirectory: ", manageDirectory(
+                    parentDirectory,
+                    true,
+                    keepEntities = 10,
+                    targetExtension = ".log",
+                    deleteUnmatched = true
+                ))
 
-                var timeName = DateFormat.getDateTimeInstance(DateFormat.SHORT,DateFormat.SHORT, Locale.getDefault()).format(Calendar.getInstance().time)
-                timeName = timeName.replace(Char(32), Char(95))
-                timeName = timeName.replace(Char(47), Char(46))
+                val timeName = SimpleDateFormat("MM.dd.yy_HH:mm:ss", Locale.getDefault()).format(Date(System.currentTimeMillis()))
                 val ID = Random().nextInt(1000).toString()
+                val dedicatedDirectory = File(parentDirectory, "${timeName}_${ID}").apply { if (!mkdir()) mainLogger.logp(Level.SEVERE, TAG, "initializer", "failed to create new dir")}
 
                 try {
-                    val verboseHandler = FileHandler(parentDirectory.path + "/${timeName}_V_${ID}.log").apply { formatter = fileFormatter; level = Level.ALL }
-                    val infoHandler = FileHandler(parentDirectory.path + "/${timeName}_I_${ID}.log").apply { formatter = fileFormatter; level = Level.INFO }
+                    val verboseHandler = FileHandler(dedicatedDirectory.path + "/Verbose.log").apply { formatter = fileFormatter; level = Level.ALL }
+                    val infoHandler = FileHandler(dedicatedDirectory.path + "/Info.log").apply { formatter = fileFormatter; level = Level.INFO }
                     mainLogger.addHandler(verboseHandler)
                     mainLogger.addHandler(infoHandler)
                     mainLogger.logp(Level.FINE, TAG, null, "***File handlers initialized")
@@ -400,9 +421,9 @@ class SplitLogger() {
         fun fstpc(obj: Any) = printMsg(obj.printObject(), Level.FINEST, true, true)
 
         @JvmStatic
-        fun en() = printPass("entered")
+        fun en() = printPass("<--")
         @JvmStatic
-        fun ex() = printPass("exited")
+        fun ex() = printPass("-->")
     }
 
 }

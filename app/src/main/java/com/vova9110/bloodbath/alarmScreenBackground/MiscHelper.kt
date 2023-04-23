@@ -15,7 +15,7 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import java.util.concurrent.TimeUnit
 
-class NotificationTimerPlayerHelper(context: Context, expireRunnable: Runnable) {
+class MiscHelper(context: Context, expireRunnable: Runnable) {
     val handler: Handler
     var started = false
     private lateinit var nManager: NotificationManager
@@ -23,7 +23,7 @@ class NotificationTimerPlayerHelper(context: Context, expireRunnable: Runnable) 
     private var player: MediaPlayer? = null
     private val vManager: Vibrator
 
-    private val id = 732
+    val id = 732
 
     init {
         vManager = (context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator)
@@ -106,7 +106,7 @@ class NotificationTimerPlayerHelper(context: Context, expireRunnable: Runnable) 
         builder.setFullScreenIntent(fullScreenPI, true)
 
         nManager.notify(id, builder.build())
-        service.startForeground(id, builder.build())
+        service.startForeground(this.id, builder.build())
     }
 
     companion object{

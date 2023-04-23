@@ -103,6 +103,20 @@
             </AndroidTestResultsTableState>
           </value>
         </entry>
+        <entry key="2135203642">
+          <value>
+            <AndroidTestResultsTableState>
+              <option name="preferredColumnWidths">
+                <map>
+                  <entry key="Duration" value="90" />
+                  <entry key="Google&#10; Pixel 4" value="120" />
+                  <entry key="Tests" value="360" />
+                  <entry key="adb-9B151FFAZ0074X-tDK9fv._adb-tls-connect._tcp" value="120" />
+                </map>
+              </option>
+            </AndroidTestResultsTableState>
+          </value>
+        </entry>
       </map>
     </option>
   </component>

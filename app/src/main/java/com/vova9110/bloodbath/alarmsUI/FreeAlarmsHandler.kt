@@ -202,8 +202,9 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         val current = bufferList[parentPos]
 
         current.enabled = isChecked
-        current.repeatable = repeatButton
         current.detection = activeButton
+        current.repeatable = repeatButton
+        current.weekdays = if (current.repeatable) BooleanArray(7) { true } else BooleanArray(7) { false }
         Toast.makeText(context, "enabled: ${current.enabled}, repeatable: ${current.repeatable}, detect: ${current.detection}", Toast.LENGTH_LONG).show()
         repo.update(current, true)
 //        bufferList[parentPos] = current

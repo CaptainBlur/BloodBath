@@ -95,19 +95,6 @@ public class AlarmRepo {
     //These methods require backing scheduler class to handle alarms with just changed states.
     //Also they helps other classes to change properties of instances
 
-    private void setGlobalID(){
-        List<Alarm> repoActives = this.getActives();
-        if (repoActives.isEmpty()){
-            SplitLogger.frpc("no actives in repo to calculate new globalID");
-            BackgroundUtils.setGlobalID(c, "null");
-            return;
-        }
-        LinkedList<Alarm> actives = new LinkedList<>(repoActives);
-        actives.sort(Comparator.comparing(Alarm::getTriggerTime));
-
-        BackgroundUtils.setGlobalID(c, actives.get(0).getId());
-    }
-
     /**
      * Use this method to insert newly created instance. If instance with the same ID already exists in the DB,
      * the passed one will be discarded. Also, it starts initial States calculation for new Alarm
@@ -126,13 +113,11 @@ public class AlarmRepo {
         alarm.setEnabled(true);
         alarm.calculateTriggerTime();
         executor.execute(() -> alarmDao.insert(alarm));
-        setGlobalID();
         AlarmExecutionDispatch.defineNewState(c, alarm, this);
 
     }
     public void testInsert (Alarm alarm){
         executor.execute(() -> alarmDao.insert(alarm));
-        setGlobalID();
     }
 
     /**
@@ -148,7 +133,6 @@ public class AlarmRepo {
             if (alarm.getEnabled()) alarm.calculateTriggerTime();
             else alarm.setTriggerTime(null);
             AlarmExecutionDispatch.defineNewState(c, alarm, this);//Kinda recursive thing
-            setGlobalID();
         }
         else executor.execute(() -> alarmDao.update(alarm));
     }
@@ -168,6 +152,9 @@ public class AlarmRepo {
     public void deleteOne(Alarm alarm){
         executor.execute(() -> alarmDao.deleteOne(alarm.getHour(), alarm.getMinute()));
         AlarmExecutionDispatch.wipeOne(c, alarm);
-        if (alarm.getEnabled()) setGlobalID();
+    }
+
+    public void reassureAll(){
+        AlarmExecutionDispatch.checkAll(c, this, getAll());
     }
 }

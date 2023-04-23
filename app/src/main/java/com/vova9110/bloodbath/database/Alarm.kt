@@ -26,6 +26,11 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
     var vibrate = true
     var snoozed = false
     var repeatable = false
+    /**
+     * WARNING!
+     * Before calculation, weekdays list should be normalized to the default
+     * Russian week (monday first, sunday last)
+     */
     var weekdays = BooleanArray(7)
 
     var detection = false
@@ -55,15 +60,22 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
 
 
 
+    //Using simple successive enumeration to find a target day to stick the time to
+    //Calculation proceeds in American shifted weekdays order
     fun calculateTriggerTime(){
+        val _h = Calendar.HOUR_OF_DAY
+        val _m = Calendar.MINUTE
+
         assert(weekdays.size==7)
 
         val shifted = weekdays.toMutableList()
         Collections.rotate(shifted, 1)
 
-        val cC = Calendar.getInstance().apply { this.firstDayOfWeek=Calendar.MONDAY }
-        if (cC.get(Calendar.HOUR_OF_DAY) >= this.hour && cC.get(Calendar.MINUTE) >= this.minute) cC.add(Calendar.DATE, 1)
-        var weekdayWalker = cC.get(Calendar.DAY_OF_WEEK)-1
+        val cC = Calendar.getInstance().apply { this.firstDayOfWeek=Calendar.MONDAY } //declaring calendar instance with current time
+        if ((this.hour < cC[_h]) || //we adding extra day if today's time is gone
+                this.hour == cC[_h] && this.minute <= cC[_m])
+            cC.add(Calendar.DATE, 1)
+        var weekdayWalker = cC.get(Calendar.DAY_OF_WEEK)-1//Basically where all calculations occurred
 
         with(cC){
             this.set(Calendar.HOUR_OF_DAY, this@Alarm.hour)
@@ -77,9 +89,20 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
             return
         }
         while (true){
-            if (shifted[weekdayWalker]){
+            if (shifted[weekdayWalker]){//We just picked one day out of a week
                 sl.frp("returning on *${cC.get(Calendar.DATE)},${cC.getDisplayName(Calendar.DAY_OF_WEEK, Calendar.SHORT_STANDALONE, Locale.US)}* for *${id}*,")
+
+                //Just try to enjoy it;)
+                val weekdayPointer = if (weekdayWalker == 0) 6 else if (weekdayWalker == 6) 0 else weekdayWalker - 1
+                val daysNames = arrayOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+                var compositeString = "               "
+                for (i in 0..6){
+                    val mark = if (weekdayPointer==i) "!" else " "
+                    compositeString = if (weekdays[i]) compositeString+daysNames[i] + "$mark " else compositeString+daysNames[i] + "$mark  "
+                }
+                sl.fst(compositeString)
                 sl.fst("weekdays are: ${weekdays.printObject()}")
+
                 triggerTime = cC.time
                 return
             }

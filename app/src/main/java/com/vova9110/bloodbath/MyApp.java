@@ -26,6 +26,8 @@ public class MyApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        //Basically, we have just one thing that needs to be available globally, and that's Repo.
+        //And I see no problems placing it there
         component = DaggerAppComponent.builder().dBModule(new DBModule(this)).build();
         SplitLogger.initialize(this);
         SplitLogger.i("Application initialized! Hello everyone!");

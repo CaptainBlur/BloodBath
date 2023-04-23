@@ -19,9 +19,6 @@ import androidx.appcompat.app.AppCompatDelegate
 import com.vova9110.bloodbath.MyApp
 import com.vova9110.bloodbath.R
 import com.vova9110.bloodbath.alarmScreenBackground.*
-import com.vova9110.bloodbath.database.Alarm
-import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 
 /**
  * This activity has three strictly defined variants of appearance.
@@ -163,7 +160,7 @@ class AlarmActivity : AppCompatActivity() {
         dismissView.visibility = View.INVISIBLE
         startView.alpha=1f
 
-        AlarmExecutionDispatch.helpDismiss(applicationContext, info.id, repo)
+        AED.helpDismiss(applicationContext, info.id, repo)
         unbind()
 
         sl.ex()
@@ -175,7 +172,7 @@ class AlarmActivity : AppCompatActivity() {
         snoozeView.setBackgroundColor(Color.parseColor("#FBC02D"))
         startView.visibility=View.INVISIBLE
 
-        AlarmExecutionDispatch.helpSnooze(applicationContext, info.id, repo)
+        AED.helpSnooze(applicationContext, info.id, repo)
         unbind()
 
         sl.ex()

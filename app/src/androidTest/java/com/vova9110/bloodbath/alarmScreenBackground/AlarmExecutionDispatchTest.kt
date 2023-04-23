@@ -20,15 +20,16 @@ internal class AlarmExecutionDispatchTest {
     fun getContext(){
         c = InstrumentationRegistry.getInstrumentation().targetContext
         repo = Mockito.mock(AlarmRepo::class.java)
-        Mockito.`when`(repo.getTimesInfo(Mockito.anyString())).thenReturn(
-            SubInfo(null,,
-                null,
-                volumeLock = true,
-                timeWarning = 40,
-                timeOut = 90,
-                globalSnoozed = 8,
-                globalLost = 15
-            ))
+//        Mockito.`when`(repo.getTimesInfo(Mockito.anyString())).thenReturn(
+//            SubInfo(null,,
+//                null,
+//                volumeLock = true,
+//                timeWarning = 40,
+//                timeOut = 90,
+//                globalSnoozed = 8,
+//                globalLost = 15
+//            )
+//        )
     }
     @AfterEach fun cancel() = (c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
 

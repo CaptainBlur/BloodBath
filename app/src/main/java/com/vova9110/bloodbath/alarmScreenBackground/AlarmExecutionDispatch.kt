@@ -14,6 +14,9 @@ import java.util.*
 import javax.inject.Inject
 
 typealias sl = SplitLogger
+typealias AED = AlarmExecutionDispatch
+typealias BU = BackgroundUtils
+
 
 class AlarmExecutionDispatch: BroadcastReceiver() {
 
@@ -27,7 +30,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
                 "${context.packageName}:${this::class.java.name}").also { it.acquire() }
         sl.en()
 
-        val handler = BackgroundUtils.getHandler("executionDispatch")
+        val handler = BU.getHandler("executionDispatch")
         handler.post {
             handleStateChange(context.applicationContext, intent!!)
             res.finish()
@@ -47,19 +50,20 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             Alarm.STATE_SUSPEND-> setSuspend(context, alarm, repo)
             Alarm.STATE_ANTICIPATE-> setAnticipate(context, alarm, repo)
             Alarm.STATE_PREPARE-> setPrepareFire(context, alarm, repo)
-            Alarm.STATE_FIRE-> launchFire(context, alarm, repo)
             Alarm.STATE_PREPARE_SNOOZE-> setPrepareSnooze(context, alarm, repo)
-            Alarm.STATE_SNOOZE-> launchSnooze(context, alarm, repo)
             else-> throw IllegalArgumentException("Cannot handle *${alarm.state}* state")
         }
 
     }
 
     companion object{
-        @JvmStatic
-        fun defineNewState(context: Context, alarm: Alarm, repo: AlarmRepo){
+
+        @JvmStatic fun defineNewState(context: Context, alarm: Alarm, repo: AlarmRepo){
             /*
             This condition takes place only if target instance didn't fire, but supposed to do before
+            (because if we have enabled state and set triggerTime than we have either missed or repeatable instance,
+            and for the last case we'll set new triggerTime).
+            Also, just to point it out: ^lastTriggerTime^ is a error handling value just to detect whether firing time is missed
              */
             if (alarm.triggerTime!=null){
                 if (!alarm.enabled) throw IllegalStateException("Cannot proceed with set triggerTime and disabled state")
@@ -68,13 +72,17 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
                     sl.f("missed triggerTime detected!")
                     val info = repo.getTimesInfo(alarm.id)
 
-                    if (getPlusDateMins(info.globalLost.toShort(), alarm.triggerTime).after(Date())){//if we didn't reach lost time for firing state yet
+                    //if we didn't reach ^lost^ time for firing state yet,
+                    //it's time to assign something and return
+                    if (getPlusDateMins(info.globalLost.toShort(), alarm.triggerTime).after(Date())){
                         if (!alarm.snoozed) launchFire(context, alarm, repo)
                         else launchSnooze(context, alarm, repo)
                         return
                     }
-                    else {//time to fire is lost already, we have to set one of the miss states
-                        alarm.lastTriggerTime = alarm.triggerTime
+                    //time to fire is lost already, we have to set one of the miss states later,
+                    //but before that we must check maybe it's repeatable
+                    else {
+                        alarm.lastTriggerTime = alarm.triggerTime?.clone() as Date
 
                         if (alarm.repeatable) alarm.calculateTriggerTime()
                         else{
@@ -85,20 +93,24 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
                 }
             }
             else if (alarm.enabled) throw IllegalStateException("Cannot proceed with enabled state and null triggerTime")
+
             /*
-            Assigning temporary or permanent disable here
+            Next evaluation stage
+            Mostly dealing with Miss state here (that's what we have lastTriggerTime for)
             Non-active alarms shouldn't get through
              */
-            if (!alarm.enabled && alarm.lastTriggerTime==null){//Setting disable with no doubts
+            if (!alarm.enabled && alarm.lastTriggerTime==null){//Setting disable without a doubt
                 setDisable(context, alarm, repo)
                 return
             }
-            else if (alarm.lastTriggerTime!=null){//Checking whether the time for miss state is gone
+            //Power is still off, and we're checking whether the time for miss state is gone
+            else if (alarm.lastTriggerTime!=null){
                 if (alarm.lastTriggerTime!!.before(getPlusDate(-2))){//Time is gone, but if alarm should fire in the future, we have to consider a new state in the block below
                     setDisable(context, alarm, repo)
-                    if (!alarm.enabled) return//else temporarily setting disable
+                    if (!alarm.enabled) return//else temporarily setting disable, just to clear notifications and appointments
                 }
-                else if (!alarm.enabled) {//Just time for miss
+                //We're just in time for miss
+                else if (!alarm.enabled) {
                     setMiss(context, alarm, repo)
                     return
                 }
@@ -123,6 +135,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
                 else setPrepareSnooze(context, alarm, repo)
                 return
             }
+
         }
 
         private fun setDisable(context: Context, alarm: Alarm, repo: AlarmRepo){
@@ -135,8 +148,9 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
                 repo.update(alarm, false)
             }
 
-            BackgroundUtils.cancelNotification(context, alarm.id, Alarm.STATE_ALL)
-            BackgroundUtils.cancelPI(context, alarm.id, Alarm.STATE_ALL)
+            BU.cancelNotification(context, alarm.id, Alarm.STATE_ALL)
+            BU.cancelPI(context, alarm.id, Alarm.STATE_ALL)
+            BU.setGlobalID(context, repo)
         }
         //When instance is not active, we setting miss and scheduling disable
         private fun setMiss(context: Context, alarm: Alarm, repo: AlarmRepo) {
@@ -145,8 +159,9 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             handleLog(Alarm.STATE_MISS, alarm.id, Alarm.STATE_DISABLE)
             repo.update(alarm, false)
 
-            BackgroundUtils.createNotification(context, alarm.id, Alarm.STATE_MISS)
-            BackgroundUtils.scheduleExact(context, alarm.id, alarm.state, newTime.time)
+            BU.createNotification(context, alarm.id, Alarm.STATE_MISS)
+            BU.scheduleExact(context, alarm.id, alarm.state, newTime.time)
+            BU.setGlobalID(context, repo)
         }
         //When instance should fire in future, we need to schedule change from miss to suspend
         private fun setMissPlusSchedule(context: Context, alarm: Alarm, repo: AlarmRepo) {
@@ -155,8 +170,9 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             handleLog(Alarm.STATE_MISS, alarm.id, Alarm.STATE_SUSPEND)
             repo.update(alarm, false)
 
-            BackgroundUtils.createNotification(context, alarm.id, Alarm.STATE_MISS)
-            BackgroundUtils.scheduleExact(context, alarm.id, alarm.state, newTime.time)
+            BU.createNotification(context, alarm.id, Alarm.STATE_MISS)
+            BU.scheduleExact(context, alarm.id, alarm.state, newTime.time)
+            BU.setGlobalID(context, repo)
         }
         private fun setSuspend(context: Context, alarm: Alarm, repo: AlarmRepo){
             alarm.state = Alarm.STATE_ANTICIPATE
@@ -164,8 +180,9 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             handleLog(Alarm.STATE_SUSPEND, alarm.id, Alarm.STATE_ANTICIPATE)
             repo.update(alarm, false)
 
-            BackgroundUtils.cancelNotification(context, alarm.id, Alarm.STATE_ALL)
-            BackgroundUtils.scheduleExact(context, alarm.id, Alarm.STATE_ANTICIPATE, newTime.time)
+            BU.cancelNotification(context, alarm.id, Alarm.STATE_ALL)
+            BU.scheduleExact(context, alarm.id, Alarm.STATE_ANTICIPATE, newTime.time)
+            BU.setGlobalID(context, repo)
         }
         private fun setAnticipate(context: Context, alarm: Alarm, repo: AlarmRepo){
             alarm.state = Alarm.STATE_PREPARE
@@ -173,47 +190,87 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             handleLog(Alarm.STATE_ANTICIPATE, alarm.id, Alarm.STATE_PREPARE)
             repo.update(alarm, false)
 
-            BackgroundUtils.scheduleExact(context, alarm.id, Alarm.STATE_PREPARE, newTime.time)
-            BackgroundUtils.scheduleAlarm(context, alarm.id, Alarm.STATE_FIRE, alarm.triggerTime!!.time)
+            BU.scheduleExact(context, alarm.id, Alarm.STATE_PREPARE, newTime.time)
+            BU.scheduleAlarm(context, alarm.id, Alarm.STATE_FIRE, alarm.triggerTime!!.time)
+            BU.setGlobalID(context, repo)
         }
         private fun setPrepareFire(context: Context, alarm: Alarm, repo: AlarmRepo){
             alarm.state = Alarm.STATE_FIRE
             handleLog(Alarm.STATE_PREPARE, alarm.id, Alarm.STATE_FIRE)
             repo.update(alarm, false)
 
-            BackgroundUtils.createNotification(context, alarm.id, Alarm.STATE_PREPARE)
-            BackgroundUtils.cancelPI(context, alarm.id, Alarm.STATE_FIRE)//control cancelling in case when previous was anticipate
-            BackgroundUtils.scheduleAlarm(context, alarm.id, Alarm.STATE_FIRE, alarm.triggerTime!!.time)
+            BU.createNotification(context, alarm.id, Alarm.STATE_PREPARE)
+            BU.cancelPI(context, alarm.id, Alarm.STATE_FIRE)//control cancelling in case when previous was anticipate
+            BU.scheduleAlarm(context, alarm.id, Alarm.STATE_FIRE, alarm.triggerTime!!.time)
+            BU.setGlobalID(context, repo)
         }
         private fun setPrepareSnooze(context: Context, alarm: Alarm, repo: AlarmRepo){
             alarm.state = Alarm.STATE_SNOOZE
             handleLog(Alarm.STATE_PREPARE_SNOOZE, alarm.id, Alarm.STATE_SNOOZE)
             repo.update(alarm, false)
 
-            BackgroundUtils.createNotification(context, alarm.id, Alarm.STATE_PREPARE_SNOOZE)
-            BackgroundUtils.scheduleAlarm(context, alarm.id, Alarm.STATE_SNOOZE, alarm.triggerTime!!.time)
+            BU.createNotification(context, alarm.id, Alarm.STATE_PREPARE_SNOOZE)
+            BU.scheduleAlarm(context, alarm.id, Alarm.STATE_SNOOZE, alarm.triggerTime!!.time)
+            BU.setGlobalID(context, repo)
+        }
+
+        //These two little helpers are meant to be launched from FCR when we need AED's functionality,
+        //but we're too afraid to send broadcast to AED, exit FCR and then jump back to FCR when these operations are done.
+        //Also, we don't have to update Alarm instance's data in DB because it's already in a proper state
+        @JvmStatic
+        fun handleFire(context: Context, alarm: Alarm){
+            BU.cancelNotification(context, alarm.id, Alarm.STATE_PREPARE)
+        }
+        @JvmStatic
+        fun handleSnooze(context: Context, alarm: Alarm) {
+            BU.cancelNotification(context, alarm.id, Alarm.STATE_PREPARE_SNOOZE)
+            BU.cancelNotification(context, alarm.id, Alarm.STATE_SNOOZE)
         }
         private fun launchFire(context: Context, alarm: Alarm, repo: AlarmRepo){
             alarm.state = Alarm.STATE_FIRE
             handleLog(alarm.state, alarm.id)
             repo.update(alarm, false)
 
-            BackgroundUtils.cancelNotification(context, alarm.id, Alarm.STATE_PREPARE)
-            BackgroundUtils.createBroadcast(context, alarm.id)
+            BU.cancelNotification(context, alarm.id, Alarm.STATE_PREPARE)
+            BU.createBroadcast(context, alarm.id)
         }
         private fun launchSnooze(context: Context, alarm: Alarm, repo: AlarmRepo) {
             alarm.state = Alarm.STATE_SNOOZE
             handleLog(alarm.state, alarm.id)
             repo.update(alarm, false)
 
-            BackgroundUtils.cancelNotification(context, alarm.id, Alarm.STATE_PREPARE_SNOOZE)
-            BackgroundUtils.cancelNotification(context, alarm.id, Alarm.STATE_SNOOZE)
-            BackgroundUtils.createBroadcast(context, alarm.id)
+            BU.cancelNotification(context, alarm.id, Alarm.STATE_PREPARE_SNOOZE)
+            BU.cancelNotification(context, alarm.id, Alarm.STATE_SNOOZE)
+            BU.createBroadcast(context, alarm.id)
         }
 
+        private fun processRepeatable(alarm: Alarm){
+            if (alarm.repeatable) alarm.calculateTriggerTime()//Instance is ^on^ on arrival, we just need to set tT
+            else {
+                alarm.enabled = false
+                alarm.triggerTime = null
+            }
+        }
+        /**
+         * Practically the same as simple Dismiss
+         */
+        @JvmStatic
+        fun helpNotPassed(context: Context, id: String, repo: AlarmRepo){
+            sl.w("Passed alarm's id *${id}* do not match with global *${BU.getGlobalID(context)}*")
+
+            val alarm = repo.getOne(id)
+            alarm.snoozed = false
+            processRepeatable(alarm)
+            defineNewState(context, alarm, repo)
+            stopService(context)
+        }
+        /**
+         * Just setting new triggerTime and stopping service
+         */
         @JvmStatic
         fun helpSnooze(context: Context, id: String, repo: AlarmRepo){
             sl.i("^Snooze^")
+
             val alarm = repo.getOne(id)
             alarm.triggerTime = getPlusDateMins(repo.getTimesInfo(alarm.id).globalSnoozed.toShort())
             alarm.snoozed = true
@@ -221,8 +278,16 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
 
             stopService(context)
         }
+
+        /**
+         * If Detection required, we just starting service.
+         * If no more than Dismiss than disabling snoozed flag, and if alarm is NOT repeatable,
+         * disabling it and nulling triggerTime. Than defining new state and stopping service
+         */
         @JvmStatic
         fun helpDismiss(context: Context, id: String, repo: AlarmRepo){
+            sl.i("^Dismiss^")
+
             val alarm = repo.getOne(id)
             if (alarm.detection){
                 sl.i("^Activeness detection required. Starting ADS")
@@ -230,21 +295,21 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
                 val intent = Intent(context, ActivenessDetectionService::class.java)
                 intent.putExtra("info", repo.getTimesInfo(alarm.id))
                 context.startForegroundService(intent)
-
             }
             else{
                 sl.i("^No need for activeness detection. Preparing for exit")
 
                 alarm.snoozed = false
-                if (!alarm.repeatable){
-                    alarm.enabled = false
-                    alarm.triggerTime = null
-                }
+                processRepeatable(alarm)
                 defineNewState(context, alarm, repo)
 
             }
             stopService(context)
         }
+
+        /**
+         * Doing the same as for the simple Dismiss action
+         */
         @JvmStatic
         fun helpAfterDetection(context: Context, id: String){
             sl.i("^After detection^")
@@ -252,23 +317,23 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
 
             val alarm = repo.getOne(id)
             alarm.snoozed = false
-            if (!alarm.repeatable){
-                alarm.enabled = false
-                alarm.triggerTime = null
-            }
+            processRepeatable(alarm)
             defineNewState(context, alarm, repo)
         }
+
+        /**
+         * Setting snoozed flag for false, leveling lastTriggerTime for triggerTime, and
+         * if NOT repeatable, setting power to false and triggerTime for null. Than defining
+         * new state, stopping service and sending to FCR a broadcast with KILL action
+         */
         @JvmStatic
         fun helpMiss(context: Context, id: String, repo: AlarmRepo){
             sl.i("^Miss^")
             val alarm = repo.getOne(id)
 
             alarm.snoozed = false
-            alarm.lastTriggerTime = alarm.triggerTime
-            if (!alarm.repeatable){
-                alarm.enabled = false
-                alarm.triggerTime = null
-            }
+            alarm.lastTriggerTime = alarm.triggerTime?.clone() as Date
+            processRepeatable(alarm)
             defineNewState(context, alarm, repo)
 
             stopService(context)
@@ -295,11 +360,18 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             if (nextState!=null) sl.fpc("next state is: *$nextState*")
         }
 
-
+        @JvmStatic fun checkAll(context: Context, repo: AlarmRepo, list: List<Alarm>){
+            for (alarm in list) if (alarm.state!=Alarm.STATE_DISABLE){
+                BU.cancelNotification(context, alarm.id, Alarm.STATE_ALL)
+                BU.cancelPI(context, alarm.id, Alarm.STATE_ALL)
+                defineNewState(context, alarm, repo)
+            }
+            sl.f("!all checked!")
+        }
         @JvmStatic fun wipeOne(context: Context, alarm: Alarm){
             if (alarm.enabled || alarm.lastTriggerTime!=null) {
-                BackgroundUtils.cancelNotification(context, alarm.id, Alarm.STATE_ALL)
-                BackgroundUtils.cancelPI(context, alarm.id, Alarm.STATE_ALL)
+                BU.cancelNotification(context, alarm.id, Alarm.STATE_ALL)
+                BU.cancelPI(context, alarm.id, Alarm.STATE_ALL)
             }
             else sl.fp("no need for states erasure")
         }
