@@ -107,14 +107,12 @@ public class AlarmRepo {
         if (!alarm.component3()) {
             SplitLogger.fpc("passed alarm hadn't been enabled");
             executor.execute(() -> alarmDao.insert(alarm));
-            return;
         }
-
-        alarm.setEnabled(true);
-        alarm.calculateTriggerTime();
-        executor.execute(() -> alarmDao.insert(alarm));
-        AlarmExecutionDispatch.defineNewState(c, alarm, this);
-
+        else {
+            alarm.calculateTriggerTime();
+            executor.execute(() -> alarmDao.insert(alarm));
+            AlarmExecutionDispatch.defineNewState(c, alarm, this);
+        }
     }
     public void testInsert (Alarm alarm){
         executor.execute(() -> alarmDao.insert(alarm));

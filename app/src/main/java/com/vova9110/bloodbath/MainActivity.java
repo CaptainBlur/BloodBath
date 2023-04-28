@@ -115,6 +115,15 @@ public class MainActivity extends AppCompatActivity{
                     mHandler.activeButton = !mHandler.activeButton;
                     view.setBackgroundTintList(this.getColorStateList(R.color.test_color_list));
                 });
+        findViewById(R.id.buttonPower)
+                .setOnClickListener(view-> {
+                    mHandler.createUsual();
+                });
+        findViewById(R.id.buttonPower)
+                .setOnLongClickListener(view-> {
+                    mHandler.deleteUsual();
+                    return true;
+                });
 
         Button startFiringButton = findViewById(R.id.button3);
         startFiringButton.setOnClickListener(view -> {

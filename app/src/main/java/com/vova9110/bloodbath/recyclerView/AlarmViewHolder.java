@@ -96,6 +96,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     }
 
     public void bindPref(Alarm current){
+        sl.w("BINDING PREF");
         timeView.setVisibility(View.GONE); hourPicker.setVisibility(View.VISIBLE); minutePicker.setVisibility(View.VISIBLE); switcher.setVisibility(View.VISIBLE); FAB.setVisibility(View.VISIBLE);
         Calendar calendar = Calendar.getInstance();
 

@@ -1,6 +1,7 @@
 package com.vova9110.bloodbath.recyclerView;
 
 import android.content.Context;
+import android.os.Build;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.View;
@@ -14,6 +15,7 @@ import com.vova9110.bloodbath.alarmsUI.FreeAlarmsHandler;
 import com.vova9110.bloodbath.alarmsUI.HandlerCallback;
 import com.vova9110.bloodbath.alarmsUI.RLMCallback;
 import com.vova9110.bloodbath.R;
+import com.vova9110.bloodbath.SplitLoggerUI;
 
 
 public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMCallback {
@@ -70,11 +72,15 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private SparseArray<View> mViewCache = new SparseArray<>();
 
     private int SCROLL_MODE = 3;
+    /*
+     Interim values are set TRUE if number of rows was changed (like btw mVisible and mExtendedVisible) at the last scroll pass,
+     and there's a need to either hide pref row or bring back rows count to normal at the next pass
+     */
     private boolean STSBottom = false;
-    private boolean STSTop = false;//Переменные означают, что в предыдущем проходе скролла было изменено кол-во строк,
-    //а в следующим за ним проходе требуется либо скрыть настройки, либо вернуть кол-во строк
+    private boolean STSTop = false;
 
-    private boolean permit = false;
+    private SplitLoggerUI slU;
+    private boolean permit = true;
 
 
     public RowLayoutManager(Context parentContext, FreeAlarmsHandler handler){
@@ -82,6 +88,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         this.parentContext = parentContext;
         handlerCallback = handler;
         handler.setRlmCallback(this);
+        slU.en();
     }
 
     @Override
@@ -132,7 +139,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             FAB.setVisibility(View.GONE);
 
             //Рассчитать максимальное количество строк, основываясь на высоте RV
-            mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++;//Я реально уже хз, как оно работает, но оно работает
+            mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++;
             mVisibleRows = getHeight() / mDecoratedTimeHeight + 1;
             mExtendedVisibleRows = (getHeight() - mDecoratedPreferencesHeight + mBaseVerticalPadding) / mDecoratedTimeHeight + 1;
             if (permit) Log.d(TAG, "Visible rows: " + mVisibleRows + " (Extended: " + mExtendedVisibleRows + "), Available: " + mAvailableRows +
@@ -149,6 +156,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     }
 
 
+    /**
+     * 1. We always lay out quantity of mVisibleRows or mExtendedVisibleRows increased by one,
+     * just to make it a space to invisibly scrap a hidden one and show a new one.
+     * @param recycler
+     * @param state
+     */
     private void fillRows (RecyclerView.Recycler recycler,
                            RecyclerView.State state){
 
@@ -156,7 +169,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         int paddingTop = getPaddingTop();
         int leftOffset = paddingLeft;
         int topOffset = paddingTop;
-        int rowCount = 1;//Это относительный счётчик строк, отмечает выложенные строки, находится в пределах 1<= ... >=VisibleRows + 1
+        int rowCount = 1;//Это относительный счётчик строк, отмечает выложенные строки, находится в пределах 1<= ... <=VisibleRows + 1
 
 
         if (getChildCount() == 0 && FLAG_NOTIFY == NOTIFY_NONE){
@@ -204,11 +217,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
         else if (FLAG_NOTIFY == LAYOUT_PREF){
 
-            //todo исправить баг, когда нижняя строка - последняя видимая и на выкладке префа после неё, выкладывается просто элемент, сидящий на месте префа
             rearrangeChildren();
             prefView = recycler.getViewForPosition(prefPos);
             int scrappedRows = 0;
 
+            /*
+            Having at least one invisible row at the top, we scrap the first one,
+            because it can't be two invisible
+             */
             if ((mTopBaseline - mTopBound) >= mDecoratedTimeHeight){//При наличии хотя бы одной полностью невидимой строки, мы скрапаем первую
                 //Это не связанно с выкладкой строки настроек, просто в процессе скролла может оказаться одна такая строка сверху
                 if (permit) Log.d (TAG, "Scrapping first row");
@@ -221,9 +237,13 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 scrappedRows++;
             }
 
+            /*
+            Layout process begins. We scrap everything below mother row
+            Than, we need to additionally scrap rows
+             */
             int count = getChildCount();
             int p = 1;
-            if (permit) Log.d (TAG, "Pref row pos: " + prefRowPos + ", first row: " + mAnchorRowPos);//Скрапаем всё, что выше (в разметке ниже) материнской строки настроек
+            if (permit) Log.d (TAG, "Pref row pos: " + prefRowPos + ", pref pos: " + prefPos + ", first row: " + mAnchorRowPos);//Скрапаем всё, что выше (в разметке ниже) материнской строки настроек
             for (int i = (prefRowPos - mAnchorRowPos) * 3; i < count; i++){//Инкремент у нас в относительных значениях, а позиция вьюшки в абсолютных
                 int v = (mAnchorRowPos - 1) * 3 + i;
                 if (permit) Log.d (TAG, "Scrapping pos: " + v);
@@ -266,6 +286,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             mBottomBound += mDecoratedPreferencesHeight;
             rowCount = prefRowPos - mAnchorRowPos - 1;//Тут он как-то сдвинут вниз, хрен его знает, работает
             mLastVisibleRow = prefRowPos - 1;
+
 
             p = 1;
             for (int i = (prefRowPos - 1) * 3 + 1; i < getItemCount() && rowCount < mExtendedVisibleRows; i++) {//Наполнять уже нужно привычным способом, не таким, которым отсоединяли
@@ -404,7 +425,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     continue;
                 }
 
-                if (permit) Log.d (TAG, "Laying out: " + i + ", row count: " + rowCount);
+                if (permit) Log.d (TAG, "\t\tLaying out: " + i + ", row count: " + rowCount);
                 View child = recycler.getViewForPosition(i);
                 mViewCache.put(i, child);
 
@@ -459,7 +480,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     continue;
                 }
 
-                if (permit) Log.d (TAG, "Laying out: " + i + ", row count: " + rowCount);
+                if (permit) Log.d (TAG, "\t\tLaying out: " + i + ", row count: " + rowCount);
                 View child = recycler.getViewForPosition(i);
                 mViewCache.put(i, child);//Засовываем на обновлённые позиции
 
@@ -554,6 +575,17 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         return true;
     }
 
+    /**
+     * Supervisor method for scrolling process.
+     * Here we allowing ot scroll, changing offset and starting execution method for laying out rows
+     *
+     * @param dy            distance to scroll in pixels. Y increases as scroll position
+     *                      approaches the bottom.
+     * @param recycler      Recycler to use for fetching potentially cached views for a
+     *                      position
+     * @param state         Transient state of RecyclerView
+     * @return
+     */
     @Override
     public int scrollVerticallyBy (int dy,
                                    RecyclerView.Recycler recycler,
@@ -647,10 +679,13 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         return offset;
     }
 
+    /**
+     * For proper recycling and rows layout,
+     * we have to reassign previously laid out child view's indices for RV
+     */
     private void rearrangeChildren() {
         int count = getChildCount();
-        int RCShift = 0;
-        if (prefScrapped && mAnchorRowPos >= prefRowPos) RCShift++;
+        int RCShift = (prefScrapped && mAnchorRowPos >= prefRowPos) ? 1 : 0;
         //if (permit) Log.d (TAG, "" + count + mViewCache.size() + RCShift);
         for (int i = RCShift; i < count + RCShift; i++) {//Для правельной переработки и добавления строк,
             //сначала нам нужно переназначить индексы дочерних вьюшек, которые уже выложены,
@@ -663,8 +698,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             attachView(view, i);
         }
     }
-/*
- */
+
+    /**
+     *
+     * @param recycler parent recycler
+     * @param direction direction, must be one of {@link RowLayoutManager#DIR_DOWN} or {@link RowLayoutManager#DIR_UP}
+     * @param joint X coordinate (relative to the start of RV) pointing at the end of a previously laid out row,
+     *              according to the direction
+     */
     private void addNRecycle (RecyclerView.Recycler recycler, int direction, int joint){
 
         int leftOffset = getPaddingLeft();
@@ -766,7 +807,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
                     mAnchorRowPos++;
 
-                    for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i < getItemCount(); i++) {
+                    for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i < prefPos; i++) {
                         if (permit) Log.d(TAG, i + " adding row: " + mLastVisibleRow);
 
                         View view = recycler.getViewForPosition(i);
@@ -938,8 +979,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
                     mAnchorRowPos--;
 
-                    for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i < getItemCount(); i++) {
-                        if (permit) Log.d(TAG, i + " scrapping, row: " + mLastVisibleRow);
+                    for (int i = (mLastVisibleRow - 1) * 3; i < mLastVisibleRow * 3 && i < prefPos; i++) {
+                        if (permit) Log.d(TAG, i + " scrapping 'till pref, row: " + mLastVisibleRow);
                         detachAndScrapViewAt(getChildCount() - 1, recycler);
                         mViewCache.remove(i);
                     }
@@ -1119,6 +1160,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         if (permit) Log.d (TAG, "Items removed: " + positionStart + ", " + itemCount);
     }
 
+    //todo add check to recycling one view
     @Override
     public void notifyBaseClick(int prefParentPos) {
         if (permit) Log.d (TAG, "PREFPARENTPOS: " + this.prefParentPos + " VISIBILITY: " + prefVisibility);
@@ -1130,10 +1172,15 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             prefPos = ((prefRowPos-1) * 3); if (prefPos>getItemCount()) prefPos = getItemCount();//Позиция вьюшки настроек в адаптере
             if (permit) Log.d (TAG, "___prefParentPos:" + this.prefParentPos + " prefRowPos:" + prefRowPos + " prefPos:" + prefPos);
 
+            //We have to recycle this one just in case RV will want to reuse it and put in place of pref
+            Log.d(TAG, "" + mLastVisibleRow);
+            if (prefRowPos <= mAvailableRows) removeAndRecycleView(recycler.getViewForPosition(prefPos), recycler);
+
             FLAG_NOTIFY = LAYOUT_PREF;
             handlerCallback.passPrefToAdapter(prefParentPos, prefPos);
             prefVisibility = true;
             if (permit) Log.d (TAG, "LAYING OUT PREF");
+
         }
         else if (this.prefParentPos != 666 && this.prefParentPos == prefParentPos && prefVisibility){//Настройки уже выкладывались, старая материнская позиция, строку видно
             FLAG_NOTIFY = HIDE_PREF;
@@ -1156,6 +1203,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             prefPos = ((prefRowPos-1) * 3); if (prefPos>=getItemCount()) prefPos = getItemCount() - 1;//Позиция вьюшки настроек в адаптере
             if (permit) Log.d (TAG, "___prefParentPos:" + this.prefParentPos + " prefRowPos:" + prefRowPos + " prefPos:" + prefPos);
 
+            //We have to recycle this one just in case RV will want to reuse it and put in place of pref
+            if (prefRowPos <= mAvailableRows) removeAndRecycleView(recycler.getViewForPosition(prefPos), recycler);
 
             FLAG_NOTIFY = HIDE_N_LAYOUT_PREF;
             handlerCallback.removeNPassPrefToAdapter(this.prefParentPos, prefPos);

@@ -1,5 +1,6 @@
 package com.vova9110.bloodbath.recyclerView;
 
+import android.util.Log;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
@@ -30,7 +31,9 @@ public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder>{
     @Override
     public void onBindViewHolder(AlarmViewHolder holder, int position) {
         Alarm current = mList.get(position);
+//        Log.w(TAG, String.valueOf(position));
         if (current.getAddFlag()) holder.bindAddAlarm();
+//        else if (position==prefPos) holder.bindPref(current);
         else if (current.getPrefFlag()) holder.bindPref(current);
         else holder.bind(current.getHour(), current.getMinute());
     }

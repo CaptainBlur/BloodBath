@@ -85,6 +85,10 @@ class FiringControlService: Service() {
         }
 
         if (!checkInterlayer(intent)) processIntent(intent)
+            try {
+            processIntent(intent)
+            }
+            catch (e: Exception) {sl.s(e.message!!)}
         return START_NOT_STICKY
     }
 

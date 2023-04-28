@@ -24,6 +24,7 @@ public class MainViewModel extends AndroidViewModel {
         this.app = app;
         reassureRepo();
         checkLaunchPreferences();
+        SplitLoggerUI.UILogger.initialize(app);
     }
 
     private void reassureRepo(){

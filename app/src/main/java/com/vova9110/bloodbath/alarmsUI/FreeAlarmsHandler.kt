@@ -210,6 +210,31 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
 //        bufferList[parentPos] = current
     }
 
+    val alarm1 = Alarm(9,0, true)
+    var alarm2 = Alarm(9, 30, true)
+    fun createUsual(){
+        alarm1.repeatable = true
+        alarm1.weekdays = BooleanArray(7) {true}
+        repo.insert(alarm1)
+
+        alarm2.apply {
+            repeatable = true
+            weekdays = BooleanArray(7) {true}
+            detection = true
+        }
+        repo.insert(alarm2)
+    }
+    fun deleteUsual(){
+        repo.deleteOne(alarm1)
+        repo.deleteOne(alarm2)
+    }
+    fun tempUpdate(alarm: Alarm){
+        repo.update(alarm, true)
+    }
+    fun tempDelete(alarm: Alarm){
+        repo.deleteOne(alarm)
+    }
+
     override fun pullRLMCallback(): RLMCallback = rlmCallback
 
     fun fill() {

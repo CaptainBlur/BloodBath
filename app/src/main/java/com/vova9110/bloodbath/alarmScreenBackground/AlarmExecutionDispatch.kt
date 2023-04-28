@@ -69,7 +69,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
                 if (!alarm.enabled) throw IllegalStateException("Cannot proceed with set triggerTime and disabled state")
 
                 if (alarm.triggerTime!!.before(Date()) or (alarm.triggerTime!! == Date())){
-                    sl.f("missed triggerTime detected!")
+                    sl.f("missed triggerTime detected for *${alarm.id}*!")
                     val info = repo.getTimesInfo(alarm.id)
 
                     //if we didn't reach ^lost^ time for firing state yet,
