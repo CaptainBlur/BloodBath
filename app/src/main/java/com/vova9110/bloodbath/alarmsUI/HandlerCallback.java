@@ -9,5 +9,5 @@ public interface HandlerCallback {
     void changeItem (int oldPos, int hour, int minute);
     void updateOneState (int parentPos, boolean isChecked);
 
-    RLMCallback pullRLMCallback();
+    RLMCallbackOLD pullRLMCallback();
 }

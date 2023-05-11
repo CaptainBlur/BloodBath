@@ -45,6 +45,10 @@ class DBModule{
         //поэтому она и создаётся у нас один раз при инициализации Dagger (он создаёт все модули один раз)
     }
 
+    /**
+     * Repo's constructor is marked by Inject and all of these three methods are only supplemental
+     * @return
+     */
     @Singleton
     @Provides
     AlarmDatabase providesDB(){
@@ -63,9 +67,4 @@ class DBModule{
         return app.getApplicationContext();//А мы извлекаем из него Дао, которое используется в конструкторе репозитория
     }
 
-    @Singleton
-    @Provides
-    FreeAlarmsHandler providesHandler(AlarmRepo repo){//Мы говорим Даггеру, что этот конструктор можно использовать для создания репозиторияю Даггер сам передаёт в него Дао для создания,
-        return new FreeAlarmsHandler(repo, app);//при этом создавая всего один экземпляр репозитория и передавая его куда надо
-    }
 }

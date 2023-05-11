@@ -141,8 +141,8 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
         player = returnPlayer(context, info)
         sl.f("Controller: initialized. Test mode: $testMode, output: $fileOutput")
 
-        //Dispatching all terminal messages in one subject,
-        //And adding it in our disposables collection
+        //Dispatching all terminal messages to the endSubj,
+        //And all Observers to our disposables collection
         val endSubj = AsyncSubject.create<Int>()
         compDis.add(endSubj.subscribe {
             sl.i("end signal received: $it. Exiting after delay")

@@ -78,6 +78,7 @@ class FiringControlService: Service() {
         stopSelf()
     }
 
+    @SuppressLint("SuspiciousIndentation")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent!!.action== STOP_SERVICE){
             stopService()

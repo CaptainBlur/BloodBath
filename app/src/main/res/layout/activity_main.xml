@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/constraint_layout"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -22,51 +23,41 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/button2" />
 
-    <ImageView
-        android:id="@+id/imageView"
+
+    <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
+        android:id="@+id/rv_top_cap"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="20dp"
-        android:clickable="true"
-        android:visibility="invisible"
-        app:layout_constraintBottom_toTopOf="@id/recyclerview"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
+        android:layout_height="wrap_content"
+        android:src="@drawable/rv_cap"
+        app:height_toLocal_width_multiplier="0.0446"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.0"
-        app:srcCompat="@drawable/halpert" />
+        app:layout_constraintTop_toTopOf="@id/recyclerview"
+        app:width_toGlobal_multiplier="1"
+        />
 
-    <View
-        android:id="@+id/view"
+    <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
+        android:id="@+id/rv_bottom_cap"
         android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="@android:color/holo_green_light"
-        app:layout_constraintBottom_toBottomOf="@+id/recyclerview"
-        app:layout_constraintTop_toBottomOf="@+id/imageView"
-        app:layout_constraintVertical_bias="0.0" />
+        android:layout_height="wrap_content"
+        android:rotationX="180"
+        android:src="@drawable/rv_cap"
+        app:height_toLocal_width_multiplier="0.0446"
+        app:layout_constraintBottom_toBottomOf="@id/recyclerview"
+        app:layout_constraintStart_toStartOf="parent"
+        app:width_toGlobal_multiplier="1"
+        />
 
-    <androidx.recyclerview.widget.RecyclerView
+    <com.vova9110.bloodbath.alarmsUI.AdjustableRecyclerView
         android:id="@+id/recyclerview"
         android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:padding="@dimen/big_padding"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/imageView"
-        app:layout_constraintVertical_bias="0.0"
+        android:layout_height="300dp"
+        app:height_toGlobal_multiplier="0.4"
+        android:padding="48px"
+        app:layout_constraintBottom_toBottomOf="@id/constraint_layout"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         tools:listitem="@layout/recycler_view_item" />
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginBottom="16dp"
-        android:background="@android:color/holo_green_light"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/view"
-        app:layout_constraintVertical_bias="1.0" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab"
@@ -84,12 +75,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="15dp"
-        android:layout_marginBottom="15dp"
         android:checkable="true"
         android:text="Repeat"
         android:textAllCaps="false"
-        app:layout_constraintBottom_toBottomOf="@+id/imageView"
-        app:layout_constraintStart_toStartOf="@+id/imageView" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/button2" />
 
     <Button
         android:id="@+id/buttonActiv"
@@ -112,5 +102,13 @@
         app:layout_constraintBottom_toBottomOf="@+id/buttonActiv"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/buttonActiv" />
+
+    <Button
+        android:id="@+id/buttonFill"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Fill or clear DB"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/buttonRepeat" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,12 +1,11 @@
-package com.vova9110.bloodbath.recyclerView;
+package com.vova9110.bloodbath.alarmsUI.recyclerView;
 
-import android.util.Log;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.vova9110.bloodbath.alarmsUI.HandlerCallback;
+import com.vova9110.bloodbath.alarmsUI.FAHCallback;
 import com.vova9110.bloodbath.database.Alarm;
 
 import java.util.LinkedList;
@@ -14,10 +13,10 @@ import java.util.List;
 
 public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder>{
     private final String TAG = "TAG_ALA";
-    private HandlerCallback hCallback;
+    private FAHCallback hCallback;
     private List<Alarm> mList = new LinkedList<>();
 
-    public AlarmListAdapter(HandlerCallback hCallback, List<Alarm> initialList) {
+    public AlarmListAdapter(FAHCallback hCallback, List<Alarm> initialList) {
         this.hCallback = hCallback;
         this.mList.addAll(initialList);
     }

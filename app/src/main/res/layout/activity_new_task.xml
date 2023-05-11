@@ -1,19 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <EditText
-        android:id="@+id/edit_task"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="@dimen/small_padding"
-        android:fontFamily="sans-serif-light"
-        android:hint="@string/hint_task"
-        android:inputType="textAutoComplete"
-        android:layout_margin="@dimen/big_padding"
-        android:textSize="18sp" />
 
     <Button
         android:id="@+id/button_save"
@@ -30,5 +21,16 @@
         android:layout_height="wrap_content"
         android:text="Fill or clear DB" />
 
-
+    <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:height_toGlobal_multiplier="0.5"
+        app:width_toLocal_height_multiplier="0.5472"
+        />
+    <pl.droidsonroids.gif.GifImageView
+        android:id="@+id/kotya_pic"
+        android:src="@drawable/kotya_gif"
+        android:layout_width="wrap_content"
+        android:layout_height="550dp"
+        />
 </LinearLayout>

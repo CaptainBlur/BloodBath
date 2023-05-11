@@ -57,6 +57,7 @@ class MiscHelper(context: Context, expireRunnable: Runnable) {
                     }
 
                     MSG_STOP->{
+                        if (!started) sl.wp("False call to stop helper").also { return }
                         started = false
                         vManager.cancel()
                         player?.stop()

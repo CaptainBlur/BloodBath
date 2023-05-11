@@ -1,6 +1,5 @@
-package com.vova9110.bloodbath.recyclerView;
+package com.vova9110.bloodbath.alarmsUI.recyclerView;
 
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -11,8 +10,10 @@ import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.vova9110.bloodbath.SplitLogger;
-import com.vova9110.bloodbath.alarmsUI.HandlerCallback;
-import com.vova9110.bloodbath.alarmsUI.RLMCallback;
+import com.vova9110.bloodbath.SplitLoggerUI;
+import com.vova9110.bloodbath.alarmsUI.FAHCallback;
+import com.vova9110.bloodbath.alarmsUI.FAHCallback;
+import com.vova9110.bloodbath.alarmsUI.RLMCallbackOLD;
 import com.vova9110.bloodbath.database.Alarm;
 import com.vova9110.bloodbath.R;
 
@@ -20,19 +21,18 @@ import java.util.Calendar;
 
 public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener{
     private SplitLogger sl;
+    private SplitLoggerUI slU;
     private final TextView timeView;
     private final NumberPicker hourPicker;
     private final NumberPicker minutePicker;
     private final Switch switcher;
     private final com.google.android.material.floatingactionbutton.FloatingActionButton FAB;
 
-    private final HandlerCallback hCallback;
-    private final RLMCallback rlmCallback;
+    private final FAHCallback hCallback;
 
-    private AlarmViewHolder(View view, HandlerCallback c) {
+    private AlarmViewHolder(View view, FAHCallback c) {
         super(view);
         this.hCallback = c;
-        rlmCallback = c.pullRLMCallback();
 
         timeView = view.findViewById(R.id.timeWindow);
         hourPicker = view.findViewById(R.id.picker_h);
@@ -49,7 +49,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
         //todo вставить ассерт сюда
     }
 
-    static AlarmViewHolder create(ViewGroup parent, HandlerCallback hCallback) {
+    static AlarmViewHolder create(ViewGroup parent, FAHCallback hCallback) {
         //В данном случае, когда мы указиваем родительскую ViewGroup в качестве источника LayoutParams, эти самые LP передаются в View при наполнении
         //Конкретно - это те, которые указаны в материнской LinearLayout, ширина и высота всей разметки.
         //Если не передать эти LP, то RLM подхватит LP по умолчанию
@@ -76,7 +76,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
             sl.sp( "onClick: ERROR");
             return;
         }
-        rlmCallback.notifyBaseClick(getAdapterPosition());
+        hCallback.notifyBaseClick(getAdapterPosition());
     }
 
 
@@ -96,7 +96,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
     }
 
     public void bindPref(Alarm current){
-        sl.w("BINDING PREF");
+        slU.fst("binding pref");
         timeView.setVisibility(View.GONE); hourPicker.setVisibility(View.VISIBLE); minutePicker.setVisibility(View.VISIBLE); switcher.setVisibility(View.VISIBLE); FAB.setVisibility(View.VISIBLE);
         Calendar calendar = Calendar.getInstance();
 
@@ -105,6 +105,7 @@ public class AlarmViewHolder extends RecyclerView.ViewHolder implements View.OnC
             minutePicker.setValue(current.getMinute());
         }
         else{
+            slU.fst("for addAlarm");
             calendar.setTimeInMillis(System.currentTimeMillis());
             hourPicker.setValue(calendar.get(Calendar.HOUR_OF_DAY));
             minutePicker.setValue(calendar.get(Calendar.MINUTE));

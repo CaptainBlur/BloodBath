@@ -12,19 +12,27 @@ import android.net.Uri;
 import androidx.lifecycle.AndroidViewModel;
 
 import com.vova9110.bloodbath.alarmScreenBackground.AlarmRepo;
+import com.vova9110.bloodbath.alarmsUI.UISupervisor;
 
 public class MainViewModel extends AndroidViewModel {
     public final static String PREFERENCES_NAME = "prefs";
     private final Application app;
     private SplitLogger sl;
+    private UISupervisor supervisor;
+
+    public UISupervisor getSupervisor() {
+        return supervisor;
+    }
 
     public MainViewModel(Application app) {
         super(app);
 
         this.app = app;
+        supervisor = new UISupervisor(app);
         reassureRepo();
         checkLaunchPreferences();
         SplitLoggerUI.UILogger.initialize(app);
+
     }
 
     private void reassureRepo(){

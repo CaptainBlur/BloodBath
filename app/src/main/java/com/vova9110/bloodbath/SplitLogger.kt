@@ -38,9 +38,6 @@ open class SplitLogger {
                     if (record.level==Level.FINEST) sw.write("\t\t\t")
                     if (record.sourceMethodName!=null) sw.write(record.sourceMethodName)
 
-//                    val index = record.message.lastIndexOf(Char(0x0a))
-//                    if (index!=-1) record.message.
-
                     sw.write(record.message)
                     sw.write("\n")
                     if (thrown != null) thrown.printStackTrace(pw)

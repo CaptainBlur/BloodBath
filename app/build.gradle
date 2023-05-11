@@ -19,6 +19,7 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // 2) Connect JUnit 5 to the runner
         testInstrumentationRunnerArgument "runnerBuilder", "de.mannodermaus.junit5.AndroidJUnit5Builder"
+        vectorDrawables.useSupportLibrary = true
     }
 
     buildTypes {
@@ -56,6 +57,7 @@ dependencies {
     implementation 'io.reactivex.rxjava3:rxjava:3.1.5'
     implementation group: 'uk.me.berndporr', name:'iirj', version: '1.5'
     implementation 'com.google.code.gson:gson:2.10'
+    implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.25'
 
     // Lifecycle components
     implementation "androidx.lifecycle:lifecycle-viewmodel:$rootProject.lifecycleVersion"

@@ -1,29 +1,43 @@
 package com.vova9110.bloodbath.alarmsUI
 
 import android.content.Context
+import android.graphics.Rect
 import android.widget.Toast
-import androidx.recyclerview.widget.RecyclerView
 import com.vova9110.bloodbath.SplitLogger
 import com.vova9110.bloodbath.alarmScreenBackground.AlarmRepo
 import com.vova9110.bloodbath.database.Alarm
-import com.vova9110.bloodbath.recyclerView.AlarmListAdapter
-import com.vova9110.bloodbath.recyclerView.RowLayoutManager
+import com.vova9110.bloodbath.alarmsUI.recyclerView.AlarmListAdapter
+import com.vova9110.bloodbath.alarmsUI.recyclerView.RowLayoutManager
+import java.lang.Exception
 import java.util.*
-import kotlin.Comparator
 
 typealias sl = SplitLogger
 
-class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Context): HandlerCallback {
+class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Context,
+                        targetView: AdjustableView, globalRect: Rect,
+                        override val transmitterMethod: () -> Unit
+): TargetedHandler(targetView, globalRect),
+                        FAHCallback, ErrorReceiver {
 
-    private lateinit var recycler: RecyclerView
-    private lateinit var adapter: AlarmListAdapter
+    private val recycler = targetView as AdjustableRecyclerView
+    private var adapter: AlarmListAdapter
+    private var rlmCallback: RLMCallback
     private val comp = kotlin.Comparator { a1:Alarm, a2:Alarm-> if (a1.addFlag) 1 else if (a2.addFlag) -1 else 0 }.
         then { a1:Alarm, a2:Alarm-> if (a1.prefBelongsToAdd) 1 else if (a2.prefBelongsToAdd) -1 else 0 }.
             then { (hour1, minute1): Alarm, (hour2, minute2):Alarm-> if (hour1!=hour2) hour1-hour2 else minute1-minute2 }
 
     private val addAlarm = Alarm()
 
-    fun pollForList(): AlarmListAdapter {
+    init {
+        adapter = pollForList()
+        recycler.adapter = adapter
+
+        val lm = RowLayoutManager(this)
+        recycler.layoutManager = lm
+        rlmCallback = lm
+    }
+
+    private fun pollForList(): AlarmListAdapter {
 
         var list: MutableList<Alarm> = repo.all.toMutableList()
         if (list.isEmpty()) {
@@ -32,15 +46,26 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         else list.add(addAlarm)
 
         list.sortWith(comp)
-        this.adapter = AlarmListAdapter(this, list)
 
-        return adapter
-    }
-    fun setRecycler(recycler: RecyclerView){
-        this.recycler = recycler
+        return AlarmListAdapter(
+                this,
+                list
+            )
     }
 
-    lateinit var rlmCallback: RLMCallback
+    override fun handleError(ex: Exception) {
+        slU.s("Resetting RV", ex)
+
+        adapter = pollForList()
+        recycler.adapter = adapter
+
+        val lm = RowLayoutManager(this)
+        recycler.layoutManager = lm
+        rlmCallback = lm
+
+        recycler.requestLayout()
+    }
+
     private var bufferList = LinkedList<Alarm>()
 
     @JvmField
@@ -48,8 +73,19 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
     @JvmField
     var activeButton = false
 
+    override fun notifyBaseClick(prefParentPos: Int){
+        val returned = rlmCallback.defineBaseAction(prefParentPos)
 
-    override fun passPrefToAdapter(parentPos: Int, prefPos: Int) {
+        when(returned.flag){
+            RowLayoutManager.LAYOUT_PREF -> passPrefToAdapter(returned.parentPos, returned.prefPos)
+            RowLayoutManager.HIDE_PREF -> removePref(returned.pullDataset)
+            RowLayoutManager.HIDE_N_LAYOUT_PREF -> removeNPassPrefToAdapter(returned.parentPos, returned.prefPos)
+        }
+    }
+
+
+
+    private fun passPrefToAdapter(parentPos: Int, prefPos: Int) {
         bufferList.clear()
         bufferList.addAll(adapter.currentList)
         val parent = bufferList[parentPos]
@@ -66,7 +102,7 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         adapter.notifyItemInserted(prefPos)
     }
 
-    override fun removePref(pullDataset: Boolean) {
+    private fun removePref(pullDataset: Boolean) {
         bufferList.clear()
         if (pullDataset) bufferList.addAll(adapter.currentList) else bufferList.addAll(adapter.currentList)
 
@@ -80,7 +116,7 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
 //        submitList(oldList, bufferList)
     }
 
-    override fun removeNPassPrefToAdapter(parentPos: Int, prefPos: Int) {
+    private fun removeNPassPrefToAdapter(parentPos: Int, prefPos: Int) {
         bufferList.clear()
         bufferList.addAll(adapter.currentList)
 
@@ -104,14 +140,14 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
 
      */
 
-    override fun deleteItem(pos: Int) {
-        rlmCallback.setNotifyFlag(RowLayoutManager.UPDATE_DATASET)
+    override fun deleteItem(adapterPos: Int) {
+        rlmCallback.setUpdateDataset(RowLayoutManager.UPDATE_DATASET)
 
         val currentPos: Int
         var prefRemoved = false
         bufferList.clear()
         bufferList.addAll(adapter.currentList)
-        val current = bufferList[pos]
+        val current = bufferList[adapterPos]
 
         //We implement this shitshow because it won't work in the Kotlin way, idk why
         var prefPos = -1
@@ -130,20 +166,20 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         recycler.post { adapter.notifyItemRemoved(currentPos) }
     }
 
-    override fun addItem(hour: Int, minute: Int) {
-        rlmCallback.setNotifyFlag(RowLayoutManager.UPDATE_DATASET)
+    override fun addItem(pickerNour: Int, pickerMinute: Int) {
+        rlmCallback.setUpdateDataset(RowLayoutManager.UPDATE_DATASET)
 
         val currentPos: Int
         bufferList.clear()
         bufferList.addAll(adapter.currentList)
 
-        if (bufferList.find { it.hour==hour && it.minute==minute }!=null){
+        if (bufferList.find { it.hour==pickerNour && it.minute==pickerMinute }!=null){
             Toast.makeText(context, "Alarm already exists", Toast.LENGTH_SHORT).show()
             sl.ip("alarm already exists, exiting")
             return
         }
 
-        val current = Alarm(hour, minute)
+        val current = Alarm(pickerNour, pickerMinute)
         bufferList.add(current)
         repo.insert(current)
         bufferList.sortWith(comp)
@@ -159,10 +195,10 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         recycler.post{ adapter.notifyItemChanged(currentPos) }
     }
 
-    override fun changeItem(oldPrefPos: Int, hour: Int, minute: Int) {
-        rlmCallback.setNotifyFlag(RowLayoutManager.UPDATE_DATASET)
+    override fun changeItem(adapterPos: Int, pickerNour: Int, pickerMinute: Int) {
+        rlmCallback.setUpdateDataset(RowLayoutManager.UPDATE_DATASET)
 
-        if (bufferList.find { it.hour==hour && it.minute==minute }!=null){
+        if (bufferList.find { it.hour==pickerNour && it.minute==pickerMinute }!=null){
             Toast.makeText(context, "Alarm already exists", Toast.LENGTH_SHORT).show()
             sl.ip("alarm already exists, exiting")
             return
@@ -183,7 +219,7 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         repo.deleteOne(current)
         bufferList.remove(current)
 
-        val new = current.clone(hour, minute)
+        val new = current.clone(pickerNour, pickerMinute)
         repo.insert(new)
         bufferList.add(new)
         bufferList.sortWith(comp)
@@ -235,15 +271,18 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         repo.deleteOne(alarm)
     }
 
-    override fun pullRLMCallback(): RLMCallback = rlmCallback
 
     fun fill() {
         repo.deleteAll()
         bufferList = LinkedList<Alarm>()
+
+        var r = 0
         for (i in 0..27) {
-            val alarm = Alarm(0, i)
+            if (i%3==0) r++
+            val alarm = Alarm(r, i)
             bufferList.add(alarm)
             repo.insert(alarm)
+
         }
         bufferList.add(addAlarm)
         adapter.submitList(bufferList)
@@ -256,8 +295,46 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         adapter.submitList(bufferList)
     }
 
-    fun addTest(i: Int) {
+}
 
+/**
+ * Generally, there are two kinds of actions can be transmitted through this interface.
+ * First ones belong to actions related to user's interaction with time window such as show and hide individual preferences window, and require deeper integration with [RowLayoutManager].
+ * Second ones on the other hand belong directly to the inner elements of pref window
+ */
+sealed interface FAHCallback{
+    fun notifyBaseClick(prefParentPos: Int)
+    fun addItem(pickerNour: Int, pickerMinute: Int)
+    fun changeItem(adapterPos: Int, pickerNour: Int, pickerMinute: Int)
+    fun updateOneState(parentPos: Int, isChecked: Boolean)
+    fun deleteItem(adapterPos: Int)
+}
+
+/**
+ * It's not always a direct one-step process. In some case we need [RowLayoutManager] to internally define us
+ * which action was taken place and prepare itself for the future layout
+ */
+interface RLMCallback {
+    /**
+     * @return flag value, must be one of
+     * [RowLayoutManager.LAYOUT_PREF], [RowLayoutManager.HIDE_PREF], [RowLayoutManager.HIDE_N_LAYOUT_PREF]
+     */
+    fun defineBaseAction (prefParentPos: Int) : RLMReturnData
+
+    fun setUpdateDataset(flag: Int)
+}
+
+data class RLMReturnData(var flag: Int = -1){
+    var parentPos: Int = -1
+    var prefPos: Int = -1
+    var pullDataset: Boolean = false
+
+    constructor(flag: Int, parentPos: Int, prefPos: Int): this(flag){
+        this.parentPos = parentPos
+        this.prefPos = prefPos
+    }
+    constructor(flag: Int, pullDataset: Boolean): this (flag){
+        this.pullDataset = pullDataset
     }
 }
 
