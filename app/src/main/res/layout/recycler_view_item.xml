@@ -6,78 +6,90 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <com.vova9110.bloodbath.alarmsUI.AdjustableButton
+        android:id="@+id/rv_time_window"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rv_time_window_unlit"
+        android:lines="1"
+        android:text="00:00"
+        android:textAlignment="center"
+        android:textSize="22.5sp"
+        app:height_toLocal_width_multiplier="40.175%"
+        app:width_toGlobal_multiplier="23.519%" />
+
+
+    <com.vova9110.bloodbath.alarmsUI.AdjustableConstraintLayout
+        android:id="@+id/main_constraint_layout"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        >
 
-        <TextView
-            android:id="@+id/timeWindow"
-            style="@style/task_title"
-            android:layout_width="83dp"
-            android:layout_height="29dp"
-            android:background="@android:color/holo_orange_light"
-            android:lines="1"
-            android:paddingHorizontal="10dp"
-            android:text="00:00"
-            android:textAlignment="center"
-            android:textSize="22.5sp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <NumberPicker
-            android:id="@+id/picker_h"
-            android:layout_width="wrap_content"
-            android:layout_height="80dp"
-            android:layout_marginTop="40dp"
-            android:layout_marginBottom="40dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.0"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/timeWindow"
-            app:layout_constraintVertical_bias="0.0" />
-
-        <NumberPicker
-            android:id="@+id/picker_m"
-            android:layout_width="wrap_content"
-            android:layout_height="80dp"
-            android:layout_marginStart="20dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.0"
-            app:layout_constraintStart_toEndOf="@+id/picker_h"
-            app:layout_constraintTop_toTopOf="@+id/picker_h"
-            app:layout_constraintVertical_bias="0.0" />
-
-
-        <Switch
-            android:id="@+id/switcher"
-            android:layout_width="wrap_content"
-            android:layout_height="80dp"
-            android:layout_marginStart="20dp"
-            android:minWidth="48dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintHorizontal_bias="0.0"
-            app:layout_constraintStart_toEndOf="@+id/picker_m"
-            app:layout_constraintTop_toTopOf="@+id/picker_m"
-            app:layout_constraintVertical_bias="0.0"
-            tools:ignore="UseSwitchCompatOrMaterialXml" />
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/floatingActionButton"
+        <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
+            android:id="@+id/rv_pref_frame"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:clickable="true"
-            android:contentDescription="Add or update alarm"
-            app:backgroundTint="#E91E63"
-            app:layout_constraintBottom_toBottomOf="@+id/switcher"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@+id/switcher"
-            app:layout_constraintTop_toTopOf="@+id/switcher"
-            app:srcCompat="@drawable/ic_baseline_add_24" />
+            android:src="@drawable/rv_pref_frame_center_unlit"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:width_toGlobal_multiplier="94.576%"
+            app:height_toLocal_width_multiplier="61.151%"
+            />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+<!--        <NumberPicker-->
+<!--            android:id="@+id/picker_h"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="80dp"-->
+<!--            android:layout_marginTop="40dp"-->
+<!--            android:layout_marginBottom="40dp"-->
+<!--            app:layout_constraintBottom_toBottomOf="parent"-->
+<!--            app:layout_constraintEnd_toEndOf="parent"-->
+<!--            app:layout_constraintHorizontal_bias="0.0"-->
+<!--            app:layout_constraintStart_toStartOf="parent"-->
+<!--            app:layout_constraintTop_toBottomOf="parent"-->
+<!--            app:layout_constraintVertical_bias="0.0" />-->
+
+<!--        <NumberPicker-->
+<!--            android:id="@+id/picker_m"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="80dp"-->
+<!--            android:layout_marginStart="20dp"-->
+<!--            app:layout_constraintBottom_toBottomOf="parent"-->
+<!--            app:layout_constraintEnd_toEndOf="parent"-->
+<!--            app:layout_constraintHorizontal_bias="0.0"-->
+<!--            app:layout_constraintStart_toEndOf="@+id/picker_h"-->
+<!--            app:layout_constraintTop_toTopOf="@+id/picker_h"-->
+<!--            app:layout_constraintVertical_bias="0.0" />-->
+
+
+<!--        <Switch-->
+<!--            android:id="@+id/switcher"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="80dp"-->
+<!--            android:layout_marginStart="20dp"-->
+<!--            android:minWidth="48dp"-->
+<!--            app:layout_constraintBottom_toBottomOf="parent"-->
+<!--            app:layout_constraintEnd_toEndOf="parent"-->
+<!--            app:layout_constraintHorizontal_bias="0.0"-->
+<!--            app:layout_constraintStart_toEndOf="@+id/picker_m"-->
+<!--            app:layout_constraintTop_toTopOf="@+id/picker_m"-->
+<!--            app:layout_constraintVertical_bias="0.0"-->
+<!--            tools:ignore="UseSwitchCompatOrMaterialXml" />-->
+
+<!--        <com.google.android.material.floatingactionbutton.FloatingActionButton-->
+<!--            android:id="@+id/floatingActionButton"-->
+<!--            android:layout_width="wrap_content"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_marginStart="20dp"-->
+<!--            android:clickable="true"-->
+<!--            android:contentDescription="Add or update alarm"-->
+<!--            app:backgroundTint="#E91E63"-->
+<!--            app:layout_constraintBottom_toBottomOf="@+id/switcher"-->
+<!--            app:layout_constraintEnd_toEndOf="parent"-->
+<!--            app:layout_constraintStart_toEndOf="@+id/switcher"-->
+<!--            app:layout_constraintTop_toTopOf="@+id/switcher"-->
+<!--            app:srcCompat="@drawable/ic_baseline_add_24" />-->
+
+    </com.vova9110.bloodbath.alarmsUI.AdjustableConstraintLayout>
 
 </LinearLayout>

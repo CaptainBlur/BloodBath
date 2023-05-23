@@ -4,9 +4,9 @@
         <attr name="fullscreenTextColor" format="color" />
     </declare-styleable>
     <declare-styleable name="AdjustableView">
-        <attr name="width_toLocal_height_multiplier" format="float"/>
-        <attr name="width_toGlobal_multiplier" format="float"/>
-        <attr name="height_toLocal_width_multiplier" format="float"/>
-        <attr name="height_toGlobal_multiplier" format="float"/>
+        <attr name="width_toLocal_height_multiplier" format="fraction"/>
+        <attr name="width_toGlobal_multiplier" format="fraction"/>
+        <attr name="height_toLocal_width_multiplier" format="fraction"/>
+        <attr name="height_toGlobal_multiplier" format="fraction"/>
     </declare-styleable>
 </resources>

@@ -2,7 +2,10 @@ package com.vova9110.bloodbath.alarmsUI
 
 import android.content.Context
 import android.graphics.Rect
+import android.view.View
 import android.widget.Toast
+import androidx.recyclerview.widget.RecyclerView
+import com.vova9110.bloodbath.R
 import com.vova9110.bloodbath.SplitLogger
 import com.vova9110.bloodbath.alarmScreenBackground.AlarmRepo
 import com.vova9110.bloodbath.database.Alarm
@@ -10,18 +13,21 @@ import com.vova9110.bloodbath.alarmsUI.recyclerView.AlarmListAdapter
 import com.vova9110.bloodbath.alarmsUI.recyclerView.RowLayoutManager
 import java.lang.Exception
 import java.util.*
+import kotlin.math.roundToInt
 
 typealias sl = SplitLogger
 
-class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Context,
+class FreeAlarmsHandler(private val repo: AlarmRepo,
+                        private val context: Context,
                         targetView: AdjustableView, globalRect: Rect,
                         override val transmitterMethod: () -> Unit
-): TargetedHandler(targetView, globalRect),
-                        FAHCallback, ErrorReceiver {
+): TargetedHandler(context, targetView, globalRect),
+                        FAHCallback, AideCallback, ErrorReceiver {
 
-    private val recycler = targetView as AdjustableRecyclerView
+    val recycler = targetView as AdjustableRecyclerView
     private var adapter: AlarmListAdapter
     private var rlmCallback: RLMCallback
+    private var measurements: MeasurementsAide? = null
     private val comp = kotlin.Comparator { a1:Alarm, a2:Alarm-> if (a1.addFlag) 1 else if (a2.addFlag) -1 else 0 }.
         then { a1:Alarm, a2:Alarm-> if (a1.prefBelongsToAdd) 1 else if (a2.prefBelongsToAdd) -1 else 0 }.
             then { (hour1, minute1): Alarm, (hour2, minute2):Alarm-> if (hour1!=hour2) hour1-hour2 else minute1-minute2 }
@@ -32,7 +38,7 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         adapter = pollForList()
         recycler.adapter = adapter
 
-        val lm = RowLayoutManager(this)
+        val lm = RowLayoutManager(this, this)
         recycler.layoutManager = lm
         rlmCallback = lm
     }
@@ -59,7 +65,7 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         adapter = pollForList()
         recycler.adapter = adapter
 
-        val lm = RowLayoutManager(this)
+        val lm = RowLayoutManager(this, this)
         recycler.layoutManager = lm
         rlmCallback = lm
 
@@ -73,13 +79,26 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
     @JvmField
     var activeButton = false
 
-    override fun notifyBaseClick(prefParentPos: Int){
+    override fun notifyBaseClick(prefParentPos: Int): Boolean {
         val returned = rlmCallback.defineBaseAction(prefParentPos)
 
-        when(returned.flag){
-            RowLayoutManager.LAYOUT_PREF -> passPrefToAdapter(returned.parentPos, returned.prefPos)
-            RowLayoutManager.HIDE_PREF -> removePref(returned.pullDataset)
-            RowLayoutManager.HIDE_N_LAYOUT_PREF -> removeNPassPrefToAdapter(returned.parentPos, returned.prefPos)
+        return when(returned.flag){
+            RowLayoutManager.LAYOUT_PREF -> {
+                passPrefToAdapter(returned.parentPos, returned.prefPos)
+                true
+            }
+
+            RowLayoutManager.HIDE_PREF -> {
+                removePref(returned.pullDataset)
+                false
+            }
+
+            RowLayoutManager.HIDE_N_LAYOUT_PREF -> {
+                removeNPassPrefToAdapter(returned.parentPos, returned.prefPos)
+                true
+            }
+
+            else -> false
         }
     }
 
@@ -113,7 +132,6 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
 
         adapter.submitList(bufferList)
         adapter.notifyItemRemoved(prefIndex)
-//        submitList(oldList, bufferList)
     }
 
     private fun removeNPassPrefToAdapter(parentPos: Int, prefPos: Int) {
@@ -295,6 +313,18 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
         adapter.submitList(bufferList)
     }
 
+    override fun getMeasurements(): MeasurementsAide? = this.measurements
+
+    override fun setMeasurements(measurements: MeasurementsAide) {
+        this.measurements = measurements
+    }
+
+    override fun createMeasurements(
+        recycler: RecyclerView.Recycler,
+        master: RecyclerView.LayoutManager,
+    ): MeasurementsAide {
+        return MeasurementsAide(this, recycler, this.recycler.layoutManager!! as RowLayoutManager).also { this.measurements = it }
+    }
 }
 
 /**
@@ -303,11 +333,23 @@ class FreeAlarmsHandler(private val repo: AlarmRepo, private val context: Contex
  * Second ones on the other hand belong directly to the inner elements of pref window
  */
 sealed interface FAHCallback{
-    fun notifyBaseClick(prefParentPos: Int)
+    fun notifyBaseClick(prefParentPos: Int): Boolean
     fun addItem(pickerNour: Int, pickerMinute: Int)
     fun changeItem(adapterPos: Int, pickerNour: Int, pickerMinute: Int)
     fun updateOneState(parentPos: Int, isChecked: Boolean)
     fun deleteItem(adapterPos: Int)
+}
+
+/**
+ * [MeasurementsAide] uses this interface to communicate with [FreeAlarmsHandler] directly
+ */
+sealed interface AideCallback{
+    //This is how RLM takes it's aide
+    fun getMeasurements(): MeasurementsAide?
+    //This is how FAH gets newly created aide
+    fun setMeasurements(measurements: MeasurementsAide)
+    //This is how FAH creates an aide
+    fun createMeasurements(recycler: RecyclerView.Recycler, master: RecyclerView.LayoutManager): MeasurementsAide
 }
 
 /**
@@ -320,10 +362,12 @@ interface RLMCallback {
      * [RowLayoutManager.LAYOUT_PREF], [RowLayoutManager.HIDE_PREF], [RowLayoutManager.HIDE_N_LAYOUT_PREF]
      */
     fun defineBaseAction (prefParentPos: Int) : RLMReturnData
-
     fun setUpdateDataset(flag: Int)
 }
 
+/**
+ * Class in which we retrieve computed data from RLM. Using for one case only
+ */
 data class RLMReturnData(var flag: Int = -1){
     var parentPos: Int = -1
     var prefPos: Int = -1
@@ -336,5 +380,123 @@ data class RLMReturnData(var flag: Int = -1){
     constructor(flag: Int, pullDataset: Boolean): this (flag){
         this.pullDataset = pullDataset
     }
+}
+
+/**
+ * The thing is, when there's a time for initialization, we measure all margins and paddings,
+ * so when LM's asking for each dimensions specifically, we decide which one is appropriate
+ * for a given child view
+ */
+data class MeasurementsAide(
+    private val handler: FreeAlarmsHandler,
+    private val recycler: RecyclerView.Recycler,
+    private val master: RowLayoutManager
+    ){
+
+    private val sample: View = recycler.getViewForPosition(0)
+
+    private val mTopPadding: Int
+    private val mNormalSidePadding: Int
+    private val mShrankSidePadding: Int
+    private val mBaseVerticalPadding: Int
+
+    val measuredTimeWidth: Int
+    val measuredTimeHeight: Int
+    val measuredPrefWidth: Int
+    val measuredPrefHeight: Int
+    val prefTopIndent: Int
+    val prefLeftIndent: Int
+    val prefBottomPadding: Int
+
+    fun getParentInRow(iterator: Int): Int?{
+        //first view index in mother row
+        val rangeStart = (master.prefRowPos-2)*3
+        val motherRange = IntRange(rangeStart, rangeStart+2)
+
+        return if (iterator in motherRange) iterator - master.prefParentPos else null
+    }
+
+    init{
+        val res = sample.resources
+
+        fun getFloat(resourceID: Int): Float = res.getFraction(resourceID, 1,1)
+
+        mTopPadding =
+            (master.width *
+                    getFloat(R.fraction.rv_top_padding)).roundToInt()
+        mBaseVerticalPadding =
+            (master.width *
+                    getFloat(R.fraction.rv_vertical_padding)).roundToInt()
+        prefTopIndent =
+            (master.width *
+                    getFloat(R.fraction.rv_pref_vertical_indent)).roundToInt()
+        prefLeftIndent =
+            (master.width *
+                    getFloat(R.fraction.rv_pref_horizontal_indent)).roundToInt()
+        prefBottomPadding =
+            (master.width *
+                    getFloat(R.fraction.rv_pref_bottom_padding)).roundToInt()
+
+
+        handler.recycler.setPadding(0,mTopPadding,0,mTopPadding)
+        master.measureChild(sample,0,0)
+
+        measuredTimeWidth = master.getDecoratedMeasuredWidth(sample)
+        measuredTimeHeight = master.getDecoratedMeasuredHeight(sample)
+
+        mNormalSidePadding = ((master.width - measuredTimeWidth*3).toFloat()/4).roundToInt()
+        mShrankSidePadding = mNormalSidePadding / 2
+
+
+        sample.findViewById<AdjustableButton>(R.id.rv_time_window).visibility = View.GONE
+        sample.findViewById<AdjustableImageView>(R.id.rv_pref_frame).visibility = View.VISIBLE
+
+        master.measureChild(sample, 0,0)
+
+        measuredPrefWidth = master.getDecoratedMeasuredWidth(sample)
+        measuredPrefHeight = master.getDecoratedMeasuredHeight(sample)
+
+        sample.findViewById<AdjustableButton>(R.id.rv_time_window).visibility = View.VISIBLE
+        sample.findViewById<AdjustableImageView>(R.id.rv_pref_frame).visibility = View.GONE
+
+        slU.f("measurements:\n\t\tTop padding: $mTopPadding, vertical padding: $mBaseVerticalPadding \n\t\t" +
+                "Normal side padding: $mNormalSidePadding, shrank side padding: $mShrankSidePadding\n\t\t" +
+                "T/w width: $measuredTimeWidth, t/w height: $measuredTimeHeight\n\t\t" +
+                "Pref width: $measuredPrefWidth, pref height: $measuredPrefHeight")
+    }
+
+    fun getHorizontalPadding(): Int = mNormalSidePadding
+    fun getHorizontalPadding(iterator: Int): Int {
+        //first index in mother row
+        val rangeStart = (master.prefRowPos-2)*3
+        val motherRange = IntRange(rangeStart, rangeStart+2)
+
+        return if (iterator in motherRange)
+            if (iterator == master.prefParentPos)
+                mNormalSidePadding + mShrankSidePadding
+            else mShrankSidePadding
+        else mNormalSidePadding
+    }
+    fun getVerticalPadding(): Int = mBaseVerticalPadding
+    fun getDecoratedTimeWidth(): Int = measuredTimeWidth + mNormalSidePadding
+    fun getDecoratedTimeWidth(iterator: Int): Int {
+
+        return if (getParentInRow(iterator)!=null){
+            measuredTimeWidth.plus(
+                when (iterator - master.prefParentPos) {
+                    -1, 0 -> mNormalSidePadding + mShrankSidePadding
+                    -2, 1, 2 -> mShrankSidePadding
+                    else -> 0
+                }
+            )
+        } else measuredTimeWidth + mNormalSidePadding
+
+    }
+    fun getDecoratedTimeHeight(): Int =
+        measuredTimeHeight +
+                mBaseVerticalPadding
+
+    fun getPrefTopOffsetShift(): Int = measuredPrefHeight - prefTopIndent + prefBottomPadding
+
 }
 

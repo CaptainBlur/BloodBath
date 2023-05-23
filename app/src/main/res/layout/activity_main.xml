@@ -29,10 +29,10 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:src="@drawable/rv_cap"
-        app:height_toLocal_width_multiplier="0.0446"
+        app:height_toLocal_width_multiplier="@fraction/rv_top_padding"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="@id/recyclerview"
-        app:width_toGlobal_multiplier="1"
+        app:width_toGlobal_multiplier="100%"
         />
 
     <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
@@ -41,18 +41,17 @@
         android:layout_height="wrap_content"
         android:rotationX="180"
         android:src="@drawable/rv_cap"
-        app:height_toLocal_width_multiplier="0.0446"
+        app:height_toLocal_width_multiplier="@fraction/rv_top_padding"
         app:layout_constraintBottom_toBottomOf="@id/recyclerview"
         app:layout_constraintStart_toStartOf="parent"
-        app:width_toGlobal_multiplier="1"
+        app:width_toGlobal_multiplier="100%"
         />
 
     <com.vova9110.bloodbath.alarmsUI.AdjustableRecyclerView
         android:id="@+id/recyclerview"
         android:layout_width="0dp"
         android:layout_height="300dp"
-        app:height_toGlobal_multiplier="0.4"
-        android:padding="48px"
+        app:height_toGlobal_multiplier="40%"
         app:layout_constraintBottom_toBottomOf="@id/constraint_layout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"

@@ -24,8 +24,8 @@
     <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:height_toGlobal_multiplier="0.5"
-        app:width_toLocal_height_multiplier="0.5472"
+        app:height_toGlobal_multiplier="50%"
+        app:width_toLocal_height_multiplier="54.72%"
         />
     <pl.droidsonroids.gif.GifImageView
         android:id="@+id/kotya_pic"

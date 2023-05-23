@@ -11,7 +11,7 @@ import com.vova9110.bloodbath.database.Alarm;
 import java.util.LinkedList;
 import java.util.List;
 
-public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder>{
+public class AlarmListAdapter extends RecyclerView.Adapter<ChildViewHolder>{
     private final String TAG = "TAG_ALA";
     private FAHCallback hCallback;
     private List<Alarm> mList = new LinkedList<>();
@@ -23,12 +23,12 @@ public class AlarmListAdapter extends RecyclerView.Adapter<AlarmViewHolder>{
 
     @NonNull
     @Override
-    public AlarmViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-        return AlarmViewHolder.create(parent, hCallback);
+    public ChildViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        return ChildViewHolder.create(parent, hCallback);
     }
 
     @Override
-    public void onBindViewHolder(AlarmViewHolder holder, int position) {
+    public void onBindViewHolder(ChildViewHolder holder, int position) {
         Alarm current = mList.get(position);
 //        Log.w(TAG, String.valueOf(position));
         if (current.getAddFlag()) holder.bindAddAlarm();

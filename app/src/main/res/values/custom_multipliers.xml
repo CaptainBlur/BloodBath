@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+<!--    all values are multipliers to the RV's width (taken without paddings)-->
+    <item name="rv_top_padding" type="fraction">4.46%</item>
+    <item name="rv_side_padding_normal" type="fraction">7.407%</item>
+    <item name="rv_side_padding_shrank" type="fraction">3.704%</item>
+    <item name="rv_vertical_padding" type="fraction">12.241%</item>
+    <item name="rv_pref_side_padding" type="fraction">2.685%</item>
+    <item name="rv_pref_vertical_indent" type="fraction">1.481%</item>
+    <item name="rv_pref_horizontal_indent" type="fraction">2.685%</item>
+    <item name="rv_pref_bottom_padding" type="fraction">3.241%</item>
+</resources>

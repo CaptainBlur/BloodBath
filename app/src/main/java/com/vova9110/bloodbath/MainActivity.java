@@ -175,8 +175,8 @@
             //AlarmActivity alarm = new AlarmActivity(data.getStringExtra(NewTaskActivity.EXTRA_REPLY));
             //mHandler.insert(alarm);
         }
-//        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == FILL_DB) mHandler.fill();
-//        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == CLEAR_DB) mHandler.clear();
+        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == FILL_DB) mMainViewModel.getSupervisor().clearOrFill(true);
+        else if (requestCode == NEW_TASK_ACTIVITY_REQUEST_CODE && resultCode == CLEAR_DB) mMainViewModel.getSupervisor().clearOrFill(false);
         else {
             Toast.makeText(
                     getApplicationContext(),
