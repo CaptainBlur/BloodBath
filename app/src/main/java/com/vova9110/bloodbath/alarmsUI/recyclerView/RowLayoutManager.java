@@ -2,6 +2,7 @@ package com.vova9110.bloodbath.alarmsUI.recyclerView;
 
 import android.util.SparseArray;
 import android.view.View;
+import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -50,11 +51,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private final short DIR_BOTH = 2;
 
     private int FLAG_NOTIFY;
-    public static final int NOTIFY_NONE = 0;
+    private static final int NOTIFY_NONE = 0;
     public static final int LAYOUT_PREF = 1;
     public static final int HIDE_PREF = 2;
     public static final int HIDE_N_LAYOUT_PREF = 3;
     public static final int UPDATE_DATASET = 4;
+    public static final int UPDATE_PARENT = 5;
 
     private boolean prefVisibility = false;
     private View prefView;
@@ -62,9 +64,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private int prefRowPos;
     private int prefPos;
     private boolean prefScrapped = false;//Переменная означает, что настройки отскрапаны, но требуют выкладки при скролле
-    public int getPrefParentPos(){
-        return prefParentPos;
+    public boolean getPrefVisibility(){
+        return prefVisibility;
     }
+    public int getPrefParentPos(){ return prefParentPos; }
     public int getPrefRowPos(){
         return prefRowPos;
     }
@@ -72,7 +75,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
     private final SparseArray<View> mViewCache = new SparseArray<>();
 
-    private int SCROLL_MODE = 3;
+    private final int SCROLL_MODE = 3;
     /*
      Interim values are set TRUE if number of rows was changed (like btw mVisible and mExtendedVisible) at the last scroll pass,
      and there's a need to either hide pref row or bring back rows count to normal at the next pass
@@ -112,7 +115,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             mExtendedVisibleRows = (getHeight() - aide.getMeasuredPrefHeight() + aide.getHorizontalPadding()) / aide.getDecoratedTimeHeight() + 1;
 
             slU.f( "Visible rows: " + mVisibleRows + " (Extended: " + mExtendedVisibleRows + "), Available: " + mAvailableRows);
-            if (mVisibleRows<=1 || mExtendedVisibleRows<=1) throw new IllegalArgumentException("RV's size is too small, cannot contain enough rows");
+            //Asserting values depending only on RV's size
+            assert (mVisibleRows>1 || mExtendedVisibleRows>1) : "RV's size is too small, cannot contain enough rows";
         }
 
         if (0 != state.getItemCount()){ //Выкладывать, если есть что выкладывать
@@ -126,7 +130,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     }
 
     private void layoutStraightByRow(int rowPos){
-        assert rowPos > 0 : "rows start from the 1st";
+        assert rowPos > 0 : "rows always start from the 1st";
         assert rowPos <= mAvailableRows : "it can't be more than presented";
 
         int baseline = (rowPos-1) * aide.getDecoratedTimeHeight();
@@ -325,11 +329,13 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             View child = recycler.getViewForPosition(i);
             mViewCache.put(i, child);
 
+            int envoyIndent = (i==prefParentPos) ? (int) (aide.getPrefTopIndent() * 0.8) : 0;
+
             addView(child);
             measureChild(child, 0,0);
-            layoutDecorated(child, leftOffset, topOffset,
-                    leftOffset + aide.getMeasuredTimeWidth(),
-                    topOffset + aide.getMeasuredTimeHeight());
+            layoutDecorated(child, leftOffset, topOffset + envoyIndent,
+                    leftOffset + aide.getMeasuredTimeWidth(i),
+                    topOffset + aide.getMeasuredTimeHeight(i) + envoyIndent);
 
             if (p < 3) {//Выкладываем вдоль, добавляем отступ слева
                 leftOffset += aide.getDecoratedTimeWidth(i);
@@ -342,28 +348,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     }
 
     private void layoutPref(int topOffset) throws NullPointerException{
-        AdjustableImageView frame = prefView.findViewById(R.id.rv_pref_frame);
-
-        int parentRef = (prefRowPos-2) * 3 + 1;
-        assert aide.getParentInRow(parentRef)!=null;
-
-        //noinspection ConstantConditions
-        switch (aide.getParentInRow(parentRef)){
-            case (1):
-                frame.setImageResource(R.drawable.rv_pref_frame_right_unlit);
-                frame.setRotationY(180);
-                break;
-
-            case(0):
-                frame.setImageResource(R.drawable.rv_pref_frame_center_unlit);
-                break;
-
-            case(-1):
-                frame.setImageResource(R.drawable.rv_pref_frame_right_unlit);
-                frame.setRotationY(0);
-                break;
-        }
-
         int alternateTopOffset = topOffset - aide.getPrefTopIndent();
         int alternateLeftOffset = aide.getPrefLeftIndent();
 
@@ -373,6 +357,41 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         layoutDecorated(prefView, alternateLeftOffset, alternateTopOffset,
                 alternateLeftOffset + aide.getMeasuredPrefWidth(),
                 alternateTopOffset + aide.getMeasuredPrefHeight());
+    }
+
+    private void updateParent(){
+
+        detachView(mViewCache.get(prefParentPos));
+        recycler.recycleView(mViewCache.get(prefParentPos));
+
+        int motherRowPos = prefRowPos-1;
+        int leftOffset = aide.getHorizontalPadding((motherRowPos-1) * 3);
+        int topOffset = getTopOffset(motherRowPos, false);
+
+        int p = 1;
+        for (int i = (motherRowPos-1) * 3; i < getItemCount()-1 && i < (motherRowPos-1) * 3 + 3; i++) {
+            if (i==prefParentPos) {
+                slU.fr("updating parent: " + i);
+                View child = recycler.getViewForPosition(i);
+                mViewCache.put(i, child);
+
+                int envoyIndent = (int) (aide.getPrefTopIndent() * 0.8);
+
+                addView(child);
+                measureChild(child, 0, 0);
+                layoutDecorated(child, leftOffset, topOffset + envoyIndent,
+                        leftOffset + aide.getMeasuredTimeWidth(i),
+                        topOffset + aide.getMeasuredTimeHeight(i) + envoyIndent);
+            }
+
+            if (p < 3) {//Выкладываем вдоль, добавляем отступ слева
+                leftOffset += aide.getDecoratedTimeWidth(i);
+                p++;
+            }
+            else {//Строка кончилась, делаем вертикальный отступ и сбрасываем счёт
+                leftOffset = aide.getHorizontalPadding();
+            }
+        }
     }
 
     private int getRealPaddingTop(){
@@ -401,7 +420,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             layoutPref(topOffset);
             layoutMotherRow(recycler, topOffset);
 
-            FLAG_NOTIFY = NOTIFY_NONE;
         }
 
 
@@ -422,7 +440,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             layoutStraight(mTopBaseline);
 
             recycler.clear();//старую кучу отходов нужно чистить, иначе адаптер не будет байндить новые вьюшки
-            FLAG_NOTIFY = NOTIFY_NONE;
         }
 
         /*
@@ -441,9 +458,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             layoutPref(topOffset);
             layoutMotherRow(recycler, topOffset);
 
-            FLAG_NOTIFY = NOTIFY_NONE;
         }
 
+
+        else if (FLAG_NOTIFY == UPDATE_PARENT){
+            updateParent();
+        }
+
+        FLAG_NOTIFY = NOTIFY_NONE;
 
         mBottomBaseline = getHeight() + mTopBaseline;//Базовую линию всегда считаем относительно топовой
 
@@ -464,7 +486,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
 
     @Override
-    public void setUpdateDataset(int flag) {
+    public void setNotifyUpdate(int flag) {
         FLAG_NOTIFY=flag;
     }
 
@@ -1044,14 +1066,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     @NonNull
     @Override
     public RLMReturnData defineBaseAction(int prefParentPos) {
-        slU.fp( "Old values. " + "pref parent pos: " + this.prefParentPos + " pref visibility: " + prefVisibility);
+        slU.fp( "Old values. |" + "pref parent pos: " + this.prefParentPos + "|pref visibility: " + prefVisibility + "|");
         if (this.prefParentPos == 666 || this.prefParentPos == prefParentPos & !prefVisibility || this.prefParentPos != prefParentPos & !prefVisibility) {//Либо настройки ещё не выкладывались, либо матерниские позиции соответствуют и строки не видно
 
             this.prefParentPos = prefParentPos;
             //Если строка с материнским элементом не полная, либо элементов в раскладке всего не больше трёх, то добавляем одну строку к счётчику
             prefRowPos = ((prefParentPos+1) / 3) + 1; if ((prefParentPos+1) % 3 !=0 || (prefParentPos+1) < 3) prefRowPos++;//Строка после материнской вьюшки. На которой будем выкладывать настройки
             prefPos = ((prefRowPos-1) * 3); if (prefPos>getItemCount()) prefPos = getItemCount();//Позиция вьюшки настроек в адаптере
-            slU.f( "prefParentPos:" + this.prefParentPos + " prefRowPos:" + prefRowPos + " prefPos:" + prefPos);
+            slU.f( "prefParentPos:" + this.prefParentPos + ", prefRowPos:" + prefRowPos + ", prefPos:" + prefPos);
 
             //We have to recycle this one just in case RV will want to reuse it and put in place of pref
             if (prefRowPos <= mAvailableRows) removeAndRecycleView(recycler.getViewForPosition(prefPos), recycler);

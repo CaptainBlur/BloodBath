@@ -6,6 +6,7 @@
  import android.content.Intent;
  import android.content.SharedPreferences;
  import android.content.res.TypedArray;
+ import android.graphics.Bitmap;
  import android.graphics.Rect;
  import android.os.Bundle;
  import android.util.AttributeSet;
@@ -23,7 +24,9 @@
  import androidx.lifecycle.ViewModelProvider;
  import androidx.recyclerview.widget.RecyclerView;
 
+ import com.caverock.androidsvg.SVGImageView;
  import com.google.android.material.floatingactionbutton.FloatingActionButton;
+ import com.google.android.renderscript.Toolkit;
  import com.vova9110.bloodbath.alarmScreenBackground.ActivenessDetectionService;
  import com.vova9110.bloodbath.alarmScreenBackground.AlarmExecutionDispatch;
  import com.vova9110.bloodbath.alarmScreenBackground.AlarmRepo;

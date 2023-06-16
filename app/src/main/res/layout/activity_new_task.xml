@@ -12,8 +12,7 @@
         android:layout_height="wrap_content"
         android:background="@color/design_default_color_primary"
         android:text="@string/button_save"
-        android:layout_margin="@dimen/big_padding"
-        android:textColor="@color/buttonLabel" />
+        android:layout_margin="@dimen/big_padding" />
 
     <Button
         android:id="@+id/button"
@@ -29,7 +28,6 @@
         />
     <pl.droidsonroids.gif.GifImageView
         android:id="@+id/kotya_pic"
-        android:src="@drawable/kotya_gif"
         android:layout_width="wrap_content"
         android:layout_height="550dp"
         />

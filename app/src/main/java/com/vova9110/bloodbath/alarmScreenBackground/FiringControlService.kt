@@ -85,7 +85,7 @@ class FiringControlService: Service() {
             return START_NOT_STICKY
         }
 
-        if (!checkInterlayer(intent)) processIntent(intent)
+        if (!checkInterlayer(intent))
             try {
             processIntent(intent)
             }

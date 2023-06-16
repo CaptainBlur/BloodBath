@@ -6,7 +6,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.0.0'
+        classpath 'com.android.tools.build:gradle:8.0.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
 
         // NOTE: Do not place your application dependencies here; they belong
@@ -23,7 +23,8 @@ ext {
     constraintLayoutVersion = '2.1.4'
     coreTestingVersion = '2.1.0'
     lifecycleVersion = '2.5.1'
-    materialVersion = '1.6.1'
+    fragment_version = '1.5.7'
+    materialVersion = '1.9.0'
     roomVersion = '2.4.3'
     // testing
     espressoVersion = '3.1.0'

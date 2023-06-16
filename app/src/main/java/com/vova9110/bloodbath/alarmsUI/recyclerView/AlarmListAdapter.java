@@ -12,9 +12,12 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class AlarmListAdapter extends RecyclerView.Adapter<ChildViewHolder>{
-    private final String TAG = "TAG_ALA";
     private FAHCallback hCallback;
     private List<Alarm> mList = new LinkedList<>();
+
+    public static final int TYPE_TIME = 717;
+    public static final int TYPE_PREF = 60;
+    public static final int TYPE_ADD = 805;
 
     public AlarmListAdapter(FAHCallback hCallback, List<Alarm> initialList) {
         this.hCallback = hCallback;
@@ -23,18 +26,24 @@ public class AlarmListAdapter extends RecyclerView.Adapter<ChildViewHolder>{
 
     @NonNull
     @Override
-    public ChildViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public ChildViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         return ChildViewHolder.create(parent, hCallback);
     }
 
     @Override
-    public void onBindViewHolder(ChildViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ChildViewHolder holder, int position) {
         Alarm current = mList.get(position);
-//        Log.w(TAG, String.valueOf(position));
-        if (current.getAddFlag()) holder.bindAddAlarm();
-//        else if (position==prefPos) holder.bindPref(current);
-        else if (current.getPrefFlag()) holder.bindPref(current);
-        else holder.bind(current.getHour(), current.getMinute());
+
+        holder.bind(current);
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        Alarm current = mList.get(position);
+
+        if (current.getAddFlag()) return TYPE_ADD;
+        else if (current.getPrefFlag()) return TYPE_PREF;
+        else return TYPE_TIME;
     }
 
     @Override

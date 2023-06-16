@@ -1,12 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 <!--    all values are multipliers to the RV's width (taken without paddings)-->
-    <item name="rv_top_padding" type="fraction">4.46%</item>
-    <item name="rv_side_padding_normal" type="fraction">7.407%</item>
-    <item name="rv_side_padding_shrank" type="fraction">3.704%</item>
+    <item name="rv_top_padding" type="fraction">6%</item>
     <item name="rv_vertical_padding" type="fraction">12.241%</item>
-    <item name="rv_pref_side_padding" type="fraction">2.685%</item>
+
     <item name="rv_pref_vertical_indent" type="fraction">1.481%</item>
     <item name="rv_pref_horizontal_indent" type="fraction">2.685%</item>
     <item name="rv_pref_bottom_padding" type="fraction">3.241%</item>
+    <item name="rv_pref_parent_envoy_width" type="fraction">19.59%</item>
+    <item name="rv_pref_parent_envoy_height" type="fraction">56.96%</item>
+
+<!--    Sometimes we need to know AdjustmentView's dimensions
+        before the main adjustment is taken place, so here's the place
+        we can take them any time-->
+    <item name="rv_pref_frame_width" type="fraction">94.576%</item>
+    <item name="rv_pref_frame_height" type="fraction">61.133%</item>
+    <item name="rv_pref_power_width" type="fraction">28.82%</item>
+    <item name="rv_pref_power_height" type="fraction">43.48%</item>
+
+<!--    These are some sort of values for unified styles-->
+    <item name="rv_pref_tierOne_width" type="fraction">10.18%</item>
+    <item name="rv_pref_tierOne_rowOne_bias" type="integer">0.42</item>
+    <item name="rv_pref_tierOne_columnOne_bias" type="integer">0.72</item>
+
+    <item name="rv_pref_time_unlit_multiplier" type="fraction">77%</item>
+    <item name="rv_pref_time_lit_multiplier" type="fraction">80%</item>
 </resources>

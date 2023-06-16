@@ -1,16 +1,22 @@
 package com.vova9110.bloodbath.alarmsUI
 
 import android.graphics.Rect
+import android.graphics.drawable.AnimationDrawable
+import android.graphics.drawable.PictureDrawable
+import android.util.TypedValue
 import android.view.View
-import android.view.View.OnLongClickListener
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.caverock.androidsvg.RenderOptions
+import com.caverock.androidsvg.SVG
 import com.vova9110.bloodbath.R
 import io.reactivex.rxjava3.observers.DisposableObserver
 import io.reactivex.rxjava3.subjects.AsyncSubject
 
+
 class MainActivityHandler(val supervisor: UISupervisor) {
     lateinit var activity: AppCompatActivity
+    //todo handler's reference shouldn't be here!!!
     lateinit var fAHandler: FreeAlarmsHandler
 
 
@@ -55,7 +61,10 @@ class MainActivityHandler(val supervisor: UISupervisor) {
     fun adjustOthers(globalRect: Rect){
         with(activity) {
             findViewById<AdjustableImageView>(R.id.rv_top_cap).makeAdjustments(globalRect)
-            findViewById<AdjustableImageView>(R.id.rv_bottom_cap).makeAdjustments(globalRect)
+
+
+            val testView = findViewById<AdjustableCompoundButton>(R.id.testSVGImage)
+
         }
     }
 

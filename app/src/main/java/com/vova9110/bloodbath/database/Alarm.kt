@@ -8,7 +8,7 @@ import com.vova9110.bloodbath.SplitLogger
 import com.vova9110.bloodbath.SplitLogger.Companion.printObject
 import java.util.regex.Pattern
 
-typealias sl = SplitLogger
+private typealias sl = SplitLogger
 
 @Entity(tableName = "alarms_table", primaryKeys = ["hour", "minute"])
 data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, var state: String = STATE_DISABLE) {
@@ -97,7 +97,7 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
                 val daysNames = arrayOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
                 var compositeString = "               "
                 for (i in 0..6){
-                    val mark = if (weekdayPointer==i) "!" else " "
+                    val mark = if (weekdayPointer==i) "\u2193" else " "
                     compositeString = if (weekdays[i]) compositeString+daysNames[i] + "$mark " else compositeString+daysNames[i] + "$mark  "
                 }
                 sl.fst(compositeString)
