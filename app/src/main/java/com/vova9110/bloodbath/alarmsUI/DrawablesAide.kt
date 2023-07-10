@@ -3,7 +3,6 @@ package com.vova9110.bloodbath.alarmsUI
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.BitmapDrawable
@@ -14,21 +13,19 @@ import android.util.SparseArray
 import android.view.View
 import android.view.animation.AlphaAnimation
 import androidx.annotation.ColorRes
-import androidx.core.content.ContextCompat
 import com.caverock.androidsvg.RenderOptions
 import com.caverock.androidsvg.SVG
-import com.google.android.renderscript.BlendingMode
 import com.google.android.renderscript.Toolkit
 import com.vova9110.bloodbath.R
 import kotlin.math.roundToInt
 
-
-
 class RatiosResolver(private val context: Context, globalRect: Rect){
     val prefFrameRect: Rect
     val prefPowerRect: Rect
-    val parentEnvoyRect: Rect
+    val timeWindowRect: Rect
     val individualsTierOneRect: Rect
+    val prefRepeatRect: Rect
+    val prefWeekdays: Rect
 
     init {
         var width = globalRect.width() *
@@ -45,34 +42,64 @@ class RatiosResolver(private val context: Context, globalRect: Rect){
         prefPowerRect = Rect(0,0, width.roundToInt(),height.roundToInt())
 
 
-        width = prefFrameRect.width() *
-                getFraction(R.fraction.rv_pref_parent_envoy_width)
+        width = globalRect.width() *
+                getFraction(R.fraction.rv_timeWindow_width)
         height = width *
-                getFraction(R.fraction.rv_pref_parent_envoy_height)
-        parentEnvoyRect = Rect(0,0,width.roundToInt(), height.roundToInt())
+                getFraction(R.fraction.rv_timeWindow_height)
+        timeWindowRect = Rect(0,0, width.roundToInt(),height.roundToInt())
 
 
         width = globalRect.width() *
                 getFraction(R.fraction.rv_pref_tierOne_width)
         height = width
         individualsTierOneRect = Rect(0,0, width.roundToInt(), height.roundToInt())
+
+
+        height = globalRect.width() *
+                getFraction(R.fraction.rv_pref_repeat_height_toGlobal_width)
+        width = height *
+                getFraction(R.fraction.rv_pref_repeat_width_toHeight)
+        prefRepeatRect = Rect(0,0, width.roundToInt(), height.roundToInt())
+
+
+        height = globalRect.width() *
+                getFraction(R.fraction.rv_pref_weekday_height_toGlobal_width)
+        width = height *
+                getFraction(R.fraction.rv_pref_weekday_width)
+        prefWeekdays = Rect(0,0, width.roundToInt(), height.roundToInt())
     }
 
     private fun getFraction(resourceID: Int): Float = (context.resources.getFraction(resourceID, 1,1))
 }
 
+interface DrawablesAide{
+    fun get_neutral_drawable(id: Int): Drawable
+    fun get_unchecked_drawable(id: Int): Drawable
+    fun get_checked_drawable(id: Int): Drawable
+}
 
-class DrawablesAide(private val context: Context, private val ratios: RatiosResolver){
+class MainDrawables(private val context: Context, private val ratios: RatiosResolver): DrawablesAide{
+    private val neutralDrawables = SparseArray<Drawable>()
     private val uncheckedDrawables = SparseArray<Drawable>()
     private val checkedDrawables = SparseArray<Drawable>()
 
     private val prefPowerAnimation_frameTime = (1f/60 * 1000).roundToInt()
     private var prefPowerAnimation_duration = 0
+    val blurRad = 0.8 / 100 * ratios.prefFrameRect.width()
 
     companion object{
+        const val rv_pref_power = 91
         const val rv_pref_frame_center = 848
         const val rv_pref_frame_right = 414
-        const val rv_pref_power = 91
+        const val rv_time_window = 674
+        const val rv_pref_music = 283
+        const val rv_pref_vibration = 78
+        const val rv_pref_preliminary = 541
+        const val rv_pref_activeness = 873
+        const val rv_pref_repeat = 46
+        const val rv_pref_repeat_disabled = 416
+        const val rv_pref_weekday_button = 634
+        const val plus = 306
     }
 
     private fun getRGB(@ColorRes resID: Int): String{
@@ -82,59 +109,15 @@ class DrawablesAide(private val context: Context, private val ratios: RatiosReso
 
     init {
         val timerStart = System.currentTimeMillis()
-        lateinit var svg: SVG
+
         var drawableID: Int
-        var paintDrawableID: Int
-        lateinit var initialDrawable: Drawable
-        lateinit var paintDrawable: Drawable
-        var width: Int
-        var height: Int
+        lateinit var drawableSVG: SVG
+        lateinit var neutralPicture: PictureDrawable
+        lateinit var uncheckedPicture: PictureDrawable
+        lateinit var checkedPicture: PictureDrawable
+
         lateinit var bitmap: Bitmap
-        lateinit var paintBitmap: Bitmap
         lateinit var canvas: Canvas
-        lateinit var paintCanvas: Canvas
-
-
-//        svg = SVG.getFromAsset(context.assets, "rv_pref_frame_center.svg")
-//        width = ratios.prefFrameRect.width()
-//        height = ratios.prefFrameRect.height()
-//        //radius should strictly depend on bitmap's size
-//        val blurRad = 0.8 / 100 * width
-//
-//        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-//        canvas = Canvas(bitmap)
-//        with(svg){
-//            documentWidth = width.toFloat()
-//            documentHeight = height.toFloat()
-//            //Finding group by ID argument
-//            renderToCanvas(canvas, RenderOptions.create().css("#layer1 { stroke:${getRGB(R.color.mild_greyscalePresence)} }"))
-//        }
-//        bitmap = Toolkit.blur(bitmap, blurRad.roundToInt())
-//        uncheckedDrawables.set(rv_pref_frame_center, BitmapDrawable(context.resources, bitmap))
-//
-//        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-//        canvas = Canvas(bitmap)
-//        svg.renderToCanvas(canvas, RenderOptions.create().css("#layer1 { stroke:${getRGB(R.color.mild_pitchSub)} }"))
-//        bitmap = Toolkit.blur(bitmap, blurRad.roundToInt())
-//        checkedDrawables.set(rv_pref_frame_center, BitmapDrawable(context.resources, bitmap))
-//
-//
-//        svg = SVG.getFromAsset(context.assets, "rv_pref_frame_right.svg")
-//        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-//        canvas = Canvas(bitmap)
-//        with(svg){
-//            documentWidth = width.toFloat()
-//            documentHeight = height.toFloat()
-//            renderToCanvas(canvas, RenderOptions.create().css("#layer1 { stroke:${getRGB(R.color.mild_greyscalePresence)} }"))
-//        }
-//        bitmap = Toolkit.blur(bitmap, blurRad.roundToInt())
-//        uncheckedDrawables.set(rv_pref_frame_right, BitmapDrawable(context.resources, bitmap))
-//
-//        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-//        canvas = Canvas(bitmap)
-//        svg.renderToCanvas(canvas, RenderOptions.create().css("#layer1 { stroke:${getRGB(R.color.mild_pitchSub)} }"))
-//        bitmap = Toolkit.blur(bitmap, blurRad.roundToInt())
-//        checkedDrawables.set(rv_pref_frame_right, BitmapDrawable(context.resources, bitmap))
 
 
         drawableID = rv_pref_power
@@ -148,46 +131,202 @@ class DrawablesAide(private val context: Context, private val ratios: RatiosReso
         uncheckedDrawables.set(drawableID, squarePair.first.first)
         checkedDrawables.set(drawableID, squarePair.first.second)
 
+
         drawableID = rv_pref_frame_right
         uncheckedDrawables.set(drawableID, squarePair.second.first)
         checkedDrawables.set(drawableID, squarePair.second.second)
 
 
-        drawableID = R.drawable.rv_time_window
-        initialDrawable = ContextCompat.getDrawable(context, drawableID)!!
-        initialDrawable.setTintMode(PorterDuff.Mode.SCREEN)
-        initialDrawable.setTint(context.getColor(R.color.mild_greyscaleLight))
-        uncheckedDrawables.set(drawableID, initialDrawable)
+        drawableID = plus
+        drawableSVG = SVG.getFromAsset(context.assets, "plus.svg")
+        with(drawableSVG){
+            var side = ratios.timeWindowRect.height().toFloat()
+            side -= (side * 0.5f)
 
-        drawableID = R.drawable.rv_time_window_lit
-        initialDrawable = ContextCompat.getDrawable(context, drawableID)!!
-        initialDrawable.setTintMode(PorterDuff.Mode.SCREEN)
-        initialDrawable.setTint(context.getColor(R.color.mild_pitchSub))
-        checkedDrawables.set(R.drawable.rv_time_window, initialDrawable)
+            documentHeight = side
+            documentWidth = side
+        }
+        neutralPicture = PictureDrawable(drawableSVG.renderToPicture())
+        neutralDrawables.set(drawableID, neutralPicture)
 
-        //All tier one individual icons are normalized to one width
 
-        drawableID = R.drawable.rv_pref_music
-        paintDrawableID = R.drawable.rv_pref_music_paint
-        initialDrawable = ContextCompat.getDrawable(context, drawableID)!!
-        paintDrawable = ContextCompat.getDrawable(context, paintDrawableID)!!
+        drawableID = rv_time_window
+        drawableSVG = SVG.getFromAsset(context.assets, "rv_time_window.svg")
+        with(drawableSVG){
+            documentWidth = ratios.timeWindowRect.width().toFloat()
+            documentHeight = ratios.timeWindowRect.height().toFloat()
+        }
 
-        width = ratios.individualsTierOneRect.width()
-        height = ratios.individualsTierOneRect.height()
-
-        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        //rendered PictureDrawable is not good for moving drawables
+        bitmap = Bitmap.createBitmap(ratios.timeWindowRect.width(), ratios.timeWindowRect.height(), Bitmap.Config.ARGB_8888)
         canvas = Canvas(bitmap)
-        initialDrawable.setBounds(0, 0, canvas.width, canvas.height)
-        initialDrawable.draw(canvas)
+        drawableSVG.renderToCanvas(canvas, RenderOptions.create().css(
+            "#lit_group { opacity:0 }" +
+                "path#frame_unlit { fill:${getRGB(R.color.mild_greyscaleLight)} }"))
+        uncheckedDrawables.set(drawableID, BitmapDrawable(context.resources, bitmap))
 
-        paintDrawable.setTint(context.getColor(R.color.mild_pitchRegular))
-        paintBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        paintCanvas = Canvas(paintBitmap)
-        paintDrawable.setBounds(0,0,paintCanvas.width, paintCanvas.height)
-        paintDrawable.draw(paintCanvas)
+        bitmap = Bitmap.createBitmap(ratios.timeWindowRect.width(), ratios.timeWindowRect.height(), Bitmap.Config.ARGB_8888)
+        canvas = Canvas(bitmap)
+        drawableSVG.renderToCanvas(canvas, RenderOptions.create().css(
+            "#unlit_group { opacity:0 }" +
+                    "path#frame_lit { fill:${getRGB(R.color.mild_pitchSub)} }"))
+        checkedDrawables.set(drawableID, BitmapDrawable(context.resources, bitmap))
 
-        Toolkit.blend(BlendingMode.ADD, bitmap, paintBitmap)
-        checkedDrawables.set(drawableID, BitmapDrawable(context.resources, paintBitmap))
+        drawableSVG = SVG.getFromAsset(context.assets, "rv_time_window_stripped.svg")
+        with(drawableSVG){
+            documentWidth = ratios.timeWindowRect.width().toFloat()
+            documentHeight = ratios.timeWindowRect.height().toFloat()
+        }
+        bitmap = Bitmap.createBitmap(ratios.timeWindowRect.width(), ratios.timeWindowRect.height(), Bitmap.Config.ARGB_8888)
+        canvas = Canvas(bitmap)
+        drawableSVG.renderToCanvas(canvas, RenderOptions.create().css(
+            "path#frame_unlit { fill:${getRGB(R.color.mild_greyscaleLight)} }" +
+                    "rect#strip_one { fill:${getRGB(R.color.mild_pitchSub)} }" +
+                    "rect#strip_two { fill:${getRGB(R.color.mild_pitchSub)} }" +
+                    "rect#strip_three { fill:${getRGB(R.color.mild_pitchSub)} }"))
+        neutralDrawables.set(drawableID, BitmapDrawable(context.resources, bitmap))
+
+
+        //All tierOne individual icons are normalized to one width
+
+        drawableID = rv_pref_music
+        drawableSVG = SVG.getFromAsset(context.assets, "rv_pref_music.svg")
+        with(drawableSVG){
+            documentWidth = ratios.individualsTierOneRect.width().toFloat()
+            documentHeight = ratios.individualsTierOneRect.height().toFloat()
+        }
+
+        neutralPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "path#path21778 { fill:${getRGB(R.color.mild_pitchRegular)} }"
+        )))
+        neutralDrawables.set(drawableID, neutralPicture)
+
+
+        drawableID = rv_pref_vibration
+        drawableSVG = SVG.getFromAsset(context.assets, "rv_pref_vibration.svg")
+        with(drawableSVG){
+            documentWidth = ratios.individualsTierOneRect.width().toFloat()
+            documentHeight = ratios.individualsTierOneRect.height().toFloat()
+        }
+
+        uncheckedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "path#body_bold { fill-opacity:0 }" +
+            "path#ears_bold { fill-opacity:0 }" +
+            "path#ears_slim { fill:${getRGB(R.color.mild_greyscaleDark)} }"
+        )))
+        uncheckedDrawables.set(drawableID, uncheckedPicture)
+
+        checkedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "path#body_slim { fill-opacity:0 }" +
+                    "path#ears_slim { fill-opacity:0 }" +
+                    "path#ears_bold { fill:${getRGB(R.color.mild_pitchRegular)} }"
+        )))
+        checkedDrawables.set(drawableID, checkedPicture)
+
+
+        drawableID = rv_pref_preliminary
+        drawableSVG = SVG.getFromAsset(context.assets, "rv_pref_preliminary.svg")
+        with(drawableSVG){
+            documentWidth = ratios.individualsTierOneRect.width().toFloat()
+            documentHeight = ratios.individualsTierOneRect.height().toFloat()
+        }
+
+        uncheckedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#g70239 { opacity:0 }" +
+                    "#g66449 { fill:${getRGB(R.color.mild_greyscaleDark)} }" +
+                    "#path2029 { fill:${getRGB(R.color.mild_greyscaleDark)} }" +
+                    "#path65706 { fill:${getRGB(R.color.mild_greyscaleDark)} }"
+        )))
+        uncheckedDrawables.set(drawableID, uncheckedPicture)
+
+        checkedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#g66443 { opacity:0 }" +
+                    "#g69498 { fill:${getRGB(R.color.mild_pitchRegular)} }" +
+                    "#path51106 { fill:${getRGB(R.color.mild_pitchRegular)} }" +
+                    "#path69502 { fill:${getRGB(R.color.mild_pitchRegular)} }"
+        )))
+        checkedDrawables.set(drawableID, checkedPicture)
+
+
+        drawableID = rv_pref_activeness
+        drawableSVG = SVG.getFromAsset(context.assets, "rv_pref_activeness.svg")
+        with(drawableSVG){
+            documentWidth = ratios.individualsTierOneRect.width().toFloat()
+            documentHeight = ratios.individualsTierOneRect.height().toFloat()
+        }
+
+        uncheckedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#bold { opacity:0 }" +
+                    "#g20321 { fill:${getRGB(R.color.mild_greyscaleDark)} }"
+        )))
+        uncheckedDrawables.set(drawableID, uncheckedPicture)
+
+        checkedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#slim { opacity:0 }" +
+                    "#g7937 { fill:${getRGB(R.color.mild_pitchRegular)} }"
+        )))
+        checkedDrawables.set(drawableID, checkedPicture)
+
+
+        drawableID = rv_pref_repeat
+        drawableSVG = SVG.getFromAsset(context.assets, "rv_pref_repeat.svg")
+        with(drawableSVG){
+            documentWidth = ratios.prefRepeatRect.width().toFloat()
+            documentHeight = ratios.prefRepeatRect.height().toFloat()
+        }
+
+        uncheckedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#arrows_bold, #plates_lit { opacity:0 }" +
+                    "#plates_unlit { fill:${getRGB(R.color.mild_greyscaleDark)} }"
+        )))
+        uncheckedDrawables.set(drawableID, uncheckedPicture)
+
+        neutralPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#arrows_slim { opacity:0 }" +
+                    "#unlit_top, #unlit_bot, #lit_mid { opacity:0 }" +
+                    "#plates_unlit { fill:${getRGB(R.color.mild_greyscaleDark)} }" +
+                    "#plates_lit { fill:${getRGB(R.color.mild_pitchRegular)} }"
+        )))
+        neutralDrawables.set(drawableID, neutralPicture)
+
+        checkedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#arrows_slim, #plates_unlit { opacity:0 }" +
+                    "#plates_lit { fill:${getRGB(R.color.mild_pitchRegular)} }"
+        )))
+        checkedDrawables.set(drawableID, checkedPicture)
+
+
+        drawableID = rv_pref_repeat_disabled
+        uncheckedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#arrows_bold, #plates_lit, #plates_unlit { opacity:0 }"
+        )))
+        uncheckedDrawables.set(drawableID, uncheckedPicture)
+
+        checkedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#arrows_slim, #plates_lit, #plates_unlit { opacity:0 }"
+        )))
+        neutralDrawables.set(drawableID, checkedPicture)
+        checkedDrawables.set(drawableID, checkedPicture)
+
+
+        drawableID = rv_pref_weekday_button
+        drawableSVG = SVG.getFromAsset(context.assets, "rv_pref_weekday_button.svg")
+        with(drawableSVG){
+            documentWidth = ratios.prefWeekdays.width().toFloat()
+            documentHeight = ratios.prefWeekdays.height().toFloat()
+        }
+
+        uncheckedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#lit { opacity:0 }" +
+                    "#unlit { fill:${getRGB(R.color.mild_greyscaleDark)} }"
+        )))
+        uncheckedDrawables.set(drawableID, uncheckedPicture)
+
+        checkedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "#unlit { opacity:0 }" +
+                    "#lit { fill:${getRGB(R.color.mild_pitchRegular)} }"
+        )))
+        checkedDrawables.set(drawableID, checkedPicture)
 
 
         val timer = System.currentTimeMillis() - timerStart
@@ -196,7 +335,7 @@ class DrawablesAide(private val context: Context, private val ratios: RatiosReso
 
     /*
     I decided to delegate task of calculating paths to Shapeshifter
-    ValueAnimator helps to calculate colors transition
+    ValueAnimator helps to calculate colors transiti`on
      */
     private fun comprisePrefPowerAnimation(): Pair<AnimationDrawable, AnimationDrawable>{
         val framesPathList = context.assets.list("rv_pref_power")!!
@@ -237,9 +376,7 @@ class DrawablesAide(private val context: Context, private val ratios: RatiosReso
     private fun comprisePrefFrameAnimation(): Pair<Pair<AnimationDrawable, AnimationDrawable>, Pair<AnimationDrawable, AnimationDrawable>>{
         assert(prefPowerAnimation_duration!=0)
         val frames = prefPowerAnimation_duration/prefPowerAnimation_frameTime
-        val grad = getColorGradient(R.color.mild_greyscalePresence, R.color.mild_pitchSub, frames)
-        val blurRad = 0.8 / 100 * ratios.prefFrameRect.width()
-
+        val grad = getColorGradient(R.color.mild_greyscalePresence, R.color.mild_presenceBright, frames)
 
         val checkedCenterDrawable = AnimationDrawable().apply { isOneShot = true }
         val uncheckedCenterDrawable = AnimationDrawable().apply { isOneShot = true }
@@ -327,12 +464,32 @@ class DrawablesAide(private val context: Context, private val ratios: RatiosReso
         return gradient
     }
 
-    fun getPrepDrawable(resID: Int, checked: Boolean): Drawable{
-        val prep = if (!checked) uncheckedDrawables[resID] else checkedDrawables[resID]
+    override fun get_neutral_drawable(id: Int): Drawable{
+        val prep = neutralDrawables[id]
         prep?.let { return prep }
             ?: kotlin.run {
-                slU.s("Back off man. We don't have a painted drawable with resId: ^${context.resources.getResourceEntryName(resID)}^")
+                slU.sp("failed to find id: ^$id^")
                 return VectorDrawable() }
+    }
+    override fun get_unchecked_drawable(id: Int): Drawable{
+        val prep = uncheckedDrawables[id]
+        prep?.let { return prep }
+            ?: kotlin.run {
+                slU.sp("failed to find id: ^$id^")
+                return VectorDrawable() }
+    }
+    override fun get_checked_drawable(id: Int): Drawable{
+        val prep = checkedDrawables[id]
+        prep?.let { return prep }
+            ?: kotlin.run {
+                slU.sp("failed to find id: ^$id^")
+                return VectorDrawable() }
+    }
+
+    fun getResolvedRectangle(id: Int): Rect = when (id){
+        rv_pref_weekday_button -> ratios.prefWeekdays
+        rv_pref_repeat -> ratios.prefRepeatRect
+        else -> Rect().also { slU.s("Failed to get valid ratios for ^$id^") }
     }
 }
 

@@ -1,15 +1,15 @@
 package com.vova9110.bloodbath.alarmsUI
 
 import android.graphics.Rect
-import android.graphics.drawable.Drawable
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.Toast
-import androidx.annotation.DrawableRes
 import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView.ViewHolder
+import com.vova9110.bloodbath.M_to_FA_Callback
 import com.vova9110.bloodbath.R
 import com.vova9110.bloodbath.SplitLogger
-import com.vova9110.bloodbath.alarmScreenBackground.AlarmRepo
 import com.vova9110.bloodbath.alarmsUI.recyclerView.AlarmListAdapter
 import com.vova9110.bloodbath.alarmsUI.recyclerView.RowLayoutManager
 import com.vova9110.bloodbath.database.Alarm
@@ -20,32 +20,28 @@ typealias sl = SplitLogger
 
 class FreeAlarmsHandler(
     private val supervisor: UISupervisor,
-    targetView: AdjustableView, globalRect: Rect,
-    override val transmitterMethod: () -> Unit,
-): TargetedHandler(targetView, globalRect),
-                        FAHCallback, AideCallback, ErrorReceiver {
+    targetView: AdjustableView,
+    override val errorNotifierMethod: (code: Int) -> Unit,
+): FAHCallback, AideCallback, ErrorHandlerImpl, FA_to_M_Callback {
 
+    override val errorCode: Int
+        get() = ErrorHandlerImpl.RV_ERROR_CODE
+    private val mtofaCallback: M_to_FA_Callback by supervisor.callbacks
     private val context = supervisor.app.applicationContext
     private val repo = supervisor.repo
-    val recycler = targetView as AdjustableRecyclerView
-    private var adapter: AlarmListAdapter
-    private var rlmCallback: RLMCallback
+    private var recycler = targetView as AdjustableRecyclerView
+    private lateinit var adapter: AlarmListAdapter
+    private lateinit var rlmCallback: RLMCallback
     private var measurements: MeasurementsAide? = null
+
     private val comp = kotlin.Comparator { a1:Alarm, a2:Alarm-> if (a1.addFlag) 1 else if (a2.addFlag) -1 else 0 }.
         then { a1:Alarm, a2:Alarm-> if (a1.prefBelongsToAdd) 1 else if (a2.prefBelongsToAdd) -1 else 0 }.
             then { (hour1, minute1): Alarm, (hour2, minute2):Alarm-> if (hour1!=hour2) hour1-hour2 else minute1-minute2 }
 
     private val addAlarm = Alarm()
-    //variable made up only for notifying ViewHolder of pref view's alliance
+    private var addAlarmParentVisibility = true
+    private var bufferList = LinkedList<Alarm>()
 
-    init {
-        adapter = pollForList()
-        recycler.adapter = adapter
-
-        val lm = RowLayoutManager(this, this)
-        recycler.layoutManager = lm
-        rlmCallback = lm
-    }
 
     private fun pollForList(): AlarmListAdapter {
 
@@ -58,47 +54,81 @@ class FreeAlarmsHandler(
         list.sortWith(comp)
 
         return AlarmListAdapter(
-                this,
-                list
-            )
+            this,
+            list
+        )
     }
-
-    override fun handleError(ex: Exception) {
-        slU.s("Resetting RV", ex)
-
+    private fun initRecycler(afterError: Boolean) {
         adapter = pollForList()
         recycler.adapter = adapter
 
         val lm = RowLayoutManager(this, this)
-        recycler.layoutManager = lm
         rlmCallback = lm
 
-        recycler.requestLayout()
+        recycler.layoutManager = lm
+        recycler.itemAnimator = lm.itemAnimator
+
+        val savedState = if (!afterError) supervisor.stateSaver.state.value.RVSet else arrayOf(-1,0,0).toIntArray()
+        rlmCallback.setRVState(savedState)
+
+        if (savedState[1]==1) recycler.post { notifyBaseClick(savedState[2]) }
+
     }
 
-    private var bufferList = LinkedList<Alarm>()
+    init {
+        initRecycler(false)
+    }
+    override fun createBrandNewRecycler(afterError: Boolean){
+        val parentVG = mtofaCallback.getParentVG()
+        parentVG.removeView(recycler)
+        LayoutInflater.from(context).inflate(R.layout.recycler_view, parentVG, true)
 
-    @JvmField
-    var repeatButton = false
-    @JvmField
-    var activeButton = false
+        recycler = parentVG.findViewById<AdjustableRecyclerView?>(R.id.recyclerview).apply {
+            val rect = Rect()
+            parentVG.getWindowVisibleDisplayFrame(rect)
+            makeAdjustments(rect)
+        }
+
+        initRecycler(afterError)
+        slU.i("New RV created")
+    }
+    override fun internalErrorHandling(ex: Exception) {
+        slU.s("Resetting RV", ex)
+        createBrandNewRecycler(true)
+    }
 
     override fun notifyBaseClick(prefParentPos: Int) {
-        val returned = rlmCallback.defineBaseAction(prefParentPos)
+        if (rlmCallback.isBusy()){
+            slU.f("false call")
+            return
+        }
 
-        when(returned.flag){
-            RowLayoutManager.LAYOUT_PREF -> passPrefToAdapter(returned.parentPos, returned.prefPos)
+        val returned = rlmCallback.defineBaseAction(prefParentPos, false)
+        try {
+            when(returned.flag){
+                RowLayoutManager.LAYOUT_PREF -> passPrefToAdapter(returned.parentPos, returned.prefPos)
 
-            RowLayoutManager.HIDE_PREF -> removePref()
-
-            RowLayoutManager.HIDE_N_LAYOUT_PREF -> removeNPassPrefToAdapter(returned.parentPos, returned.prefPos)
+                RowLayoutManager.HIDE_N_LAYOUT_PREF -> removeNPassPrefToAdapter(returned.parentPos, returned.prefPos)
+            }
+        } catch (e: Exception) {
+            transmitError(e)
         }
     }
 
+    override fun launchHidePref() = try {
+        removePref()
+    } catch (e: Exception) {
+        transmitError(e)
+    }
 
 
-    private fun passPrefToAdapter(parentPos: Int, prefPos: Int) {
-
+    /*
+    In all consequent code we notify adapter in such an odd way because otherwise
+    it will mess up items in the list. Paying close attention to all the ^binding^ events
+    is the only way to implement new ways to mutate the list.
+    Not even talking about DiffUtil
+     */
+    private fun passPrefToAdapter(parentPos: Int, prefPos: Int, notifyAdapter: Boolean = true) {
 
         bufferList.clear()
         bufferList.addAll(adapter.currentList)
@@ -109,11 +139,11 @@ class FreeAlarmsHandler(
         Keep in mind, we are not taking the "pref" to the database,
         because we don't store them in there
         */
-        val pref = Alarm(parent.hour, parent.minute, parentPos, addAlarmPos, parent.enabled)
+        val pref = parent.createPref(parentPos, addAlarmPos)
         bufferList.add(prefPos, pref)
 
         adapter.submitList(bufferList)
-        adapter.notifyItemInserted(prefPos)
+        if (notifyAdapter) adapter.notifyItemInserted(prefPos)
     }
 
     private fun removePref() {
@@ -131,19 +161,21 @@ class FreeAlarmsHandler(
     }
 
     private fun removeNPassPrefToAdapter(parentPos: Int, prefPos: Int) {
+
         bufferList.clear()
         bufferList.addAll(adapter.currentList)
 
         var exPrefIndex = -1
-        for (i in bufferList.indices) if (bufferList[i].prefFlag) exPrefIndex=i
+        for (i in bufferList.indices) if (bufferList[i].prefFlag) exPrefIndex = i
         bufferList.removeAt(exPrefIndex)
 
-        val parent = bufferList[parentPos]
         var addAlarmPos: Int = -1
         bufferList.forEach { addAlarmPos = if (it.addFlag) bufferList.indexOf(it) else -1 }
 
-        val pref = Alarm(parent.hour, parent.minute, parentPos, addAlarmPos, parent.enabled)
+        val parent = bufferList[parentPos]
+        val pref = parent.createPref(parentPos, addAlarmPos)
         bufferList.add(prefPos, pref)
+
 
         adapter.submitList(bufferList)
         adapter.notifyItemRemoved(exPrefIndex)
@@ -151,120 +183,162 @@ class FreeAlarmsHandler(
     }
 
     /*
+    This case is a little bit more complicated than remove_and_pass.
+    Layout itself is the same, but animations are different
+    (at least now I think so, but it's not crucial)
+    and we have to do some additional calculations before
+    */
+    override fun changeItemTime(newHour: Int, newMinute: Int) {
+        if (rlmCallback.isBusy()) return
 
-     */
+        try {
+            if (bufferList.find { it.hour== newHour && it.minute== newMinute }!=null){
+                Toast.makeText(context, "Alarm already exists", Toast.LENGTH_SHORT).show()
+                sl.ip("alarm already exists, exiting")
+                return
+            }
+
+            bufferList.clear()
+            bufferList.addAll(adapter.currentList)
+
+            //seeking for old pref and old parent pos
+            lateinit var oldPref: Alarm
+            for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) oldPref = bufferList[i]
+            val oldParentPos: Int = oldPref.parentPos
+
+            //finding and removing old pref
+            var oldPrefPos = -1
+            for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) oldPrefPos = i
+            bufferList.removeAt(oldPrefPos)
+
+            //removing old parent from anywhere
+            val parent = bufferList[oldParentPos]
+            repo.deleteOne(parent, context)
+
+            //creating and passing new parent
+            with(parent){
+                hour = newHour
+                minute = newMinute
+            }
+            repo.insert(parent, context)
+            bufferList.sortWith(comp)
+            val newParentPos = bufferList.indexOf(parent)
+
+            //defining new prefPos and giving RLM an opportunity to prepare
+            val newPrefPos = rlmCallback.defineBaseAction(newParentPos, true).prefPos
+
+            //adding new pref
+            val addAlarmPos = bufferList.indexOfFirst { it.addFlag }
+            val newPref = parent.createPref(newParentPos, addAlarmPos)
+            bufferList.add(newPrefPos, newPref)
+
+            adapter.submitList(bufferList)
+            adapter.notifyItemRemoved(oldPrefPos)
+            adapter.notifyItemInserted(newPrefPos)
+            adapter.notifyItemMoved(oldParentPos, newParentPos)
+        } catch (e: Exception) {
+            transmitError(e)
+        }
+    }
 
     override fun deleteItem(adapterPos: Int) {
-        rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_DATASET)
+        if (rlmCallback.isBusy()) return
 
-        val currentPos: Int
-        var prefRemoved = false
-        bufferList.clear()
-        bufferList.addAll(adapter.currentList)
-        val current = bufferList[adapterPos]
+        try {
+            rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_DATASET)
 
-        //We implement this shitshow because it won't work in the Kotlin way, idk why
-        var prefPos = -1
-        for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) prefPos = i
-        if (prefPos!=-1){
+            val currentPos: Int
+            var prefRemoved = false
+            bufferList.clear()
+            bufferList.addAll(adapter.currentList)
+            val current = bufferList[adapterPos]
+
+            //We implement this shitshow because it won't work in the Kotlin way, idk why
+            var prefPos = -1
+            for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) prefPos = i
+            if (prefPos!=-1){
+                bufferList.removeAt(prefPos)
+                prefRemoved = true
+            }
+
+            currentPos = bufferList.indexOf(current)
+            bufferList.remove(current)
+            repo.deleteOne(current, context)
+
+            adapter.submitList(bufferList)
+            if (prefRemoved) recycler.post { adapter.notifyItemRemoved(prefPos) }
+            recycler.post { adapter.notifyItemRemoved(currentPos) }
+        } catch (e: Exception) {
+            transmitError(e)
+        }
+    }
+
+    override fun addItem(alarm: Alarm) {
+        if (rlmCallback.isBusy()) return
+
+        try {
+            rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_DATASET)
+
+            bufferList.clear()
+            bufferList.addAll(adapter.currentList)
+
+            if (bufferList.find { it.hour==alarm.hour && it.minute==alarm.minute }!=null){
+                Toast.makeText(context, "Alarm already exists", Toast.LENGTH_SHORT).show()
+                sl.ip("alarm already exists, exiting")
+                return
+            }
+
+            bufferList.add(alarm)
+            repo.insert(alarm, context)
+            bufferList.sortWith(comp)
+            val currentPos: Int = bufferList.indexOf(alarm)
+
+            var prefPos = -1
+            for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) prefPos = i
             bufferList.removeAt(prefPos)
-            prefRemoved = true
+
+            adapter.submitList(bufferList)
+            recycler.post { adapter.notifyItemRemoved(prefPos) }
+            recycler.post { adapter.notifyItemInserted(currentPos) }
+            recycler.post{ adapter.notifyItemChanged(currentPos) }
+        } catch (e: Exception) {
+            transmitError(e)
         }
-
-        currentPos = bufferList.indexOf(current)
-        bufferList.remove(current)
-        repo.deleteOne(current)
-
-        adapter.submitList(bufferList)
-        if (prefRemoved) recycler.post { adapter.notifyItemRemoved(prefPos) }
-        recycler.post { adapter.notifyItemRemoved(currentPos) }
-    }
-
-    override fun addItem(pickerNour: Int, pickerMinute: Int) {
-        rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_DATASET)
-
-        val currentPos: Int
-        bufferList.clear()
-        bufferList.addAll(adapter.currentList)
-
-        if (bufferList.find { it.hour==pickerNour && it.minute==pickerMinute }!=null){
-            Toast.makeText(context, "Alarm already exists", Toast.LENGTH_SHORT).show()
-            sl.ip("alarm already exists, exiting")
-            return
-        }
-
-        val current = Alarm(pickerNour, pickerMinute)
-        bufferList.add(current)
-        repo.insert(current)
-        bufferList.sortWith(comp)
-        currentPos = bufferList.indexOf(current)
-
-        var prefPos = -1
-        for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) prefPos = i
-        bufferList.removeAt(prefPos)
-
-        adapter.submitList(bufferList)
-        recycler.post { adapter.notifyItemRemoved(prefPos) }
-        recycler.post { adapter.notifyItemInserted(currentPos) }
-        recycler.post{ adapter.notifyItemChanged(currentPos) }
-    }
-
-    override fun changeItemTime(pickerHour: Int, pickerMinute: Int) {
-        rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_DATASET)
-
-        if (bufferList.find { it.hour== pickerHour && it.minute==pickerMinute }!=null){
-            Toast.makeText(context, "Alarm already exists", Toast.LENGTH_SHORT).show()
-            sl.ip("alarm already exists, exiting")
-            return
-        }
-        val oldPos: Int
-        bufferList.clear()
-        bufferList.addAll(adapter.currentList)
-
-        lateinit var pref: Alarm
-        for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) pref = bufferList[i]
-        oldPos = pref.parentPos
-        val current = bufferList[oldPos]
-
-        var prefPos = -1
-        for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) prefPos = i
-        bufferList.removeAt(prefPos)
-
-        repo.deleteOne(current)
-        bufferList.remove(current)
-
-        val new = current.clone(pickerHour, pickerMinute)
-        repo.insert(new)
-        bufferList.add(new)
-        bufferList.sortWith(comp)
-        val newPos = bufferList.indexOf(new)
-
-        adapter.submitList(bufferList)
-        adapter.notifyItemRemoved(prefPos)
-        adapter.notifyItemRemoved(oldPos)
-        adapter.notifyItemInserted(newPos)
-        adapter.notifyItemChanged(newPos)
     }
 
     /*
     On any update of internal properties we have to put these changes into the DB
     and update parent View in RV, which is directly responsible for
     further display of the changes
+    Also, only that mechanism implies passing new Alarm object as a container of changed properties
      */
-    override fun updateInternalProperties(parentPos: Int, isChecked: Boolean) {
+    override fun updateInternalProperties(alarm: Alarm) {
+        if (rlmCallback.isBusy()) return
+        if (alarm.prefBelongsToAdd) return
+
+//        slU.ip(alarm.parentPos)
+//        slU.ip(alarm.enabled)
+//        slU.ip(alarm.repeatable)
+//        slU.ip(alarm.weekdays)
+
+        try {
+            rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_PARENT)
+
+            bufferList.clear()
+            bufferList.addAll(adapter.currentList)
+            bufferList[alarm.parentPos] = alarm
+
+            repo.update(alarm, true, context)
+            adapter.submitList(bufferList)
+            adapter.notifyItemChanged(alarm.parentPos)
+        } catch (e: Exception) {
+            transmitError(e)
+        }
+    }
+
+    override fun updateParent() {
         rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_PARENT)
-
-        bufferList.clear()
-        bufferList.addAll(adapter.currentList)
-        val current = bufferList[parentPos]
-
-        current.enabled = isChecked
-        current.weekdays = if (current.repeatable) BooleanArray(7) { true } else BooleanArray(7) { false }
-
-//        repo.update(current, true)
-        bufferList[parentPos] = current
-        adapter.submitList(bufferList)
-        adapter.notifyItemChanged(parentPos)
+        recycler.requestLayout()
     }
 
     private val alarm1 = Alarm(6,0, true)
@@ -272,22 +346,22 @@ class FreeAlarmsHandler(
     fun createUsual(){
         alarm1.repeatable = true
         alarm1.weekdays = BooleanArray(7) {true}
-        repo.insert(alarm1)
+        repo.insert(alarm1, context)
 
         alarm2.apply {
             repeatable = true
             weekdays = BooleanArray(7) {true}
             detection = true
         }
-        repo.insert(alarm2)
+        repo.insert(alarm2, context)
     }
     fun deleteUsual(){
-        repo.deleteOne(alarm1)
-        repo.deleteOne(alarm2)
+        repo.deleteOne(alarm1, context)
+        repo.deleteOne(alarm2, context)
     }
 
     fun fill() {
-        repo.deleteAll()
+        repo.deleteAll(context)
         bufferList = LinkedList<Alarm>()
 
         var r = 0
@@ -295,7 +369,7 @@ class FreeAlarmsHandler(
             if (i%3==0) r++
             val alarm = Alarm(r, i)
             bufferList.add(alarm)
-            repo.insert(alarm)
+            repo.insert(alarm, context)
 
         }
         bufferList.add(addAlarm)
@@ -303,28 +377,29 @@ class FreeAlarmsHandler(
     }
 
     fun clear() {
-        repo.deleteAll()
+        repo.deleteAll(context)
         bufferList = LinkedList<Alarm>()
         bufferList.add(addAlarm)
         adapter.submitList(bufferList)
     }
 
-    override fun getMeasurements(): MeasurementsAide? = this.measurements
+    override fun getMeasurements(): MeasurementsAide? = this.measurements.also { it?.setNewRV(this.recycler) }
 
-    override fun setMeasurements(measurements: MeasurementsAide) {
-        this.measurements = measurements
-    }
 
     override fun createMeasurements(
         recycler: RecyclerView.Recycler,
         master: RecyclerView.LayoutManager,
-    ): MeasurementsAide {
-        return MeasurementsAide(this, recycler, this.recycler.layoutManager!! as RowLayoutManager).also { this.measurements = it }
+    ) {
+        this.measurements = MeasurementsAide(this, recycler, this.recycler).also { this.measurements = it }
     }
 
     override fun getPrefAlignment(): Int? = measurements?.getPrefAlignment()
 
     override fun getTimeWindowState(pos: Int): Int{
+        if (pos==-1){
+            slU.s("Cannot get valid state for time window")
+            return 0
+        }
         val alarmState = adapter.currentList.get(pos).enabled
 
         return if (measurements==null || pos!=measurements!!.getParentPos())
@@ -337,10 +412,38 @@ class FreeAlarmsHandler(
     }
 
     override fun getRatios(): RatiosResolver = supervisor.ratios
+    override fun getDrawables(): MainDrawables = supervisor.drawables
+    override fun getFragmentManager(): FragmentManager = mtofaCallback.getFM()
+    override fun getItemViewHolder(adapterPos: Int): ViewHolder? = recycler.findViewHolderForAdapterPosition(adapterPos)
+    override fun routineStateBackup(state: IntArray) = supervisor.stateSaver.updateRVSavedState(state)
 
-    override fun getDrawable(resID: Int, checked: Boolean): Drawable = supervisor.drawables.getPrepDrawable(resID, checked)
+    override fun showAdd(){
+        if (rlmCallback.isBusy()){
+            slU.f("false call")
+            return
+        }
 
-    override fun getFragmentManager(): FragmentManager = supervisor.fragmentManager
+        bufferList.clear()
+        bufferList.addAll(adapter.currentList)
+        val addPos = bufferList.indexOfFirst { it.addFlag }
+
+        val returned = rlmCallback.defineBaseAction(addPos, false)
+        when(returned.flag){
+            RowLayoutManager.LAYOUT_PREF -> passPrefToAdapter(returned.parentPos, returned.prefPos)
+
+            RowLayoutManager.HIDE_N_LAYOUT_PREF -> removeNPassPrefToAdapter(returned.parentPos, returned.prefPos)
+        }
+
+        addAlarmParentVisibility = false;
+    }
+
+    override fun getAddAlarmParentVisibility(): Boolean {
+        return if (!addAlarmParentVisibility){
+            addAlarmParentVisibility = true
+            false
+        } else true
+    }
+
 }
 
 /**
@@ -349,12 +452,14 @@ class FreeAlarmsHandler(
  * Second ones on the other hand belong directly to the inner elements of pref window
  */
 sealed interface FAHCallback{
-    //Return value indicates which drawable should be put on time window after click happened
     fun notifyBaseClick(prefParentPos: Int)
-    fun addItem(pickerNour: Int, pickerMinute: Int)
-    fun changeItemTime(pickerHour: Int, pickerMinute: Int)
-    fun updateInternalProperties(parentPos: Int, isChecked: Boolean)
+    fun getAddAlarmParentVisibility(): Boolean
+    fun addItem(alarm: Alarm)
+    fun changeItemTime(newHour: Int, newMinute: Int)
+    fun updateInternalProperties(alarm: Alarm)
+    fun updateParent()
     fun deleteItem(adapterPos: Int)
+    fun launchHidePref()
     /*
     These two methods should be called from VH to set a proper drawable for a
     time window or a pref frame. Calling these methods without placing
@@ -365,49 +470,67 @@ sealed interface FAHCallback{
     fun getPrefAlignment(): Int?
     //These two communicate with Supervisor's fields and methods
     fun getRatios(): RatiosResolver
-    fun getDrawable(resID: Int, checked: Boolean): Drawable
+    fun getDrawables(): MainDrawables
+    //Using by VH to retrieve Fragment Manager for showing Time Picker
     fun getFragmentManager(): FragmentManager
+
 }
 
 /**
- * [MeasurementsAide] uses this interface to communicate with [FreeAlarmsHandler] directly
+ * [MeasurementsAide] uses this interface to communicate with [FreeAlarmsHandler] directly.
+ * When it comes to creating a new instance of Aide, it's [RowLayoutManager] who call the shots
  */
 sealed interface AideCallback{
     //This is how RLM takes it's aide
     fun getMeasurements(): MeasurementsAide?
-    //This is how FAH gets newly created aide
-    fun setMeasurements(measurements: MeasurementsAide)
-    //This is how FAH creates an aide
-    fun createMeasurements(recycler: RecyclerView.Recycler, master: RecyclerView.LayoutManager): MeasurementsAide
+    //FAH creates an aide and puts inside variable
+    fun createMeasurements(recycler: RecyclerView.Recycler, master: RecyclerView.LayoutManager)
+    fun getItemViewHolder(adapterPos: Int): ViewHolder?
+    fun routineStateBackup(state: IntArray)
 }
 
 /**
  * It's not always a direct one-step process. In some case we need [RowLayoutManager] to internally define us
  * which action was taken place and prepare itself for the future layout
  */
-interface RLMCallback {
+interface RLMCallback{
     /**
      * @return flag value, must be one of
      * [RowLayoutManager.LAYOUT_PREF], [RowLayoutManager.HIDE_PREF], [RowLayoutManager.HIDE_N_LAYOUT_PREF]
      */
-    fun defineBaseAction (prefParentPos: Int) : RLMReturnData
+    fun defineBaseAction (prefParentPos: Int, changeTime: Boolean) : RLMReturnData
+
+    /**
+     * This one's using when Handler needs to define values for pref layout,
+     * but in RLM we yet don't have a usual set of data to calculate it in a normal way
+     */
     fun setNotifyUpdate(flag: Int)
+    fun isBusy(): Boolean
+    fun setRVState(state: IntArray)
+}
+
+interface FA_to_M_Callback{
+    fun showAdd()
+    fun createBrandNewRecycler(afterError: Boolean)
 }
 
 /**
  * Class in which we retrieve computed data from RLM. Using for one case only
  */
-data class RLMReturnData(var flag: Int = -1){
+class RLMReturnData(){
+    var flag: Int = -1
+        private set
     var parentPos: Int = -1
+        private set
     var prefPos: Int = -1
-    private var pullDataset: Boolean = false
+        private set
+    var pullDataset: Boolean = false
+        private set
 
-    constructor(flag: Int, parentPos: Int, prefPos: Int): this(flag){
+    constructor(hideNLayout: Boolean, parentPos: Int, prefPos: Int): this(){
+        flag = if (!hideNLayout) RowLayoutManager.LAYOUT_PREF else RowLayoutManager.HIDE_N_LAYOUT_PREF
         this.parentPos = parentPos
         this.prefPos = prefPos
-    }
-    constructor(flag: Int, pullDataset: Boolean): this (flag){
-        this.pullDataset = pullDataset
     }
 }
 
@@ -419,20 +542,18 @@ data class RLMReturnData(var flag: Int = -1){
 data class MeasurementsAide(
     private val handler: FreeAlarmsHandler,
     private val recycler: RecyclerView.Recycler,
-    private val master: RowLayoutManager,
+    private var recyclerView: RecyclerView,
 ){
 
+    private val master: RowLayoutManager = recyclerView.layoutManager!! as RowLayoutManager
     private val sample: View = recycler.getViewForPosition(0)
 
     private val mTopPadding: Int
     private val mNormalSidePadding: Int
     private val mShrankSidePadding: Int
     private val mBaseVerticalPadding: Int
-    private val mEnvoyWidth: Int
-    private val mEnvoyHeight: Int
-    private val mEnvoyHorizontalIndent: Int
-
     val measuredTimeWidth: Int
+
     val measuredTimeHeight: Int
     val measuredPrefWidth: Int
     val measuredPrefHeight: Int
@@ -473,7 +594,6 @@ data class MeasurementsAide(
                     getFloat(R.fraction.rv_pref_bottom_padding)).roundToInt()
 
 
-        handler.recycler.setPadding(0,mTopPadding,0,(mTopPadding * (2f/3f)).toInt())
         master.measureChild(sample,0,0)
 
         measuredTimeWidth = master.getDecoratedMeasuredWidth(sample)
@@ -482,24 +602,20 @@ data class MeasurementsAide(
         mNormalSidePadding = ((master.width - measuredTimeWidth*3).toFloat()/4).roundToInt()
         mShrankSidePadding = mNormalSidePadding / 2
 
-        sample.findViewById<AdjustableCompoundButton>(R.id.rv_time_window).visibility = View.GONE
-        sample.findViewById<AdjustableImageView>(R.id.rv_pref_frame).visibility = View.VISIBLE
+        sample.findViewById<View>(R.id.rv_time_window).visibility = View.GONE
+        sample.findViewById<View>(R.id.pref_consistent_views_layout).visibility = View.VISIBLE
+        sample.findViewById<View>(R.id.rv_pref_frame).visibility = View.VISIBLE
+        sample.findViewById<View>(R.id.rv_pref_weekdays_container).visibility = View.VISIBLE
 
         master.measureChild(sample, 0,0)
 
         measuredPrefWidth = master.getDecoratedMeasuredWidth(sample)
         measuredPrefHeight = master.getDecoratedMeasuredHeight(sample)
 
-        mEnvoyWidth =
-            (measuredPrefWidth *
-                    getFloat(R.fraction.rv_pref_parent_envoy_width)).roundToInt()
-        mEnvoyHeight =
-            (mEnvoyWidth *
-                    getFloat(R.fraction.rv_pref_parent_envoy_height)).roundToInt()
-        mEnvoyHorizontalIndent = (prefTopIndent * 1.6).toInt()
-
-        sample.findViewById<AdjustableCompoundButton>(R.id.rv_time_window).visibility = View.VISIBLE
-        sample.findViewById<AdjustableImageView>(R.id.rv_pref_frame).visibility = View.GONE
+        sample.findViewById<View>(R.id.rv_time_window).visibility = View.VISIBLE
+        sample.findViewById<View>(R.id.pref_consistent_views_layout).visibility = View.GONE
+        sample.findViewById<View>(R.id.rv_pref_frame).visibility = View.GONE
+        sample.findViewById<View>(R.id.rv_pref_weekdays_container).visibility = View.GONE
 
         slU.f("measurements:\n\t\tTop padding: $mTopPadding, vertical padding: $mBaseVerticalPadding \n\t\t" +
                 "Normal side padding: $mNormalSidePadding, shrank side padding: $mShrankSidePadding\n\t\t" +
@@ -507,7 +623,13 @@ data class MeasurementsAide(
                 "Pref width: $measuredPrefWidth, pref height: $measuredPrefHeight")
     }
 
+    fun setNewRV(rv: RecyclerView) {
+        recyclerView = rv
+        recyclerView.setPadding(0,mTopPadding,0,(mTopPadding * (2f/3f)).toInt())
+    }
+
     fun getHorizontalPadding(): Int = mNormalSidePadding
+    //This is for edge paddings
     fun getHorizontalPadding(iterator: Int): Int {
         //first index in mother row
         val rangeStart = (master.prefRowPos-2)*3
@@ -515,15 +637,15 @@ data class MeasurementsAide(
 
         return if (iterator in motherRange)
             if (iterator == master.prefParentPos)
-                mNormalSidePadding + mShrankSidePadding + mEnvoyHorizontalIndent
+                mNormalSidePadding + mShrankSidePadding
             else mShrankSidePadding
         else mNormalSidePadding
     }
     fun getVerticalPadding(): Int = mBaseVerticalPadding
-    fun getMeasuredTimeWidth(iterator: Int) = if (iterator!=master.prefParentPos) measuredTimeWidth
-        else mEnvoyWidth
-    fun getMeasuredTimeHeight(iterator: Int) = if (iterator!=master.prefParentPos) measuredTimeHeight
-        else mEnvoyHeight
+//    fun getMeasuredTimeWidth(iterator: Int) = if (iterator!=master.prefParentPos) measuredTimeWidth
+//        else mEnvoyWidth
+//    fun getMeasuredTimeHeight(iterator: Int) = if (iterator!=master.prefParentPos) measuredTimeHeight
+//        else mEnvoyHeight
     fun getDecoratedTimeWidth(): Int = measuredTimeWidth + mNormalSidePadding
     //It's made to run through all motherRow's views an get their relative positions
     fun getDecoratedTimeWidth(iterator: Int): Int {
@@ -531,8 +653,8 @@ data class MeasurementsAide(
         return if (getParentAlignment(iterator)!=null){
             measuredTimeWidth.plus(
                 when (iterator - master.prefParentPos) {
-                    -1 -> mNormalSidePadding + mShrankSidePadding + mEnvoyHorizontalIndent
-                    0 -> mNormalSidePadding + mShrankSidePadding - mEnvoyHorizontalIndent
+                    -1 -> mNormalSidePadding + mShrankSidePadding
+                    0 -> mNormalSidePadding + mShrankSidePadding
                     -2, 1, 2 -> mShrankSidePadding
                     else -> 0
                 }

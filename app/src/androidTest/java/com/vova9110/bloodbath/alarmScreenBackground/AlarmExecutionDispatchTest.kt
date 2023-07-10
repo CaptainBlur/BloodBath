@@ -20,16 +20,6 @@ internal class AlarmExecutionDispatchTest {
     fun getContext(){
         c = InstrumentationRegistry.getInstrumentation().targetContext
         repo = Mockito.mock(AlarmRepo::class.java)
-//        Mockito.`when`(repo.getTimesInfo(Mockito.anyString())).thenReturn(
-//            SubInfo(null,,
-//                null,
-//                volumeLock = true,
-//                timeWarning = 40,
-//                timeOut = 90,
-//                globalSnoozed = 8,
-//                globalLost = 15
-//            )
-//        )
     }
     @AfterEach fun cancel() = (c.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancelAll()
 
@@ -74,7 +64,7 @@ internal class AlarmExecutionDispatchTest {
 
         AlarmExecutionDispatch.defineNewState(c, current, repo)
         assertEquals(Alarm.STATE_DISABLE, current.state)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_suspend(){
@@ -100,7 +90,7 @@ internal class AlarmExecutionDispatchTest {
         assertNotNull(current.triggerTime)
         assertNull(current.lastTriggerTime)
         assertEquals(null, current.lastTriggerTime)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_anticipate(){
@@ -125,7 +115,7 @@ internal class AlarmExecutionDispatchTest {
         AlarmExecutionDispatch.defineNewState(c, current, repo)
         assertNotNull(current.triggerTime)
         assertEquals(Alarm.STATE_ANTICIPATE, current.state)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_prepareFire(){
@@ -153,7 +143,7 @@ internal class AlarmExecutionDispatchTest {
         AlarmExecutionDispatch.defineNewState(c, current, repo)
         assertNotNull(current.triggerTime)
         assertEquals(Alarm.STATE_PREPARE, current.state)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_prepareSnooze(){
@@ -179,7 +169,7 @@ internal class AlarmExecutionDispatchTest {
         AlarmExecutionDispatch.defineNewState(c, current, repo)
         assertNotNull(current.triggerTime)
         assertEquals(Alarm.STATE_SNOOZE, current.state)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_miss_toDisable(){
@@ -204,7 +194,7 @@ internal class AlarmExecutionDispatchTest {
         AlarmExecutionDispatch.defineNewState(c, current, repo)
         assertNotNull(current.lastTriggerTime)
         assertEquals(Alarm.STATE_MISS, current.state)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_miss_toSuspend(){
@@ -230,7 +220,7 @@ internal class AlarmExecutionDispatchTest {
         AlarmExecutionDispatch.defineNewState(c, current, repo)
         assertNotNull(current.lastTriggerTime)
         assertEquals(Alarm.STATE_MISS, current.state)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_goneMiss_toDisable(){
@@ -250,7 +240,7 @@ internal class AlarmExecutionDispatchTest {
         AlarmExecutionDispatch.defineNewState(c, current, repo)
         assertEquals(Alarm.STATE_DISABLE, current.state)
         assertNull(current.lastTriggerTime)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_goneMiss_toSuspend(){
@@ -277,7 +267,7 @@ internal class AlarmExecutionDispatchTest {
         assertEquals(Alarm.STATE_SUSPEND, current.state)
         assertNull(current.lastTriggerTime)
         assertNotNull(current.triggerTime)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
 
     @Test
@@ -302,7 +292,7 @@ internal class AlarmExecutionDispatchTest {
         AlarmExecutionDispatch.defineNewState(c, current, repo)
         assertEquals(Alarm.STATE_FIRE, current.state)
         assertNotNull(current.triggerTime)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_didNotFire_snooze(){
@@ -329,7 +319,7 @@ internal class AlarmExecutionDispatchTest {
         assertEquals(Alarm.STATE_SNOOZE, current.state)
         assertNotNull(current.triggerTime)
         assertNull(current.lastTriggerTime)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_didNotFire_miss_toDisable(){
@@ -356,7 +346,7 @@ internal class AlarmExecutionDispatchTest {
         assertEquals(Alarm.STATE_MISS, current.state)
         assertNotNull(current.lastTriggerTime)
         assertNull(current.triggerTime)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
     @Test
     fun insert_didNotFire_miss_toSuspend(){
@@ -385,6 +375,6 @@ internal class AlarmExecutionDispatchTest {
         assertEquals(Alarm.STATE_MISS, current.state)
         assertNotNull(current.triggerTime)
         assertNotNull(current.lastTriggerTime)
-        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean())
+        Mockito.verify(repo).update(Mockito.any(), Mockito.anyBoolean(), c)
     }
 }

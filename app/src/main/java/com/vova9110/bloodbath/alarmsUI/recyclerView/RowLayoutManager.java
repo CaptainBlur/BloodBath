@@ -2,25 +2,33 @@ package com.vova9110.bloodbath.alarmsUI.recyclerView;
 
 import android.util.SparseArray;
 import android.view.View;
-import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.recyclerview.widget.DefaultItemAnimator;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.vova9110.bloodbath.R;
-import com.vova9110.bloodbath.alarmsUI.AdjustableImageView;
 import com.vova9110.bloodbath.alarmsUI.AideCallback;
 import com.vova9110.bloodbath.alarmsUI.MeasurementsAide;
-import com.vova9110.bloodbath.alarmsUI.ErrorReceiver;
+import com.vova9110.bloodbath.alarmsUI.ErrorHandlerImpl;
 import com.vova9110.bloodbath.alarmsUI.RLMCallback;
 import com.vova9110.bloodbath.SplitLoggerUI;
 import com.vova9110.bloodbath.alarmsUI.RLMReturnData;
 
+import org.jetbrains.annotations.NotNull;
+
+import java.util.LinkedList;
+import java.util.List;
+
 
 public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMCallback {
-    private final ErrorReceiver er;
+    private final ErrorHandlerImpl er;
+    private final AideCallback aideCallback;
+    private MeasurementsAide aide;
     private RecyclerView.Recycler recycler;
+    private int[] savedState = new int[] {-1,0,0};
+    private boolean initialPassed = false;
+    private final RowLayoutManagerAnimator animator;
     private int mVisibleRows;//Значение отрисованных строк всгда на 1 больше
     private int mExtendedVisibleRows;//Сама строка настроек в счёт не входит
     private int mAvailableRows;
@@ -55,23 +63,29 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     public static final int LAYOUT_PREF = 1;
     public static final int HIDE_PREF = 2;
     public static final int HIDE_N_LAYOUT_PREF = 3;
+    //Called when items count is changed
     public static final int UPDATE_DATASET = 4;
+    //Just to update one invisible parent
     public static final int UPDATE_PARENT = 5;
 
     private boolean prefVisibility = false;
     private View prefView;
     private int prefParentPos = 666;
+    private int oldPrefParentPos;
+    private int oldPrefRowPos;
     private int prefRowPos;
     private int prefPos;
+    private RecyclerView.ViewHolder savedPrefVH;
     private boolean prefScrapped = false;//Переменная означает, что настройки отскрапаны, но требуют выкладки при скролле
+
     public boolean getPrefVisibility(){
         return prefVisibility;
     }
     public int getPrefParentPos(){ return prefParentPos; }
+
     public int getPrefRowPos(){
         return prefRowPos;
     }
-
 
     private final SparseArray<View> mViewCache = new SparseArray<>();
 
@@ -83,17 +97,29 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private boolean STSBottom = false;
     private boolean STSTop = false;
 
-    private SplitLoggerUI slU;
+    private static SplitLoggerUI slU;
+    private boolean busy = false;
+    @Override
+    public boolean isBusy() {
+        return busy;
+    }
 
-    private final AideCallback aideCallback;
-    private MeasurementsAide aide;
+    private void setBusy(boolean busy) {
+        this.busy = busy;
+    }
 
-    public RowLayoutManager(AideCallback cb, ErrorReceiver er){
+
+    public RowLayoutManager(AideCallback cb, ErrorHandlerImpl er){
         super();
         SplitLoggerUI.en();
         this.er = er;
         this.aideCallback = cb;
         aide = aideCallback.getMeasurements();
+        animator = new RowLayoutManagerAnimator();
+    }
+
+    public RecyclerView.ItemAnimator getItemAnimator(){
+        return animator;
     }
 
     @Override
@@ -104,8 +130,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     @Override
     public void onLayoutChildren (RecyclerView.Recycler recycler, RecyclerView.State state) {
         this.recycler = recycler;
-        SplitLoggerUI.i("Layout time");
-        if (aide==null) aide = aideCallback.createMeasurements(recycler, this);
+        if (FLAG_NOTIFY!=UPDATE_PARENT) SplitLoggerUI.i("Layout time");
+        if (aide==null){
+            aideCallback.createMeasurements(recycler, this);
+            aide = aideCallback.getMeasurements();
+        }
+        if (initialPassed) setBusy(true);
 
 
         if (getChildCount()==0 && 0 != state.getItemCount()) {
@@ -122,7 +152,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         if (0 != state.getItemCount()){ //Выкладывать, если есть что выкладывать
             try {
                 fillRows (recycler, state);
-            }catch (Exception e){ er.receiveError(e); }
+            }catch (Exception e){ er.transmitError(e); }
 
         }
         else if (getItemCount()==0) removeAndRecycleAllViews(recycler);//Если адаптер пустой, то очищаем разметку
@@ -329,13 +359,11 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             View child = recycler.getViewForPosition(i);
             mViewCache.put(i, child);
 
-            int envoyIndent = (i==prefParentPos) ? (int) (aide.getPrefTopIndent() * 0.8) : 0;
-
             addView(child);
             measureChild(child, 0,0);
-            layoutDecorated(child, leftOffset, topOffset + envoyIndent,
-                    leftOffset + aide.getMeasuredTimeWidth(i),
-                    topOffset + aide.getMeasuredTimeHeight(i) + envoyIndent);
+            layoutDecorated(child, leftOffset, topOffset,
+                    leftOffset + aide.getMeasuredTimeWidth(),
+                    topOffset + aide.getMeasuredTimeHeight());
 
             if (p < 3) {//Выкладываем вдоль, добавляем отступ слева
                 leftOffset += aide.getDecoratedTimeWidth(i);
@@ -359,6 +387,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 alternateTopOffset + aide.getMeasuredPrefHeight());
     }
 
+    /**
+     * Using this to re-layout parent view in two different cases:
+     * 1.
+     */
     private void updateParent(){
 
         detachView(mViewCache.get(prefParentPos));
@@ -379,9 +411,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
                 addView(child);
                 measureChild(child, 0, 0);
-                layoutDecorated(child, leftOffset, topOffset + envoyIndent,
-                        leftOffset + aide.getMeasuredTimeWidth(i),
-                        topOffset + aide.getMeasuredTimeHeight(i) + envoyIndent);
+                layoutDecorated(child, leftOffset, topOffset,
+                        leftOffset + aide.getMeasuredTimeWidth(),
+                        topOffset + aide.getMeasuredTimeHeight());
             }
 
             if (p < 3) {//Выкладываем вдоль, добавляем отступ слева
@@ -394,9 +426,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         }
     }
 
-    private int getRealPaddingTop(){
-        return getPaddingTop() + aide.getPrefTopIndent();
-    }
+    private int getRealPaddingTop(){ return getPaddingTop() + aide.getPrefTopIndent(); }
 
     private void fillRows (RecyclerView.Recycler recycler,
                            RecyclerView.State state){
@@ -406,20 +436,28 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
         if (getChildCount() == 0 && FLAG_NOTIFY == NOTIFY_NONE){
             slU.fr( "Empty layout detected. Views to be laid out: " + state.getItemCount());
+            setBusy(false);
+            if (!initialPassed) initialPassed=true;
 
-            layoutStraightByRow(1);
+            //in case of hidden pref
+            if (savedState[0] != -1) layoutStraight(savedState[0]);
+            else layoutStraightByRow(1);
+
+        }
+
+        else if (FLAG_NOTIFY == NOTIFY_NONE){
+            slU.fr( "False call");
+            setBusy(false);
         }
 
 
         else if (FLAG_NOTIFY == LAYOUT_PREF){
-
             rearrangeChildren();
             prefView = recycler.getViewForPosition(prefPos);
 
             topOffset = layoutSurroundingRows();
             layoutPref(topOffset);
             layoutMotherRow(recycler, topOffset);
-
         }
 
 
@@ -457,12 +495,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             topOffset = layoutSurroundingRows();
             layoutPref(topOffset);
             layoutMotherRow(recycler, topOffset);
-
         }
 
 
         else if (FLAG_NOTIFY == UPDATE_PARENT){
             updateParent();
+            setBusy(false);
         }
 
         FLAG_NOTIFY = NOTIFY_NONE;
@@ -478,6 +516,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             mBottomBaseline -= offset;
         }
 
+        if (!initialPassed) initialPassed=true;
+        stateBackup();
+
         int prp = (prefRowPos==0) ? -1 : prefRowPos;
         slU.f("Anchor row: " + mAnchorRowPos + " , top baseline: " + mTopBaseline + " , top bound: " + mTopBound +
                 ", \n\tLast row: " + mLastVisibleRow + ", bottom baseline: " + mBottomBaseline + ", bottom bound: " + mBottomBound +
@@ -492,7 +533,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
     @Override
     public boolean canScrollVertically() {//проверка всегда производится уже после выкладки
-        return true;
+        return !busy;
     }
 
     /**
@@ -515,6 +556,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         int delta;
         int offset = 0;
 
+        if (busy) return offset;
+
         if (dy>0){//Сколлинг вверх, оффсет - вниз
             boolean bottomBoundReached = mBottomBaseline >= mBottomBound;
 
@@ -533,16 +576,10 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 else if (mLastVisibleRow < mAvailableRows && (SCROLL_MODE == 1 || SCROLL_MODE == 3))  {
                     //Но при выложенной строке настроек, её видимость определяется в другом методе, где мы дополнительно изменяем значение границ, влияя на дельту
                     offset = dy; mBottomBaseline += dy; mTopBaseline += dy;
-                    /*
-                    Переменная Стыка введена, потому что метод layoutDecorated выкладывает дочерние вьюшки в координатах, относительно начала RV.
-                    Мы передаём это смещение для выкладки, когда нужно выложить новую строку,
-                    При этом координаты нижней границы всё ещё считаются как обсолютные относительно начала первой строки,
-                    И нужны для скроллинга
-                    */
                     try {
                         addNRecycle(recycler, DIR_DOWN);
                         slU.fr( "AddNRecycle DOWN, new pos: " + mAnchorRowPos + " " + mLastVisibleRow);
-                    }catch (Exception e){ er.receiveError(e); }
+                    }catch (Exception e){ er.transmitError(e); }
                 }
                 //Если дельта меньше или равна оффсету и выкладывать уже нечего
                 else {
@@ -569,7 +606,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
                     try {
                         addNRecycle(recycler, DIR_UP);
-                    }catch (Exception e){ er.receiveError(e); }
+                    }catch (Exception e){ er.transmitError(e); }
                     slU.fr( "AddNRecycle UP, new pos: " + mAnchorRowPos + " " + mLastVisibleRow);
                 }
 
@@ -1048,13 +1085,14 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     public void onScrollStateChanged (int state){
         if (state == RecyclerView.SCROLL_STATE_IDLE && mViewCache.size()!=0){//Чисто лог выводим
             slU.f("Row " + mAnchorRowPos + ", Top baseline: " + mTopBaseline + ", Top bound:" + mTopBound + ", Bottom baseline: " + mBottomBaseline + ", Bottom bound:" + mBottomBound + ", first cache: " + mViewCache.keyAt(0) + ", last cache: " + mViewCache.keyAt(mViewCache.size() - 1));
+            stateBackup();
         }
     }
 
     @Override
     public void onItemsMoved(@NonNull RecyclerView recyclerView, int from, int to, int itemCount) {
         super.onItemsMoved(recyclerView, from, to, itemCount);
-        slU.f( "onItemsMoved: " + from + " " + to);
+        slU.f( "Items Moved: " + from + " " + to + ", count: " + itemCount);
     }
 
     @Override
@@ -1065,13 +1103,16 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
     @NonNull
     @Override
-    public RLMReturnData defineBaseAction(int prefParentPos) {
-        slU.fp( "Old values. |" + "pref parent pos: " + this.prefParentPos + "|pref visibility: " + prefVisibility + "|");
-        if (this.prefParentPos == 666 || this.prefParentPos == prefParentPos & !prefVisibility || this.prefParentPos != prefParentPos & !prefVisibility) {//Либо настройки ещё не выкладывались, либо матерниские позиции соответствуют и строки не видно
+    public RLMReturnData defineBaseAction(int currentPrefParentPos, boolean changeTime) {
+        slU.fp( "Old values. |" + "pref parent pos: " + this.prefParentPos + "|pref row pos: " + prefRowPos + "|pref pos: " + prefPos + "|pref visibility: " + prefVisibility + "|");
+        setBusy(true);
 
-            this.prefParentPos = prefParentPos;
+        if (this.prefParentPos == 666 & !changeTime || this.prefParentPos == currentPrefParentPos & !prefVisibility || this.prefParentPos != currentPrefParentPos & !prefVisibility) {//Либо настройки ещё не выкладывались, либо матерниские позиции соответствуют и строки не видно
+            slU.f( "LAYING OUT PREF");
+
+            this.prefParentPos = currentPrefParentPos;
             //Если строка с материнским элементом не полная, либо элементов в раскладке всего не больше трёх, то добавляем одну строку к счётчику
-            prefRowPos = ((prefParentPos+1) / 3) + 1; if ((prefParentPos+1) % 3 !=0 || (prefParentPos+1) < 3) prefRowPos++;//Строка после материнской вьюшки. На которой будем выкладывать настройки
+            prefRowPos = ((currentPrefParentPos+1) / 3) + 1; if ((currentPrefParentPos+1) % 3 !=0 || (currentPrefParentPos+1) < 3) prefRowPos++;//Строка после материнской вьюшки. На которой будем выкладывать настройки
             prefPos = ((prefRowPos-1) * 3); if (prefPos>getItemCount()) prefPos = getItemCount();//Позиция вьюшки настроек в адаптере
             slU.f( "prefParentPos:" + this.prefParentPos + ", prefRowPos:" + prefRowPos + ", prefPos:" + prefPos);
 
@@ -1080,31 +1121,47 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
             FLAG_NOTIFY = LAYOUT_PREF;
             prefVisibility = true;
-            slU.f( "LAYING OUT PREF");
 
-            return new RLMReturnData(LAYOUT_PREF, this.prefParentPos, prefPos);
+            animator.addPrefLayoutChanges();
+            return new RLMReturnData(false, this.prefParentPos, prefPos);
         }
-        else if (this.prefParentPos != 666 && this.prefParentPos == prefParentPos && prefVisibility){//Настройки уже выкладывались, старая материнская позиция, строку видно
+        else if (this.prefParentPos != 666 && this.prefParentPos == currentPrefParentPos && prefVisibility && !changeTime){//Настройки уже выкладывались, старая материнская позиция, строку видно
             FLAG_NOTIFY = HIDE_PREF;
             slU.f( "HIDING PREF");
 
-            //It's crucial to make it re-bind previous pref view
-            //and clear built-in cache because notifications heading to adapter
-            //doesn't affect scrapped views, so some of them become corrupted
-            if (mViewCache.get(prefParentPos)!=null) detachAndScrapView(mViewCache.get(prefParentPos), recycler);
-            recycler.clear();
+            /* RV don't actually throws an order to animate pref's removal,
+            so it's for us to launch an animation before pref's still in the Adapter,
+            and only then tell the Handler to proceed
+            */
+            animator.addPrefHideChanges();
 
-            return new RLMReturnData(HIDE_PREF, false);
+            /*
+            It's crucial to make it re-bind previous pref view
+            and clear built-in cache because notifications heading to adapter
+            doesn't affect scrapped views, so some of them become corrupted
+            */
+            if (mViewCache.get(currentPrefParentPos)!=null) detachAndScrapView(mViewCache.get(currentPrefParentPos), recycler);
+            recycler.clear();
         }
-        else if (this.prefParentPos != 666 && this.prefParentPos != prefParentPos && prefVisibility){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
+        else if (this.prefParentPos != 666 && this.prefParentPos != currentPrefParentPos && prefVisibility || changeTime){//Настройки уже выкладывались, новая материнская позиция, строку уже видно
+            slU.f( "HIDING and LAYING OUT PREF");
+
             int oldPrefPos = this.prefPos;
+            oldPrefRowPos = prefRowPos;
+            oldPrefParentPos = this.prefParentPos;
 
             //Here, because global prefParentPos didn't change yet
             if (mViewCache.get(this.prefParentPos)!=null) detachAndScrapView(mViewCache.get(this.prefParentPos), recycler);
             recycler.clear();
 
-            this.prefParentPos = prefParentPos;
-            if (prefParentPos >= oldPrefPos) this.prefParentPos--;//Если мы тыкаем на элемент, который идёт после строки с настройками, то нужно бы откорректировать позицию на 1 вниз
+            this.prefParentPos = currentPrefParentPos;
+            /*
+            If new parentPos is greater than old prefPos, we have to decrease it
+            keeping in mind that position of new pref will not affect
+            indices of items below new parent.
+            But only if Handler didn't figure it out yet
+            */
+            if (!changeTime && (currentPrefParentPos >= oldPrefPos)) this.prefParentPos--;
 
             prefRowPos = ((this.prefParentPos+1) / 3) + 1;//Строка после материнской вьюшки. Имея в виду плюс один элемент в адаптере, добавляем один
             //Если строка с материнским элементом не полная, либо элементов в раскладке всего не больше трёх, то добавляем одну строку к счётчику
@@ -1116,21 +1173,329 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             //We have to recycle this one just in case RV will want to reuse it and put in place of pref
             if (prefRowPos <= mAvailableRows) removeAndRecycleView(recycler.getViewForPosition(prefPos), recycler);
 
+
             FLAG_NOTIFY = HIDE_N_LAYOUT_PREF;
             prefVisibility = true;
-            slU.f( "HIDING and LAYING OUT PREF");
 
-            return new RLMReturnData(HIDE_N_LAYOUT_PREF, this.prefParentPos, prefPos);
+            oldPrefParentPos += (oldPrefRowPos > prefRowPos) ? 1 : 0;
+            if (!changeTime) animator.addPrefHideLayoutChanges();
+            else animator.addTimeChangeChanges();
+
+            return new RLMReturnData(true, prefParentPos, prefPos);
         }
-        return null;
+        return new RLMReturnData();
     }
 
-    public void hideOnResume() {
-        if (prefVisibility){
-            FLAG_NOTIFY = HIDE_PREF;
-//            handlerCallback.removePref(true);
-//            return new RLMReturnData(HIDE_PREF, true);
-
-        }
+    @Override
+    public void setRVState(@NotNull int[] state) {
+        slU.frp(state);
+        savedState = state;
     }
+    private void stateBackup(){
+        int[] s = new int[3];
+        s[0] = mTopBaseline;
+        s[1] = (prefVisibility && !prefScrapped && !STSTop && !STSBottom) ? 1 : 0;
+        s[2] = prefParentPos;
+        aideCallback.routineStateBackup(s);
+    }
+
+    /**
+     * Since it gets a bit tricky when working with DefaultItemAnimator,
+     * we have to embed a very special behavior for each (or almost) use case.
+     */
+    private class RowLayoutManagerAnimator extends HomieDefaultItemAnimator {
+        private final boolean LOG_CALLS = false;
+        private LinkedList<ChangesExecutor> factory;
+        private ChildViewHolder interceptedVH1;
+        private List<ChildViewHolder> interceptedVHList1;
+
+        private int FLAG_ANIMATE;
+        public static final int TIME_CHANGE_ANIMATION = 885;
+
+        private final long defaultRemoveDuration = getRemoveDuration();
+        private final long defaultMoveDuration = getMoveDuration();
+        private final long defaultAddDuration = getAddDuration();
+        private final long defaultChangeDuration = getChangeDuration();
+
+
+        /*
+        Default animator sequence:
+            remove (unused) ->
+            move (entire parent row and the rest) ->
+            add (pref)
+         */
+        public void addPrefLayoutChanges(){
+            factory = new LinkedList<>();
+            FLAG_ANIMATE = LAYOUT_PREF;
+
+            int newAddDuration = 400;
+            int newMoveDuration = 300;
+            int fadeDuration = (int) (newMoveDuration * 0.9f);
+
+
+            setMoveDuration(newMoveDuration);
+            //whole Add group is only pref
+            setAddDuration(newAddDuration);
+
+            //parent's fading during Move
+            factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, prefParentPos, (vh) ->
+                    ((ChildViewHolder) vh).startTimeWindowAlphaAnimation(fadeDuration, 0f)));
+
+            slU.fr("a.b.c. are set up for ^layoutPref^");
+        }
+
+        /*
+        Default animator sequence:
+            {missing ^remove^ call for pref, like it didn't exist in the first place}
+            move (the rest)
+            add (difference and pref's replacement)
+        */
+        public void addPrefHideChanges(){
+            factory = new LinkedList<>();
+            interceptedVH1=null;
+
+            FLAG_ANIMATE = HIDE_PREF;
+
+            //Add duration for parent view. Can't be longer than Move
+            int prefAppDuration = 300;
+            setAddDuration(prefAppDuration);
+            setMoveDuration(prefAppDuration);
+
+            //launching pref's fading before new dataset is passed
+            ChildViewHolder prefView = (ChildViewHolder) aideCallback.getItemViewHolder(prefPos);
+            assert prefView != null;
+            prefView.hidePrefNLaunchHandler(150);
+
+            //starting ex-parent's Add animation along with Move group
+            factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, vh->{
+                assert (interceptedVH1!=null);
+                animateAddImpl(interceptedVH1);
+                //making the rest's appearance instant
+                setAddDuration(0);
+                //In case of adding previously blanked add parent,
+                //we need to pull it back to normal
+                interceptedVH1.setTimeWindowVisibility(1f);
+            }));
+
+            slU.fr("a.b.c. are set up for ^hidePref^");
+        }
+
+        public void addPrefHideLayoutChanges(){
+            factory = new LinkedList<>();
+            interceptedVH1=null;
+
+            FLAG_ANIMATE = HIDE_N_LAYOUT_PREF;
+
+            setRemoveDuration(200);
+            setMoveDuration(400);
+            setAddDuration(getRemoveDuration());
+
+            if (oldPrefRowPos == prefRowPos) {
+
+                //new parent's fading during Move
+                factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, prefParentPos, (vh) ->
+                        ((ChildViewHolder) vh).startTimeWindowAlphaAnimation(getAddDuration(), 0f)));
+
+                //starting ex-parent's Add animation along with Move group
+                factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, vh -> {
+                    assert (interceptedVH1 != null);
+                    animateAddImpl(interceptedVH1);
+                }));
+
+                slU.fr("a.b.c. are set up for ^HLP^, same row");
+            }
+
+            else if (!prefScrapped) {
+                factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, vh -> {
+                    ChildViewHolder newParentHolder = (ChildViewHolder) aideCallback.getItemViewHolder(prefParentPos);
+                    assert newParentHolder != null;
+                    newParentHolder.startTimeWindowAlphaAnimation(getMoveDuration(), 0f);
+
+                    /*
+                    This gets a little tricky since Animator will start Add animation
+                    in the time when it supposed to start, even when we start it manually before
+                    (which should 'expel' it from Animator's sequence, but it will not)
+                    */
+                    ChildViewHolder oldParentHolder = (ChildViewHolder) aideCallback.getItemViewHolder(oldPrefParentPos);
+
+                    /*
+                    It's apparently implicit, but animator won't get an order
+                    to animate a view that's not visible on the screen,
+                    so we can just null-check this parent holder for not to be caught
+                    */
+                    if (oldParentHolder != null) {
+
+                        endAnimation(oldParentHolder);
+                        oldParentHolder.setTimeWindowVisibility(0f);
+                        oldParentHolder.startTimeWindowAlphaAnimation(getMoveDuration() + 100, 1f);
+                    }
+                    else slU.fst("a.b.c. missing ex-parent animation");
+                }));
+
+                slU.fr("a.b.c. are set up for ^HLP^, different row");
+            }
+
+            else addPrefLayoutChanges();
+        }
+
+        public void addTimeChangeChanges() {
+            factory = new LinkedList<>();
+            interceptedVHList1 = new LinkedList<>();
+
+            FLAG_ANIMATE = TIME_CHANGE_ANIMATION;
+
+            setRemoveDuration(400);
+            setMoveDuration(600);
+            setAddDuration(getRemoveDuration());
+
+            factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, prefParentPos, vh ->{
+                ((ChildViewHolder) vh).startTimeWindowAlphaAnimation(getMoveDuration(), 0f);
+
+                if (!interceptedVHList1.isEmpty()) for (ChildViewHolder holder : interceptedVHList1) animateAddImpl(holder);
+            }));
+        }
+
+        public void clearChanges(){
+            factory = null;
+            setRemoveDuration(defaultRemoveDuration);
+            setMoveDuration(defaultMoveDuration);
+            setAddDuration(defaultAddDuration);
+            setChangeDuration(defaultChangeDuration);
+
+            slU.fr("a.b.c. cleared");
+        }
+
+
+        @Override
+        public void onRemoveStarting(RecyclerView.ViewHolder item) {
+            ChangesExecutor.runThrough(factory, ChangesExecutor.FLAG_REMOVE, false, item);
+            if (LOG_CALLS) slU.w("remove starting" + item.getAdapterPosition());
+        }
+        @Override
+        public void onRemoveFinished(RecyclerView.ViewHolder item) {
+            ChangesExecutor.runThrough(factory, ChangesExecutor.FLAG_REMOVE, true, item);
+            if (LOG_CALLS) slU.s("remove finished" + item.getAdapterPosition());
+        }
+
+        @Override
+        public void onMoveStarting(RecyclerView.ViewHolder item) {
+            ChangesExecutor.runThrough(factory, ChangesExecutor.FLAG_MOVE, false, item);
+            if (LOG_CALLS) slU.w("move starting" + item.getAdapterPosition());
+        }
+        @Override
+        public void onMoveFinished(RecyclerView.ViewHolder item) {
+            ChangesExecutor.runThrough(factory, ChangesExecutor.FLAG_MOVE, true, item);
+            if (LOG_CALLS) slU.s("move finished" + item.getAdapterPosition());
+        }
+
+        @Override
+        public void onAddStarting(RecyclerView.ViewHolder item) {
+            if (LOG_CALLS) slU.w("add starting" + item.getAdapterPosition());
+            ChangesExecutor.runThrough(factory, ChangesExecutor.FLAG_ADD, false, item);
+        }
+        @Override
+        public void onAddFinished(RecyclerView.ViewHolder item) {
+            if (LOG_CALLS) slU.s("add finished" + item.getAdapterPosition());
+            ChangesExecutor.runThrough(factory, ChangesExecutor.FLAG_ADD, true, item);
+        }
+
+        @Override
+        public void onChangeStarting(RecyclerView.ViewHolder item, boolean oldItem) {
+            if (LOG_CALLS) slU.w("change starting" + item.getAdapterPosition());
+            ChangesExecutor.runThrough(factory, ChangesExecutor.FLAG_CHANGE, false, item);
+        }
+        @Override
+        public void onChangeFinished(RecyclerView.ViewHolder item, boolean oldItem) {
+            if (LOG_CALLS) slU.s("change finished" + item.getAdapterPosition());
+            ChangesExecutor.runThrough(factory, ChangesExecutor.FLAG_CHANGE, true, item);
+        }
+
+        @Override
+        public boolean animateAdd(RecyclerView.ViewHolder holder) {
+            if (holder!=null) {
+
+                if ((FLAG_ANIMATE == HIDE_PREF && holder.getAdapterPosition() == prefParentPos) ||
+                    (FLAG_ANIMATE == HIDE_N_LAYOUT_PREF && holder.getAdapterPosition() == oldPrefParentPos))
+                {
+                    interceptedVH1 = (ChildViewHolder) holder;
+                }
+                else if (FLAG_ANIMATE == TIME_CHANGE_ANIMATION && (holder.getAdapterPosition()!=prefParentPos && holder.getAdapterPosition()!=prefPos)){
+                    interceptedVHList1.add((ChildViewHolder) holder);
+                }
+
+            }
+            return super.animateAdd(holder);
+        }
+
+        @Override
+        public void onAddGroupFinished(RecyclerView.ViewHolder holder) {
+            clearChanges();
+            if (FLAG_ANIMATE==TIME_CHANGE_ANIMATION) ((ChildViewHolder) holder).requestParentUpdate();
+            setBusy(false);
+        }
+
+        @Override
+        public boolean canReuseUpdatedViewHolder(@NonNull RecyclerView.ViewHolder viewHolder, @NonNull List<Object> payloads) {
+            return true;
+        }
+
+    }
+
+
+    /**
+     * This class is built to provide convenience process of
+     * setting up changes applicable to the various stages of
+     * {@link DefaultItemAnimator}
+     */
+    private static class ChangesExecutor {
+        public static final int FLAG_REMOVE = 11;
+        public static final int FLAG_MOVE = 22;
+        public static final int FLAG_ADD = 33;
+        public static final int FLAG_CHANGE = 44;
+
+        private final int flag;
+        private final boolean onFinish;
+        private final int targetPosition;
+        private final ChangesCallback callback;
+
+        private boolean firedAlready = false;
+
+        ChangesExecutor(int flag, boolean onFinish, int targetPosition, ChangesCallback callback) {
+            this.flag = flag;
+            this.onFinish = onFinish;
+            this.targetPosition = targetPosition;
+            this.callback = callback;
+        }
+
+        //If position didn't mentioned, we just run it once
+        ChangesExecutor(int flag, boolean onFinish, ChangesCallback callback) {
+            this.flag = flag;
+            this.onFinish = onFinish;
+            this.targetPosition = -1;
+            this.callback = callback;
+        }
+
+
+        public static void runThrough(List<ChangesExecutor> list, int animationType, boolean alliance, RecyclerView.ViewHolder vH){
+            if (list==null) return;
+
+            for (ChangesExecutor executor : list){
+                if (executor.flag==animationType && executor.onFinish==alliance){
+                    if (executor.targetPosition ==-1 && !executor.firedAlready){
+                        executor.firedAlready = true;
+                        executor.callback.changes(vH);
+                    }
+                    else if (vH.getAdapterPosition() == executor.targetPosition){
+                        executor.callback.changes(vH);
+                    }
+                }
+            }
+        }
+
+    }
+
+    private interface ChangesCallback{
+        void changes(RecyclerView.ViewHolder item);
+    }
+
 }

@@ -48,12 +48,14 @@
             android:showWhenLocked="true"
             android:taskAffinity=""
             android:windowSoftInputMode="stateAlwaysHidden"
+            android:screenOrientation="portrait"
             tools:ignore="NonResizeableActivity" />
         <activity
             android:name=".NewTaskActivity"
             android:exported="false" />
         <activity
             android:name=".MainActivity"
+            android:screenOrientation="portrait"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -62,7 +64,6 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".alarmScreenBackground.AlarmExec" />
     </application>
 
 </manifest>

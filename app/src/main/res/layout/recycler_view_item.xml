@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
@@ -10,34 +10,43 @@
         android:id="@+id/rv_time_window"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:fontFamily="@font/avenir_lt_55_roman"
         android:gravity="center"
         android:lines="1"
         android:text="00:00"
-        android:fontFamily="@font/avenir_lt_55_roman"
         android:textAlignment="gravity"
+        app:height_toLocal_width_multiplier="@fraction/rv_timeWindow_height"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
         app:textSize_toHeight="63%"
-        app:height_toLocal_width_multiplier="40.175%"
-        app:width_toGlobal_multiplier="23.519%"
+        app:width_toGlobal_multiplier="@fraction/rv_timeWindow_width"
         tools:visibility="gone" />
 
+    <!--    All consequent sizes are taken for convenient xml representation in Editor.
+        Their sizes are adjustable-->
+    <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
+        android:id="@+id/rv_pref_frame"
+        android:layout_width="1021px"
+        android:layout_height="652px"
+        android:src="@drawable/rv_pref_frame_center"
 
-    <!--Size and prefFrame are taken just for convenience. They're adjustable actually-->
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/main_constraint_layout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content">
+        app:height_toLocal_width_multiplier="@fraction/rv_pref_frame_height"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:width_toGlobal_multiplier="@fraction/rv_pref_frame_width" />
 
 
-        <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
-            android:id="@+id/rv_pref_frame"
-            android:layout_width="1021px"
-            android:layout_height="624px"
-            android:src="@drawable/rv_pref_frame_center"
+    <!--This view contains all views that are not exposed to changes of the pref's height-->
+    <com.vova9110.bloodbath.alarmsUI.AdjustableConstraintLayout
+        android:id="@+id/pref_consistent_views_layout"
+        android:layout_width="1021px"
+        android:layout_height="624px"
 
-            app:height_toLocal_width_multiplier="@fraction/rv_pref_frame_height"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:width_toGlobal_multiplier="@fraction/rv_pref_frame_width" />
+        app:height_toLocal_width_multiplier="@fraction/rv_pref_consistentLayout_height"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:width_toGlobal_multiplier="@fraction/rv_pref_consistentLayout_width">
+
 
         <!--This view has only size adjustments declared here. The others are based on alarm's state-->
         <com.vova9110.bloodbath.alarmsUI.AdjustableTextView
@@ -52,42 +61,84 @@
             android:textColor="@color/black"
             android:textSize="110px"
 
-            app:height_toGlobal_multiplier="22.23%"
-            app:width_toLocal_height_multiplier="203.7%"
+            app:height_toLocal_width_multiplier="@fraction/rv_pref_time_height"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.09"
-            app:layout_constraintStart_toStartOf="@+id/rv_pref_frame"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_bias="0.42" />
+            app:layout_constraintVertical_bias="@integer/rv_pref_time_verticalBias_integer"
+            app:width_toGlobal_multiplier="@fraction/rv_pref_time_width" />
 
 
         <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_power"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="294px"
+            android:layout_height="98px"
 
+            app:height_toLocal_width_multiplier="@fraction/rv_pref_power_height"
             app:layout_constraintEnd_toEndOf="@+id/rv_pref_time_window"
             app:layout_constraintStart_toStartOf="@+id/rv_pref_time_window"
             app:layout_constraintTop_toBottomOf="@+id/rv_pref_time_window"
-            app:width_toGlobal_multiplier="@fraction/rv_pref_power_width"
-            app:height_toLocal_width_multiplier="@fraction/rv_pref_power_height"
-            />
+            app:width_toGlobal_multiplier="@fraction/rv_pref_power_width" />
 
         <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_music"
-            android:layout_width="110px"
-            android:layout_height="110px"
+            style="@style/App.RecyclerViewItem.TierOne"
 
-
-            app:layout_constraintBottom_toBottomOf="@id/rv_pref_frame"
-            app:layout_constraintEnd_toEndOf="@+id/rv_pref_frame"
             app:layout_constraintHorizontal_bias="@integer/rv_pref_tierOne_columnOne_bias"
-            app:layout_constraintStart_toStartOf="@+id/rv_pref_frame"
-            app:layout_constraintTop_toTopOf="@id/rv_pref_frame"
-            app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowOne_bias" />
+            app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowOne_bias"
+            tools:ignore="MissingConstraints" />
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+            android:id="@+id/rv_pref_vibration"
+            style="@style/App.RecyclerViewItem.TierOne"
+
+            app:layout_constraintHorizontal_bias="@integer/rv_pref_tierOne_columnTwo_bias"
+            app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowOne_bias"
+            tools:ignore="MissingConstraints" />
+
+        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+            android:id="@+id/rv_pref_preliminary"
+            style="@style/App.RecyclerViewItem.TierOne"
+
+            app:layout_constraintHorizontal_bias="@integer/rv_pref_tierOne_columnOne_bias"
+            app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowTwo_bias"
+            tools:ignore="MissingConstraints" />
+
+        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+            android:id="@+id/rv_pref_activeness"
+            style="@style/App.RecyclerViewItem.TierOne"
+
+            app:layout_constraintHorizontal_bias="@integer/rv_pref_tierOne_columnTwo_bias"
+            app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowTwo_bias"
+            tools:ignore="MissingConstraints" />
+
+        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+            android:id="@+id/rv_pref_repeat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.435"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.565"
+            tools:ignore="MissingConstraints" />
 
 
-</LinearLayout>
+    </com.vova9110.bloodbath.alarmsUI.AdjustableConstraintLayout>
+
+    <LinearLayout
+        android:id="@+id/rv_pref_weekdays_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="@id/rv_pref_frame"
+        app:layout_constraintEnd_toEndOf="@id/rv_pref_frame"
+        app:layout_constraintStart_toStartOf="@id/rv_pref_frame"
+        />
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,6 +1,5 @@
 package com.vova9110.bloodbath.database
 
-import android.annotation.SuppressLint
 import androidx.room.Entity
 import androidx.room.Ignore
 import java.util.*
@@ -19,44 +18,70 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
     @Ignore var addFlag: Boolean = false
     @Ignore var prefFlag: Boolean = false
     @Ignore var prefBelongsToAdd = false
-    @Ignore var parentPos = 0
+    @Ignore var parentPos = -1
 
     @Ignore
     val id: String = String.format("%02d", this.hour) + String.format("%02d", this.minute)
-    var vibrate = true
     var snoozed = false
-    var repeatable = false
     /**
      * WARNING!
      * Before calculation, weekdays list should be normalized to the default
-     * Russian week (monday first, sunday last)
+     * Standard week (monday first, sunday last)
      */
     var weekdays = BooleanArray(7)
 
-    var detection = false
+    var repeatable = false
+    var vibrate = true
     var preliminary = false
     var preliminaryTime: Int = 0//in minutes before triggerTime
+    var detection = false
 
     @Ignore
     constructor(): this(-1,-1){ addFlag = true }
 
+
+    //This one for copying pref's internals inside CVH
     @Ignore
-    constructor(hour: Int, minute: Int, parentPos: Int, addAlarmPos: Int, enabled: Boolean): this(hour, minute){
+    private constructor(hour: Int, minute: Int, enabled: Boolean, state: String = STATE_DISABLE,
+            parentPos: Int, weekdays: BooleanArray, repeatable: Boolean, vibrate: Boolean,
+            detection: Boolean, preliminary: Boolean, preliminaryTime: Int) : this(hour, minute, enabled, state){
         this.parentPos = parentPos
-        this.enabled = enabled
+        this.weekdays = weekdays
+        this.repeatable = repeatable
+        this.vibrate = vibrate
+        this.detection = detection
+        this.preliminary = preliminary
+        this.preliminaryTime = preliminaryTime
+            }
+    /* This one for creating new pref inside Handler.
+    ^addAlarmPos^ is for detecting pref's belonging to add
+    by comparing it to passed ^parentPos^
+    */
+    @Ignore
+    private constructor(hour: Int, minute: Int, enabled: Boolean, state: String = STATE_DISABLE,
+                parentPos: Int, weekdays: BooleanArray, repeatable: Boolean, vibrate: Boolean,
+                detection: Boolean, preliminary: Boolean, preliminaryTime: Int, addAlarmPos: Int):
+            this(hour, minute, enabled, state, parentPos, weekdays, repeatable, vibrate, detection, preliminary, preliminaryTime){
+
         setPrefBelongsToAdd(parentPos, addAlarmPos)
         this.prefFlag = true
-    }
+            }
+
     private fun setPrefBelongsToAdd(prefPos: Int, addAlarmPos: Int) {
         prefBelongsToAdd = prefPos==addAlarmPos
     }
-    fun clone(newHour: Int, newMinute: Int): Alarm{
-        return Alarm(newHour, newMinute, this.enabled, STATE_ALL).apply {
+
+    fun copyPrefsInternals(newHour: Int, newMinute: Int): Alarm =
+        //State will be recalculated anyway
+        Alarm(newHour, newMinute, this.enabled, STATE_ALL).apply {
             this.triggerTime = this@Alarm.triggerTime
             this.repeatable = this@Alarm.repeatable
             this.weekdays = this@Alarm.weekdays
         }
-    }
+    //Not including any dynamically assignable variables
+    fun clone(): Alarm = Alarm(hour, minute, enabled, state, parentPos, weekdays, repeatable, vibrate, detection, preliminary, preliminaryTime)
+    fun createPref(parentPos: Int, addAlarmPos: Int): Alarm =
+        Alarm(hour, minute, enabled, state, parentPos, weekdays, repeatable, vibrate, detection, preliminary, preliminaryTime, addAlarmPos)
 
 
 

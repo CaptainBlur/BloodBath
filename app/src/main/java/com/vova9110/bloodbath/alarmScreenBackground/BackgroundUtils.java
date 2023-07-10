@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.PowerManager;
 
 import androidx.core.app.NotificationCompat;
 
@@ -48,7 +47,6 @@ public class BackgroundUtils {
     private static final int MISS_PREF = 29;
     public static final int UNIVERSAL_NOT_ID = 911;
 
-    public static final String INTERLAYER_EXTRA = "interlayer";
 
     static protected String getGlobalID(Context context){
         SharedPreferences pref = context.getSharedPreferences(MainViewModel.PREFERENCES_NAME, Context.MODE_PRIVATE);
@@ -71,8 +69,24 @@ public class BackgroundUtils {
         String id = actives.get(0).getId();
 
         editor.putString("global", id);
+        if (editor.commit()) sl.fstpc("globalID has set for " + id);
+        else sl.spc("error setting globalID for " + id);
+    }
+
+    static protected void requestErrorNotification(Context context){
+        SharedPreferences pref = context.getSharedPreferences(MainViewModel.PREFERENCES_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = pref.edit();
+
+        editor.putBoolean("firing_error", true);
         editor.apply();
-        sl.fstpc("globalID has set for " + id);
+    }
+
+    static protected void putReloadRequest(Context context){
+        SharedPreferences pref = context.getSharedPreferences(MainViewModel.PREFERENCES_NAME, Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = pref.edit();
+
+        editor.putBoolean("rv_reload", true);
+        editor.apply();
     }
 
     static protected void scheduleExact(Context context, String id, String state, long time){
@@ -82,19 +96,19 @@ public class BackgroundUtils {
         intent.setFlags(Intent.FLAG_RECEIVER_FOREGROUND);
 
         String composedID;
-        switch (state){
-            case Alarm.STATE_ALL: {
+        switch (state) {
+            case Alarm.STATE_ALL -> {
                 sl.sp("Cannot proceed with *STATE_ALL* action");
                 return;
             }
-            case Alarm.STATE_ANTICIPATE: composedID = String.valueOf(ANTICIPATE_PREF); break;
-            case Alarm.STATE_DISABLE: composedID = String.valueOf(DISABLE_PREF); break;
-            case Alarm.STATE_FIRE: composedID = String.valueOf(FIRE_PREF); break;
-            case Alarm.STATE_MISS: composedID = String.valueOf(MISS_PREF); break;
-            case Alarm.STATE_PREPARE: composedID = String.valueOf(PREPARE_PREF); break;
-            case Alarm.STATE_SNOOZE: composedID = String.valueOf(SNOOZE_PREF); break;
-            case Alarm.STATE_SUSPEND: composedID = String.valueOf(SUSPEND_PREF); break;
-            default: composedID = "";
+            case Alarm.STATE_ANTICIPATE -> composedID = String.valueOf(ANTICIPATE_PREF);
+            case Alarm.STATE_DISABLE -> composedID = String.valueOf(DISABLE_PREF);
+            case Alarm.STATE_FIRE -> composedID = String.valueOf(FIRE_PREF);
+            case Alarm.STATE_MISS -> composedID = String.valueOf(MISS_PREF);
+            case Alarm.STATE_PREPARE -> composedID = String.valueOf(PREPARE_PREF);
+            case Alarm.STATE_SNOOZE -> composedID = String.valueOf(SNOOZE_PREF);
+            case Alarm.STATE_SUSPEND -> composedID = String.valueOf(SUSPEND_PREF);
+            default -> composedID = "";
         }
         composedID+=id;
 
@@ -112,14 +126,14 @@ public class BackgroundUtils {
         intent.setFlags(Intent.FLAG_RECEIVER_FOREGROUND);
 
         String composedID;
-        switch (state){
-            case Alarm.STATE_ALL: {
+        switch (state) {
+            case Alarm.STATE_ALL -> {
                 sl.sp("Cannot proceed with *STATE_ALL* action");
                 return;
             }
-            case Alarm.STATE_FIRE: composedID = String.valueOf(FIRE_PREF); break;
-            case Alarm.STATE_SNOOZE: composedID = String.valueOf(SNOOZE_PREF); break;
-            default: composedID = "";
+            case Alarm.STATE_FIRE -> composedID = String.valueOf(FIRE_PREF);
+            case Alarm.STATE_SNOOZE -> composedID = String.valueOf(SNOOZE_PREF);
+            default -> composedID = "";
         }
         composedID+=id;
 
@@ -157,17 +171,16 @@ public class BackgroundUtils {
         intent.setAction(id);
         intent.setFlags(Intent.FLAG_RECEIVER_FOREGROUND);
 
-        String composedID;
-        switch (state){
-            case Alarm.STATE_ANTICIPATE: composedID = String.valueOf(ANTICIPATE_PREF); break;
-            case Alarm.STATE_DISABLE: composedID = String.valueOf(DISABLE_PREF); break;
-            case Alarm.STATE_FIRE: composedID = String.valueOf(FIRE_PREF); break;
-            case Alarm.STATE_MISS: composedID = String.valueOf(MISS_PREF); break;
-            case Alarm.STATE_PREPARE: composedID = String.valueOf(PREPARE_PREF); break;
-            case Alarm.STATE_SNOOZE: composedID = String.valueOf(SNOOZE_PREF); break;
-            case Alarm.STATE_SUSPEND: composedID = String.valueOf(SUSPEND_PREF); break;
-            default: composedID = "";
-        }
+        String composedID = switch (state) {
+            case Alarm.STATE_ANTICIPATE -> String.valueOf(ANTICIPATE_PREF);
+            case Alarm.STATE_DISABLE -> String.valueOf(DISABLE_PREF);
+            case Alarm.STATE_FIRE -> String.valueOf(FIRE_PREF);
+            case Alarm.STATE_MISS -> String.valueOf(MISS_PREF);
+            case Alarm.STATE_PREPARE -> String.valueOf(PREPARE_PREF);
+            case Alarm.STATE_SNOOZE -> String.valueOf(SNOOZE_PREF);
+            case Alarm.STATE_SUSPEND -> String.valueOf(SUSPEND_PREF);
+            default -> "";
+        };
         composedID+=id;
 
         PendingIntent pending = PendingIntent.getForegroundService(context, Integer.parseInt(composedID), intent,PendingIntent.FLAG_IMMUTABLE + PendingIntent.FLAG_CANCEL_CURRENT);
@@ -180,10 +193,11 @@ public class BackgroundUtils {
                 .setSmallIcon(R.drawable.ic_clock_alarm)
                 .setShowWhen(false)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
-        switch (state){
-            case(Alarm.STATE_PREPARE): builder.setContentTitle("Upcoming in: " + id); break;
-            case(Alarm.STATE_PREPARE_SNOOZE): builder.setContentTitle("Upcoming snooze for: " + id); break;
-            case(Alarm.STATE_MISS): builder.setContentTitle("Missed: " + id); break;
+        switch (state) {
+            case (Alarm.STATE_PREPARE) -> builder.setContentTitle("Upcoming in: " + id);
+            case (Alarm.STATE_PREPARE_SNOOZE) ->
+                    builder.setContentTitle("Upcoming snooze for: " + id);
+            case (Alarm.STATE_MISS) -> builder.setContentTitle("Missed: " + id);
         }
 
         manager.notify(id + state, UNIVERSAL_NOT_ID, builder.build());

@@ -20,11 +20,13 @@ import javax.inject.Inject;
 
 public class AlarmRepo {
     private final AlarmDao alarmDao;
-    private final Context c;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private static SplitLogger sl;
 
     @Inject 
-    public AlarmRepo (AlarmDao dao, Context context){ alarmDao = dao; c = context; }
+    public AlarmRepo (AlarmDao dao){
+        alarmDao = dao;
+    }
 
     //This is a group of access methods, they don't perform control actions, but just provide access to the database for the Handlers and for other's needs
     //todo make protected
@@ -56,8 +58,7 @@ public class AlarmRepo {
         try{
             result = future.get();
         } catch (CancellationException | ExecutionException | InterruptedException e){
-            e.printStackTrace();
-            SplitLogger.sp( "EXECUTION FAILED!");
+            sl.sp("EXECUTION FAILED", e);
         }
         assert result!=null;
         return result;
@@ -71,8 +72,7 @@ public class AlarmRepo {
         try{
             result = future.get();
         } catch (CancellationException | ExecutionException | InterruptedException e){
-            e.printStackTrace();
-            SplitLogger.sp( "EXECUTION FAILED!");
+            sl.sp("EXECUTION FAILED", e);
         }
 
         if (result==null) return new LinkedList<Alarm>();
@@ -85,10 +85,9 @@ public class AlarmRepo {
         try{
             result = future.get();
         } catch (CancellationException | ExecutionException | InterruptedException e){
-            e.printStackTrace();
-            SplitLogger.sp( "EXECUTION FAILED!");
+            sl.sp("EXECUTION FAILED", e);
         }
-        if (result != null) SplitLogger.fst( "actives count: " + result.size());
+        if (result != null) sl.fst( "actives count: " + result.size());
         return result;
     }
 
@@ -103,9 +102,9 @@ public class AlarmRepo {
      *
      * @param alarm new instance
      */
-    public void insert (Alarm alarm){
+    public void insert (Alarm alarm, Context c){
         if (!alarm.component3()) {
-            SplitLogger.fpc("passed alarm hadn't been enabled");
+            sl.fpc("passed alarm hadn't been enabled");
             executor.execute(() -> alarmDao.insert(alarm));
         }
         else {
@@ -113,9 +112,6 @@ public class AlarmRepo {
             executor.execute(() -> alarmDao.insert(alarm));
             AlarmExecutionDispatch.defineNewState(c, alarm, this);
         }
-    }
-    public void testInsert (Alarm alarm){
-        executor.execute(() -> alarmDao.insert(alarm));
     }
 
     /**
@@ -126,7 +122,7 @@ public class AlarmRepo {
      *
      * @param alarm updated instance
      */
-    public void update (Alarm alarm, boolean recalculateStates){
+    public void update (Alarm alarm, boolean recalculateStates, Context c){
         if (recalculateStates){
             if (alarm.getEnabled()) alarm.calculateTriggerTime();
             else alarm.setTriggerTime(null);
@@ -138,7 +134,7 @@ public class AlarmRepo {
     /**
      * Use this method to discard all existing instances (except of the *addAlarm*) in DB and cancel all appointments
      */
-    public void deleteAll() {
+    public void deleteAll(Context c) {
         AlarmExecutionDispatch.wipeAll(c, getAll());
         executor.execute(alarmDao::deleteAll);
     }
@@ -147,12 +143,12 @@ public class AlarmRepo {
      * Use this method to delete existing instance in DB and recalculate States for the rest *actives*
      * @param alarm instance to discard
      */
-    public void deleteOne(Alarm alarm){
+    public void deleteOne(Alarm alarm, Context c){
         executor.execute(() -> alarmDao.deleteOne(alarm.getHour(), alarm.getMinute()));
         AlarmExecutionDispatch.wipeOne(c, alarm);
     }
 
-    public void reassureAll(){
+    public void reassureAll(Context c){
         AlarmExecutionDispatch.checkAll(c, this, getAll());
     }
 }

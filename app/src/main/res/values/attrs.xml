@@ -4,16 +4,14 @@
         <attr name="fullscreenTextColor" format="color" />
     </declare-styleable>
 
-    <attr name="width_toLocal_height_multiplier" format="fraction"/>
-    <attr name="width_toGlobal_multiplier" format="fraction"/>
-    <attr name="height_toLocal_width_multiplier" format="fraction"/>
-    <attr name="height_toGlobal_multiplier" format="fraction"/>
-
     <declare-styleable name="AdjustableView">
-        <attr name="width_toLocal_height_multiplier"/>
-        <attr name="width_toGlobal_multiplier"/>
-        <attr name="height_toLocal_width_multiplier"/>
-        <attr name="height_toGlobal_multiplier"/>
+        <attr name="width_toLocal_height_multiplier" format="fraction"/>
+        <attr name="width_toGlobal_multiplier" format="fraction"/>
+        <attr name="width_toGlobal_height_multiplier" format="fraction"/>
+
+        <attr name="height_toLocal_width_multiplier" format="fraction"/>
+        <attr name="height_toGlobal_multiplier" format="fraction"/>
+        <attr name="height_toGlobal_width_multiplier" format="fraction"/>
 
         <attr name="textSize_toHeight" format="fraction"/>
     </declare-styleable>

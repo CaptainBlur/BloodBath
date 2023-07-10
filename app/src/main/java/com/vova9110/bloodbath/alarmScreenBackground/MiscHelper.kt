@@ -19,7 +19,7 @@ class MiscHelper(context: Context, expireRunnable: Runnable) {
     val handler: Handler
     var started = false
     private lateinit var nManager: NotificationManager
-    private lateinit var dis: Disposable
+    private var dis: Disposable? = null
     private var player: MediaPlayer? = null
     private val vManager: Vibrator
 
@@ -63,7 +63,7 @@ class MiscHelper(context: Context, expireRunnable: Runnable) {
                         player?.stop()
                         player?.release()
                         player = null
-                        dis.dispose()
+                        dis?.dispose()
                     }
                 }
             }

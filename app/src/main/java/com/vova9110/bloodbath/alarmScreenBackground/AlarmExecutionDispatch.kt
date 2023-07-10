@@ -145,7 +145,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
                 alarm.state=Alarm.STATE_DISABLE
                 alarm.triggerTime = null
                 handleLog(alarm.state, alarm.id)
-                repo.update(alarm, false)
+                repo.update(alarm, false, context)
             }
 
             BU.cancelNotification(context, alarm.id, Alarm.STATE_ALL)
@@ -157,7 +157,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             alarm.state=Alarm.STATE_DISABLE
             val newTime = getPlusDate(2, alarm.lastTriggerTime)
             handleLog(Alarm.STATE_MISS, alarm.id, Alarm.STATE_DISABLE)
-            repo.update(alarm, false)
+            repo.update(alarm, false, context)
 
             BU.createNotification(context, alarm.id, Alarm.STATE_MISS)
             BU.scheduleExact(context, alarm.id, alarm.state, newTime.time)
@@ -168,7 +168,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             alarm.state=Alarm.STATE_SUSPEND
             val newTime = getPlusDate(2, alarm.lastTriggerTime)
             handleLog(Alarm.STATE_MISS, alarm.id, Alarm.STATE_SUSPEND)
-            repo.update(alarm, false)
+            repo.update(alarm, false, context)
 
             BU.createNotification(context, alarm.id, Alarm.STATE_MISS)
             BU.scheduleExact(context, alarm.id, alarm.state, newTime.time)
@@ -178,7 +178,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             alarm.state = Alarm.STATE_ANTICIPATE
             val newTime = getPlusDate(-10, alarm.triggerTime)
             handleLog(Alarm.STATE_SUSPEND, alarm.id, Alarm.STATE_ANTICIPATE)
-            repo.update(alarm, false)
+            repo.update(alarm, false, context)
 
             BU.cancelNotification(context, alarm.id, Alarm.STATE_ALL)
             BU.scheduleExact(context, alarm.id, Alarm.STATE_ANTICIPATE, newTime.time)
@@ -188,7 +188,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             alarm.state = Alarm.STATE_PREPARE
             val newTime = getPlusDate(-2, alarm.triggerTime)
             handleLog(Alarm.STATE_ANTICIPATE, alarm.id, Alarm.STATE_PREPARE)
-            repo.update(alarm, false)
+            repo.update(alarm, false, context)
 
             BU.scheduleExact(context, alarm.id, Alarm.STATE_PREPARE, newTime.time)
             BU.scheduleAlarm(context, alarm.id, Alarm.STATE_FIRE, alarm.triggerTime!!.time)
@@ -197,7 +197,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
         private fun setPrepareFire(context: Context, alarm: Alarm, repo: AlarmRepo){
             alarm.state = Alarm.STATE_FIRE
             handleLog(Alarm.STATE_PREPARE, alarm.id, Alarm.STATE_FIRE)
-            repo.update(alarm, false)
+            repo.update(alarm, false, context)
 
             BU.createNotification(context, alarm.id, Alarm.STATE_PREPARE)
             BU.cancelPI(context, alarm.id, Alarm.STATE_FIRE)//control cancelling in case when previous was anticipate
@@ -207,7 +207,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
         private fun setPrepareSnooze(context: Context, alarm: Alarm, repo: AlarmRepo){
             alarm.state = Alarm.STATE_SNOOZE
             handleLog(Alarm.STATE_PREPARE_SNOOZE, alarm.id, Alarm.STATE_SNOOZE)
-            repo.update(alarm, false)
+            repo.update(alarm, false, context)
 
             BU.createNotification(context, alarm.id, Alarm.STATE_PREPARE_SNOOZE)
             BU.scheduleAlarm(context, alarm.id, Alarm.STATE_SNOOZE, alarm.triggerTime!!.time)
@@ -229,7 +229,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
         private fun launchFire(context: Context, alarm: Alarm, repo: AlarmRepo){
             alarm.state = Alarm.STATE_FIRE
             handleLog(alarm.state, alarm.id)
-            repo.update(alarm, false)
+            repo.update(alarm, false, context)
 
             BU.cancelNotification(context, alarm.id, Alarm.STATE_PREPARE)
             BU.createBroadcast(context, alarm.id)
@@ -237,7 +237,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
         private fun launchSnooze(context: Context, alarm: Alarm, repo: AlarmRepo) {
             alarm.state = Alarm.STATE_SNOOZE
             handleLog(alarm.state, alarm.id)
-            repo.update(alarm, false)
+            repo.update(alarm, false, context)
 
             BU.cancelNotification(context, alarm.id, Alarm.STATE_PREPARE_SNOOZE)
             BU.cancelNotification(context, alarm.id, Alarm.STATE_SNOOZE)

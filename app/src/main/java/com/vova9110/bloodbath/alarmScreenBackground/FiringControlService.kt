@@ -9,6 +9,7 @@ import android.content.IntentFilter
 import android.os.*
 import android.os.PowerManager.WakeLock
 import androidx.core.app.NotificationCompat
+import com.vova9110.bloodbath.MainActivity
 import com.vova9110.bloodbath.MainViewModel
 import com.vova9110.bloodbath.MyApp
 import com.vova9110.bloodbath.R
@@ -32,6 +33,7 @@ class FiringControlService: Service() {
 
     private val expire = Runnable {
         AED.helpMiss(applicationContext, alarm.id, repo)
+        sendBroadcast(Intent(MainActivity.RELOAD_RV_REQUEST))
     }
 
     @SuppressLint("WakelockTimeout")
@@ -47,6 +49,7 @@ class FiringControlService: Service() {
 
         registerReceiver(receiver, filter)
         receiverRegistered = true
+        BackgroundUtils.putReloadRequest(this)
     }
 
     override fun onDestroy() {
@@ -85,11 +88,15 @@ class FiringControlService: Service() {
             return START_NOT_STICKY
         }
 
-        if (!checkInterlayer(intent))
-            try {
+        try {
+            if (!checkInterlayer(intent))
             processIntent(intent)
-            }
-            catch (e: Exception) {sl.s(e.message!!)}
+        }
+        catch (e: Exception) {
+            sl.s(e)
+            BackgroundUtils.requestErrorNotification(this)
+        }
+
         return START_NOT_STICKY
     }
 
@@ -105,6 +112,8 @@ class FiringControlService: Service() {
                 ACTION_SNOOZE-> AED.helpSnooze(applicationContext, alarm.id, repo)
                 ACTION_DISMISS-> AED.helpDismiss(applicationContext, alarm.id, repo)
             }
+
+            sendBroadcast(Intent(MainActivity.RELOAD_RV_REQUEST))
         }
     }
     private val filter = IntentFilter().apply {
