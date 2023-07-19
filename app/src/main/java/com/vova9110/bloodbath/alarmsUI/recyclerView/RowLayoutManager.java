@@ -177,6 +177,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         short topOverflow = ((endRowPos-mAvailableRows) > 0) ? (short) (endRowPos-mAvailableRows) : 0;
         startRowPos-=topOverflow;
         endRowPos-=topOverflow;
+        if (startRowPos < 1) startRowPos = 1;
         //this offset can't be far away from startRow, because it still has to be visible
         //for us to tap on it and close pref
         int startOffset = savedBaseline - (startRowPos-1) * aide.getDecoratedTimeHeight();
@@ -517,7 +518,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         }
 
         if (!initialPassed) initialPassed=true;
-        stateBackup();
 
         int prp = (prefRowPos==0) ? -1 : prefRowPos;
         slU.f("Anchor row: " + mAnchorRowPos + " , top baseline: " + mTopBaseline + " , top bound: " + mTopBound +
@@ -1085,7 +1085,6 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     public void onScrollStateChanged (int state){
         if (state == RecyclerView.SCROLL_STATE_IDLE && mViewCache.size()!=0){//Чисто лог выводим
             slU.f("Row " + mAnchorRowPos + ", Top baseline: " + mTopBaseline + ", Top bound:" + mTopBound + ", Bottom baseline: " + mBottomBaseline + ", Bottom bound:" + mBottomBound + ", first cache: " + mViewCache.keyAt(0) + ", last cache: " + mViewCache.keyAt(mViewCache.size() - 1));
-            stateBackup();
         }
     }
 
@@ -1151,7 +1150,11 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             oldPrefParentPos = this.prefParentPos;
 
             //Here, because global prefParentPos didn't change yet
-            if (mViewCache.get(this.prefParentPos)!=null) detachAndScrapView(mViewCache.get(this.prefParentPos), recycler);
+            View parent = mViewCache.get(this.prefParentPos);
+            try {
+                //Sometimes ti can be scrapped
+                if (parent!=null) detachAndScrapView(parent, recycler);
+            } catch (Exception ignored) {}
             recycler.clear();
 
             this.prefParentPos = currentPrefParentPos;
@@ -1191,12 +1194,16 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         slU.frp(state);
         savedState = state;
     }
-    private void stateBackup(){
+
+    @NonNull
+    @Override
+    public int[] getRVState() {
         int[] s = new int[3];
         s[0] = mTopBaseline;
         s[1] = (prefVisibility && !prefScrapped && !STSTop && !STSBottom) ? 1 : 0;
         s[2] = prefParentPos;
-        aideCallback.routineStateBackup(s);
+        slU.frp(s);
+        return s;
     }
 
     /**

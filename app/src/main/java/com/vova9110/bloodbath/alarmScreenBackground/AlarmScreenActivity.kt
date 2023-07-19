@@ -77,8 +77,10 @@ class AlarmActivity : AppCompatActivity() {
         snoozeView = this.findViewById(R.id.alarm_delay_view)
 
         repo = (applicationContext as MyApp).component.repo
-        info = if (Build.VERSION.SDK_INT>= Build.VERSION_CODES.TIRAMISU) intent.getParcelableExtra("info", SubInfo::class.java)!!
-        else intent.getParcelableExtra("info")!!
+        info = if (Build.VERSION.SDK_INT>= Build.VERSION_CODES.TIRAMISU) intent.getParcelableExtra(FiringUtils.infoExtra, SubInfo::class.java)!!
+        else intent.getParcelableExtra(FiringUtils.infoExtra)!!
+
+        findViewById<TextView>(R.id.alarm_info_view).text = if (info.preliminary) "Preliminary" else ""
 
         listenDragNDrop(
             startView,
@@ -91,6 +93,13 @@ class AlarmActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         sl.en()
+
+        if (this::repo.isInitialized)
+            if (!AED.reassureStillValid(info.id, repo)){
+                sl.f("activity reassurance failed. Exiting")
+                finish()
+                return
+            }
 
         if (!receiverRegistered){
             receiverRegistered = true
@@ -125,8 +134,7 @@ class AlarmActivity : AppCompatActivity() {
         startView: CustomImageView, dismissView: ImageView, snoozeView: TextView,
         dismissBlock: (CustomImageView, ImageView) -> Unit, snoozeBlock: ((CustomImageView, TextView) -> Unit),
     ){
-        if (info.snoozed) snoozeView.visibility=View.INVISIBLE
-
+        if (info.snoozed || info.preliminary) snoozeView.visibility=View.GONE
         //We are only interested in DOWN action here
         //Also, startView handling exclusively in this (context) function,
         //Outside of two drag listeners

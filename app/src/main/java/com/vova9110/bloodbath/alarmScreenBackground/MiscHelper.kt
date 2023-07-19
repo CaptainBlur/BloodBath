@@ -40,7 +40,7 @@ class MiscHelper(context: Context, expireRunnable: Runnable) {
                     MSG_START->{
                         val info = msg.obj as SubInfo
 
-                        player = returnPlayer(context, info)
+//                        player = returnPlayer(context, info)
                         player?.start()
 
                         if (info.vibrate){

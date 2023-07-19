@@ -1,5 +1,6 @@
 package com.vova9110.bloodbath
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
@@ -9,19 +10,15 @@ import android.content.SharedPreferences
 import android.media.AudioAttributes
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
 import com.vova9110.bloodbath.SplitLogger.Companion.fpc
 import com.vova9110.bloodbath.SplitLoggerUI.UILogger.initialize
-import com.vova9110.bloodbath.alarmsUI.ErrorHandlerImpl
 import com.vova9110.bloodbath.alarmsUI.UISupervisor
 import com.vova9110.bloodbath.alarmsUI.slU
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import java.lang.Exception
 import java.util.Locale
 
 interface StateSaver{
@@ -77,16 +74,13 @@ class MainViewModel(private val app: Application) : AndroidViewModel(
 
     override fun checkRVReloadRequest(): Boolean{
         var reloadRV = false
+        _savedState.update { current->
+            val editor = getPrefs().edit()
+            reloadRV = getPrefs().getBoolean("rv_reload", false)
+            editor.putBoolean("rv_reload", false)
 
-        viewModelScope.launch {
-            _savedState.update { current->
-                val editor = getPrefs().edit()
-                reloadRV = getPrefs().getBoolean("rv_reload", false)
-                editor.putBoolean("rv_reload", false)
-
-                editor.apply()
-                current.copy(reloadRV = reloadRV)
-            }
+            editor.apply()
+            current.copy(reloadRV = reloadRV)
         }
 
         slU.f("RVReload: $reloadRV")
@@ -98,7 +92,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(
      * In case of creating a new one (along with MVM), it's useless
      */
     override fun dropRVReloadRequest() {
-        viewModelScope.launch {
             _savedState.update { current->
                 val editor = getPrefs().edit()
                 editor.putBoolean("rv_reload", false)
@@ -106,20 +99,19 @@ class MainViewModel(private val app: Application) : AndroidViewModel(
                 editor.apply()
                 current.copy(reloadRV = false)
             }
-        }
     }
 
+    @SuppressLint("ApplySharedPref")
     override fun updateRVSavedState(state: IntArray){
-        viewModelScope.launch {
             _savedState.update { current ->
                 val editor = getPrefs().edit()
-                val RVSetJson = Gson().toJson(state)
+                val rvSetJson = Gson().toJson(state)
 
-                editor.putString("rv_saved", RVSetJson)
-                editor.apply()
+                editor.putString("rv_saved", rvSetJson)
+                //Executing in async mode may cause data didn't saved before app's killed
+                editor.commit()
                 current.copy(RVSet = state)
             }
-        }
     }
 
 

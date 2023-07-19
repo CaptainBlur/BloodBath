@@ -8,11 +8,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.*
 import android.os.PowerManager.WakeLock
-import androidx.core.app.NotificationCompat
 import com.vova9110.bloodbath.MainActivity
-import com.vova9110.bloodbath.MainViewModel
 import com.vova9110.bloodbath.MyApp
-import com.vova9110.bloodbath.R
 import com.vova9110.bloodbath.database.Alarm
 
 
@@ -25,30 +22,28 @@ class FiringControlService: Service() {
     private lateinit var wakeLock: WakeLock
     private lateinit var repo: AlarmRepo
     private lateinit var alarm: Alarm
-    private lateinit var ntph: MiscHelper
     private var activityBound = false
     private var receiverRegistered = false
     private var launched = false
     private var noiseActivated = false
 
-    private val expire = Runnable {
+    private val expire = {
+        //AED will order FCS shortly after it stops defining state
         AED.helpMiss(applicationContext, alarm.id, repo)
         sendBroadcast(Intent(MainActivity.RELOAD_RV_REQUEST))
     }
+    private val utils = FiringUtils(this, expire)
 
     @SuppressLint("WakelockTimeout")
     override fun onCreate() {
         super.onCreate()
+        sl.en()
         repo = (applicationContext as MyApp).component.repo
 
         wakeLock =
             (getSystemService(POWER_SERVICE) as PowerManager).newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                 "${applicationContext.packageName}:${this::class.java.name}").also { it.acquire() }
-        sl.en()
-        ntph = MiscHelper(this, expire)
 
-        registerReceiver(receiver, filter)
-        receiverRegistered = true
         BackgroundUtils.putReloadRequest(this)
     }
 
@@ -74,30 +69,10 @@ class FiringControlService: Service() {
     }
 
     private fun stopService(){
-        ntph.handler.dispatchMessage(Message().apply {
-            arg1 = MiscHelper.MSG_STOP
-        })
+        sl.f("ordered to stop")
+        utils.stopRest()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
-    }
-
-    @SuppressLint("SuspiciousIndentation")
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent!!.action== STOP_SERVICE){
-            stopService()
-            return START_NOT_STICKY
-        }
-
-        try {
-            if (!checkInterlayer(intent))
-            processIntent(intent)
-        }
-        catch (e: Exception) {
-            sl.s(e)
-            BackgroundUtils.requestErrorNotification(this)
-        }
-
-        return START_NOT_STICKY
     }
 
     private val receiver = object: BroadcastReceiver(){
@@ -121,49 +96,78 @@ class FiringControlService: Service() {
         addAction(ACTION_DISMISS)
     }
 
+    @SuppressLint("SuspiciousIndentation")
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent!!.action == STOP_SERVICE){
+            stopService()
+            return START_NOT_STICKY
+        }
+
+        try {
+            /*
+            If interlayer call is confirmed, service will be stopped
+            after AED is launched. Also, on true reassure, serviceStop expected
+            */
+            if (!checkInterlayer(intent)) {
+                //Basically, the main purpose of this service
+                registerReceiver(receiver, filter)
+                receiverRegistered = true
+                processIntent(intent)
+            }
+        }
+        catch (e: Exception) {
+            sl.s(e)
+            BackgroundUtils.requestErrorNotification(this)
+        }
+
+        return START_NOT_STICKY
+    }
+
+    /**
+     * Detecting interlayer call and posting core Service notification
+     */
     private fun checkInterlayer(intent: Intent): Boolean {
         val current = repo.getOne(intent.action)
 
-        return if (current.state!=Alarm.STATE_FIRE && current.state!=Alarm.STATE_SNOOZE){
-            val builder = NotificationCompat.Builder(this, MainViewModel.INFO_CH_ID)
-                .setSmallIcon(R.drawable.ic_clock_alarm)
-                .setShowWhen(false)
-                .setContentText("you get lucky if you read this")
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            this.startForeground(BackgroundUtils.UNIVERSAL_NOT_ID, builder.build())
-
+        return if (current.state!=Alarm.STATE_FIRE && current.state!=Alarm.STATE_SNOOZE && current.state!=Alarm.STATE_PRELIMINARY){
             sl.f("interlayer call detected")
-            val newIntent = Intent(this, AED::class.java).apply { this.action = intent.action }
-            this.sendBroadcast(newIntent)
-            this.stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+
+            utils.setInterlayerNotification()
+            AED.handleStateChange(this.applicationContext, current)
+            stopService()
 
             true
-        } else{
+        }
+        else{
             sl.f("NO interlayer call detected")
             false
         }
     }
 
     private fun processIntent(intent: Intent){
+
         val current = repo.getOne(intent.action)
-        if (current.state==Alarm.STATE_FIRE) AED.handleFire(this, current)
-        if (current.state==Alarm.STATE_SNOOZE) AED.handleSnooze(this, current)
+        if (current.state==Alarm.STATE_FIRE || current.state==Alarm.STATE_PRELIMINARY) AED.killFireNotification(this, current)
+        if (current.state==Alarm.STATE_SNOOZE) AED.killSnoozeNotification(this, current)
 
-        val info = repo.getTimesInfo(current.id)
         val globalID = BackgroundUtils.getGlobalID(applicationContext)
-        sl.f("globalID is: *${BackgroundUtils.getGlobalID(applicationContext)}* now")
+        sl.f("globalID is: *$globalID* now")
 
-        if (globalID == "null") throw IllegalStateException("Cannot proceed with *null* globalID")
         if (current.id != globalID){
             AED.helpNotPassed(this, current.id, repo)
             return
         }
+
         if (current.triggerTime==null) throw IllegalArgumentException("Cannot proceed without triggerTime")
-        if (current.state!=Alarm.STATE_FIRE && current.state!=Alarm.STATE_SNOOZE) throw IllegalArgumentException("Cannot proceed with *${current.state}* state")
-        if ((current.state==Alarm.STATE_FIRE && current.snoozed) || (current.state==Alarm.STATE_SNOOZE && !current.snoozed)) throw IllegalArgumentException("Cannot proceed with *${current.state}* state when alarm.snoozed is: *${current.snoozed}*")
+        if (current.state!=Alarm.STATE_FIRE &&
+            current.state!=Alarm.STATE_SNOOZE &&
+            current.state!=Alarm.STATE_PRELIMINARY)
+                throw IllegalArgumentException("Cannot proceed with *${current.state}* state")
+        if (((current.state==Alarm.STATE_FIRE || current.state==Alarm.STATE_PRELIMINARY) && current.snoozed) ||
+            (current.state==Alarm.STATE_SNOOZE && !current.snoozed))
+                throw IllegalArgumentException("Cannot proceed with *${current.state}* state when alarm.snoozed is: *${current.snoozed}*")
         if (launched) {
-            sl.w("Recursive call detected, process already began. Returning")
+            sl.s("Recursive call detected, process already began. Returning")
             return
         }
 
@@ -173,11 +177,8 @@ class FiringControlService: Service() {
         launched = true
         noiseActivated = true
 
-        ntph.setBasisNotification(this, repo.getTimesInfo(current.id))
-        ntph.handler.dispatchMessage(Message().apply {
-            arg1 = MiscHelper.MSG_START
-            obj = info
-        })
+        utils.setBasisNotification(alarm.getInfo(this))
+        utils.launchRest()
     }
 
     companion object{

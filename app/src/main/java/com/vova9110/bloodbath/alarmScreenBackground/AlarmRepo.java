@@ -29,27 +29,7 @@ public class AlarmRepo {
     }
 
     //This is a group of access methods, they don't perform control actions, but just provide access to the database for the Handlers and for other's needs
-    //todo make protected
-    public SubInfo getTimesInfo(String id){
-        Alarm instance = getOne(id);
 
-        return new SubInfo(
-                instance.getTriggerTime(),
-                instance.getId(),
-                instance.getSnoozed(),
-                null,
-                instance.getVibrate(),
-                true,
-                -1,
-                15,
-                2.2f,
-                0,
-                5,
-                40,
-                90,
-                8,
-                10);
-    }
     protected Alarm getOne(String id){
         int[] a = Alarm.getHM(id);
         Callable<Alarm> callable = ()-> alarmDao.getOne(a[0], a[1]);
@@ -103,11 +83,13 @@ public class AlarmRepo {
      * @param alarm new instance
      */
     public void insert (Alarm alarm, Context c){
+        sl.i("inserting alarm: " + alarm.getId());
         if (!alarm.component3()) {
             sl.fpc("passed alarm hadn't been enabled");
             executor.execute(() -> alarmDao.insert(alarm));
         }
         else {
+            alarm.setPreliminaryTime(30);
             alarm.calculateTriggerTime();
             executor.execute(() -> alarmDao.insert(alarm));
             AlarmExecutionDispatch.defineNewState(c, alarm, this);
@@ -124,17 +106,30 @@ public class AlarmRepo {
      */
     public void update (Alarm alarm, boolean recalculateStates, Context c){
         if (recalculateStates){
-            if (alarm.getEnabled()) alarm.calculateTriggerTime();
+            sl.i("updating alarm: " + alarm.getId());
+            if (alarm.getEnabled()){
+                alarm.setPreliminaryTime(30);
+                alarm.calculateTriggerTime();
+            }
             else alarm.setTriggerTime(null);
-            AlarmExecutionDispatch.defineNewState(c, alarm, this);//Kinda recursive thing
+
+            //AED not always erasing PIs and notifications, so we just make sure it's nothing left of an old one
+            BackgroundUtils.cancelNotification(c, alarm.getId(), Alarm.STATE_ALL);
+            BackgroundUtils.cancelPI(c, alarm.getId(), Alarm.STATE_ALL);
+            //Kinda recursive thing, because AED will eventually call this method, but without recalculating
+            AlarmExecutionDispatch.defineNewState(c, alarm, this);
         }
-        else executor.execute(() -> alarmDao.update(alarm));
+        else executor.execute(() ->{
+            sl.fst("updating alarm: " + alarm.getId());
+            alarmDao.update(alarm);
+        });
     }
 
     /**
      * Use this method to discard all existing instances (except of the *addAlarm*) in DB and cancel all appointments
      */
     public void deleteAll(Context c) {
+        sl.i("deleting all");
         AlarmExecutionDispatch.wipeAll(c, getAll());
         executor.execute(alarmDao::deleteAll);
     }
@@ -144,6 +139,7 @@ public class AlarmRepo {
      * @param alarm instance to discard
      */
     public void deleteOne(Alarm alarm, Context c){
+        sl.i("deleting alarm: " + alarm.getId());
         executor.execute(() -> alarmDao.deleteOne(alarm.getHour(), alarm.getMinute()));
         AlarmExecutionDispatch.wipeOne(c, alarm);
     }

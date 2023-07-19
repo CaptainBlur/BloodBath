@@ -6,6 +6,8 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.HandlerThread;
 
@@ -16,7 +18,9 @@ import com.vova9110.bloodbath.R;
 import com.vova9110.bloodbath.SplitLogger;
 import com.vova9110.bloodbath.database.Alarm;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedList;
@@ -43,6 +47,7 @@ public class BackgroundUtils {
     private static final int ANTICIPATE_PREF = 46;
     private static final int PREPARE_PREF = 56;
     private static final int FIRE_PREF = 11;
+    public static final int PRELIMINARY_PREF = 89;
     private static final int SNOOZE_PREF = 69;
     private static final int MISS_PREF = 29;
     public static final int UNIVERSAL_NOT_ID = 911;
@@ -50,8 +55,12 @@ public class BackgroundUtils {
 
     static protected String getGlobalID(Context context){
         SharedPreferences pref = context.getSharedPreferences(MainViewModel.PREFERENCES_NAME, Context.MODE_PRIVATE);
-        return pref.getString("global", "null");
+        String global = pref.getString("global", "null");
+        if (global.equals("null")) throw new IllegalStateException("Cannot proceed with *null* globalID");
+
+        return global;
     }
+
     public static void setGlobalID(Context context, AlarmRepo repo){
         SharedPreferences pref = context.getSharedPreferences(MainViewModel.PREFERENCES_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();
@@ -67,18 +76,23 @@ public class BackgroundUtils {
         LinkedList<Alarm> actives = new LinkedList<>(repoActives);
         actives.sort(Comparator.comparing(Alarm::getTriggerTime));
         String id = actives.get(0).getId();
+        boolean pr = actives.get(0).getInfo(context).getPreliminary();
 
         editor.putString("global", id);
-        if (editor.commit()) sl.fstpc("globalID has set for " + id);
+        if (editor.commit()) sl.fstpc("globalID has set for " + id + ((pr) ? " (preliminary)" : ""));
         else sl.spc("error setting globalID for " + id);
     }
 
+    //Implying we need to show notification wneh Main interface is loaded,
+    //and also reassure FCS on new firing event
     static protected void requestErrorNotification(Context context){
         SharedPreferences pref = context.getSharedPreferences(MainViewModel.PREFERENCES_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = pref.edit();
 
         editor.putBoolean("firing_error", true);
+//        editor.putBoolean("reassure_repo", true);
         editor.apply();
+        sl.w("error request passed");
     }
 
     static protected void putReloadRequest(Context context){
@@ -87,6 +101,19 @@ public class BackgroundUtils {
 
         editor.putBoolean("rv_reload", true);
         editor.apply();
+    }
+
+    static protected MediaPlayer returnPlayer(Context context, SubInfo info) throws IOException {
+        AudioAttributes attributes = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
+        MediaPlayer r = new MediaPlayer();
+            r.setDataSource(context, info.getSoundPath());
+            r.setAudioAttributes(attributes);
+            r.setLooping(true);
+            r.prepare();
+        return r;
     }
 
     static protected void scheduleExact(Context context, String id, String state, long time){
@@ -103,12 +130,16 @@ public class BackgroundUtils {
             }
             case Alarm.STATE_ANTICIPATE -> composedID = String.valueOf(ANTICIPATE_PREF);
             case Alarm.STATE_DISABLE -> composedID = String.valueOf(DISABLE_PREF);
+            case Alarm.STATE_PRELIMINARY -> composedID = String.valueOf(PRELIMINARY_PREF);
             case Alarm.STATE_FIRE -> composedID = String.valueOf(FIRE_PREF);
             case Alarm.STATE_MISS -> composedID = String.valueOf(MISS_PREF);
             case Alarm.STATE_PREPARE -> composedID = String.valueOf(PREPARE_PREF);
             case Alarm.STATE_SNOOZE -> composedID = String.valueOf(SNOOZE_PREF);
             case Alarm.STATE_SUSPEND -> composedID = String.valueOf(SUSPEND_PREF);
-            default -> composedID = "";
+            default -> {
+                composedID = "";
+                throw new IllegalArgumentException("Cannot operate without proper state");
+            }
         }
         composedID+=id;
 
@@ -132,8 +163,12 @@ public class BackgroundUtils {
                 return;
             }
             case Alarm.STATE_FIRE -> composedID = String.valueOf(FIRE_PREF);
+            case Alarm.STATE_PRELIMINARY -> composedID = String.valueOf(PRELIMINARY_PREF);
             case Alarm.STATE_SNOOZE -> composedID = String.valueOf(SNOOZE_PREF);
-            default -> composedID = "";
+            default -> {
+                composedID = "";
+                throw new IllegalArgumentException("Cannot operate without proper state");
+            }
         }
         composedID+=id;
 
@@ -155,6 +190,7 @@ public class BackgroundUtils {
             cancelParticular(context, id, Alarm.STATE_ANTICIPATE);
             cancelParticular(context, id, Alarm.STATE_PREPARE);
             cancelParticular(context, id, Alarm.STATE_FIRE);
+            cancelParticular(context, id, Alarm.STATE_PRELIMINARY);
             cancelParticular(context, id, Alarm.STATE_SNOOZE);
             cancelParticular(context, id, Alarm.STATE_MISS);
             return;
@@ -175,6 +211,7 @@ public class BackgroundUtils {
             case Alarm.STATE_ANTICIPATE -> String.valueOf(ANTICIPATE_PREF);
             case Alarm.STATE_DISABLE -> String.valueOf(DISABLE_PREF);
             case Alarm.STATE_FIRE -> String.valueOf(FIRE_PREF);
+            case Alarm.STATE_PRELIMINARY -> String.valueOf(PRELIMINARY_PREF);
             case Alarm.STATE_MISS -> String.valueOf(MISS_PREF);
             case Alarm.STATE_PREPARE -> String.valueOf(PREPARE_PREF);
             case Alarm.STATE_SNOOZE -> String.valueOf(SNOOZE_PREF);
@@ -186,6 +223,47 @@ public class BackgroundUtils {
         PendingIntent pending = PendingIntent.getForegroundService(context, Integer.parseInt(composedID), intent,PendingIntent.FLAG_IMMUTABLE + PendingIntent.FLAG_CANCEL_CURRENT);
         manager.cancel(pending);
     }
+    static private String getClockString(String id){
+        int h = Integer.parseInt(id.substring(0,1));
+        int m = Integer.parseInt(id.substring(1,2));
+        return getClockString(h, m);
+    }
+    static private String getClockString(int h, int m){
+        return String.format(Locale.ENGLISH, "%02d:%02d", h, m);
+    }
+    static private PendingIntent composeButtonPI(Context context, String id, String targetState, int requestCode){
+        Intent intent = new Intent(context, AlarmExecutionDispatch.class);
+        intent.putExtra(AlarmExecutionDispatch.extraID, id);
+        intent.putExtra(AlarmExecutionDispatch.extraState, targetState);
+
+        String composedRequest = String.valueOf(requestCode);
+        composedRequest+=id;
+
+        return PendingIntent.getBroadcast(
+                context,
+                Integer.parseInt(composedRequest),
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+    }
+    static protected void createPreliminaryNotification(Context context, String id, Date preliminaryTime){
+        Calendar pC = Calendar.getInstance();
+        pC.setTime(preliminaryTime);
+
+        NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, MainViewModel.INFO_CH_ID)
+                .setSmallIcon(R.drawable.ic_clock_alarm)
+                .setShowWhen(false)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentTitle("Preliminary alarm for " + getClockString(pC.get(Calendar.HOUR_OF_DAY), pC.get(Calendar.MINUTE)))
+                .setContentText("Main in " + getClockString(id))
+                .addAction(new NotificationCompat.Action(null, "Dismiss preliminary",
+                        composeButtonPI(context, id, AlarmExecutionDispatch.targetStateDismissPreliminary, 1)))
+                .addAction(new NotificationCompat.Action(null, "Dismiss",
+                        composeButtonPI(context, id, AlarmExecutionDispatch.targetStateDismiss, 2)));
+
+        manager.notify(id + Alarm.STATE_PREPARE, UNIVERSAL_NOT_ID, builder.build());
+    }
 
     static protected void createNotification(Context context, String id, String state){
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -194,10 +272,19 @@ public class BackgroundUtils {
                 .setShowWhen(false)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
         switch (state) {
-            case (Alarm.STATE_PREPARE) -> builder.setContentTitle("Upcoming in: " + id);
+            case (Alarm.STATE_PREPARE) ->
+                    builder.setContentTitle("Upcoming alarm")
+                            .setContentText("for " + getClockString(id))
+                            .addAction(new NotificationCompat.Action(null, "Dismiss",
+                                    composeButtonPI(context, id, AlarmExecutionDispatch.targetStateDismiss, 1)));
             case (Alarm.STATE_PREPARE_SNOOZE) ->
-                    builder.setContentTitle("Upcoming snooze for: " + id);
-            case (Alarm.STATE_MISS) -> builder.setContentTitle("Missed: " + id);
+                    builder.setContentTitle("Snoozed alarm")
+                            .setContentText("in " + getClockString(id))
+                            .addAction(new NotificationCompat.Action(null, "Dismiss",
+                                    composeButtonPI(context, id, AlarmExecutionDispatch.targetStateDismiss, 1)));
+            case (Alarm.STATE_MISS) -> builder.setContentTitle("Missed alarm")
+                    .setContentText("in " + getClockString(id));
+            default -> throw new IllegalArgumentException("Cannot operate without proper state");
         }
 
         manager.notify(id + state, UNIVERSAL_NOT_ID, builder.build());
@@ -217,7 +304,7 @@ public class BackgroundUtils {
         }
         else {
             manager.cancel(id + state, UNIVERSAL_NOT_ID);
-            sl.fst("Cancelling alarm for state *" + state + "* for *" + id + "*");
+            sl.fst("Cancelling alarm notification, state *" + state + "*, id *" + id + "*");
             testListener.onNotificationCancelled(state);
         }
     }

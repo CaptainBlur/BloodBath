@@ -10,6 +10,9 @@ data class SubInfo(
     private var firingDate: Date?,
     val id: String,
     val snoozed: Boolean,
+    //indicates current neediness for preliminary
+    val preliminary: Boolean,
+    val preliminaryTime: Int,
 
     var soundPath: Uri?,
     val vibrate: Boolean = true,
@@ -47,6 +50,8 @@ data class SubInfo(
         Date(parcel.readLong()),
         parcel.readString()!!,
         parcel.readInt()==1,
+        parcel.readInt()==1,
+        parcel.readInt(),
         Uri.parse(parcel.readString()),
         parcel.readInt()==1,
         parcel.readInt()==1,
@@ -65,6 +70,8 @@ data class SubInfo(
         parcel.writeLong(firingDate!!.time)
         parcel.writeString(id)
         parcel.writeInt(if(snoozed) 1 else 0)
+        parcel.writeInt(if(preliminary) 1 else 0)
+        parcel.writeInt(preliminaryTime)
         parcel.writeString(soundPath.toString())
         parcel.writeInt(if(vibrate) 1 else 0)
         parcel.writeInt(if(volumeLock) 1 else 0)

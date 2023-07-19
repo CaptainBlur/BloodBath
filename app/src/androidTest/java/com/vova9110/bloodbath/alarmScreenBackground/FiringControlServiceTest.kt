@@ -20,21 +20,44 @@ internal class FiringControlServiceTest{
     fun getVars(){
         c = InstrumentationRegistry.getInstrumentation().targetContext
         repo = (c.applicationContext as MyApp).component.repo
+
+        for (active in repo.actives) if (active.test) repo.deleteOne(active, c)
     }
 
     @Test
     fun passSimple(){
         val cal = Calendar.getInstance().apply { add(Calendar.MINUTE, 1) }
-        val new = Alarm(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), true)
+        val new = Alarm(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), enabled = true, test = true)
 
         repo.insert(new, c)
+    }
+    @Test
+    fun passTwoSimple(){
+        val cal = Calendar.getInstance().apply { add(Calendar.MINUTE, 1) }
+        val new = Alarm(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), enabled = true, test = true)
 
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                repo.deleteOne(new, c)
-            }
-        }
-        val filter = IntentFilter(FiringControlService.ACTION_KILL)
-        c.registerReceiver(receiver, filter)
+        val cal_ = Calendar.getInstance().apply { add(Calendar.MINUTE, 16) }
+        val new_ = Alarm(cal_.get(Calendar.HOUR_OF_DAY), cal_.get(Calendar.MINUTE), enabled = true, test = true)
+
+        repo.insert(new, c)
+        repo.insert(new_, c)
+    }
+    @Test
+    fun passPreliminary(){
+        val cal = Calendar.getInstance().apply { add(Calendar.MINUTE, 31) }
+        val new = Alarm(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), enabled = true, test = true).apply { preliminary = true }
+
+        repo.insert(new, c)
+    }
+    @Test
+    fun passPreliminaryAndRegularForButton(){
+        val cal = Calendar.getInstance().apply { add(Calendar.MINUTE, 32) }
+        val new = Alarm(cal.get(Calendar.HOUR_OF_DAY), cal.get(Calendar.MINUTE), enabled = true, test = true).apply { preliminary = true }
+
+        val cal_ = Calendar.getInstance().apply { add(Calendar.MINUTE, 16) }
+        val new_ = Alarm(cal_.get(Calendar.HOUR_OF_DAY), cal_.get(Calendar.MINUTE), enabled = true, test = true)
+
+        repo.insert(new, c)
+        repo.insert(new_, c)
     }
 }

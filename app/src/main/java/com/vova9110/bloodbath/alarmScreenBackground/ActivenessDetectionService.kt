@@ -84,7 +84,7 @@ class ActivenessDetectionService: Service() {
         else {
             val intersected = if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.TIRAMISU) intent!!.getParcelableExtra("info", SubInfo::class.java)!!
             else intent!!.getParcelableExtra("info")!!
-            sl.w("Already launched. Decline incoming with id: **")
+            sl.w("Already launched. Decline incoming with id: *${intersected.id}*")
             AlarmExecutionDispatch.helpAfterDetection(applicationContext, intersected.id)
         }
 
@@ -138,7 +138,7 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
 
     init {
         handleInforming(NOT_CREATE)
-        player = returnPlayer(context, info)
+        player = BackgroundUtils.returnPlayer(context, info)
         sl.f("Controller: initialized. Test mode: $testMode, output: $fileOutput")
 
         //Dispatching all terminal messages to the endSubj,
@@ -227,7 +227,7 @@ private class Controller(val stopService: ()->Unit, val context: Context, val ha
                     .setContentText("points count: not detected yet")
                 manager.notify(notificationID, notification.build())
                 service.startForeground(notificationID, notification.build())
-                sl.frp("service have been set to foreground")
+                sl.frp("service has been set to foreground")
             }
             NOT_PROGRESS->{
                 manager.cancel(warningID)

@@ -42,12 +42,6 @@ class UISupervisor(val app: Application) {
         fAHandler = FreeAlarmsHandler(this, rv, mainActivity::transmitError)
         callbacks["fatomCallback"] = fAHandler
     }
-
-    //TODO GET RID OF THIS!!!
-    fun clearOrFill(fill: Boolean){
-        if (fill) fAHandler.fill()
-        else fAHandler.clear()
-    }
 }
 
 interface ErrorHandlerImpl{

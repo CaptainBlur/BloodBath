@@ -29,6 +29,7 @@ class FreeAlarmsHandler(
     private val mtofaCallback: M_to_FA_Callback by supervisor.callbacks
     private val context = supervisor.app.applicationContext
     private val repo = supervisor.repo
+
     private var recycler = targetView as AdjustableRecyclerView
     private lateinit var adapter: AlarmListAdapter
     private lateinit var rlmCallback: RLMCallback
@@ -92,6 +93,8 @@ class FreeAlarmsHandler(
         initRecycler(afterError)
         slU.i("New RV created")
     }
+
+    override fun onMainExiting() = supervisor.stateSaver.updateRVSavedState(rlmCallback.getRVState())
     override fun internalErrorHandling(ex: Exception) {
         slU.s("Resetting RV", ex)
         createBrandNewRecycler(true)
@@ -360,27 +363,23 @@ class FreeAlarmsHandler(
         repo.deleteOne(alarm2, context)
     }
 
-    fun fill() {
+    override fun clearOrFill(fill: Boolean){
         repo.deleteAll(context)
         bufferList = LinkedList<Alarm>()
 
-        var r = 0
-        for (i in 0..27) {
-            if (i%3==0) r++
-            val alarm = Alarm(r, i)
-            bufferList.add(alarm)
-            repo.insert(alarm, context)
+        if (fill){
+            var r = 0
+            for (i in 0..27) {
+                if (i%3==0) r++
+                val alarm = Alarm(r, i)
+                bufferList.add(alarm)
+                repo.insert(alarm, context)
 
+            }
+            bufferList.add(addAlarm)
+            adapter.submitList(bufferList)
         }
-        bufferList.add(addAlarm)
-        adapter.submitList(bufferList)
-    }
-
-    fun clear() {
-        repo.deleteAll(context)
-        bufferList = LinkedList<Alarm>()
-        bufferList.add(addAlarm)
-        adapter.submitList(bufferList)
+        createBrandNewRecycler(false)
     }
 
     override fun getMeasurements(): MeasurementsAide? = this.measurements.also { it?.setNewRV(this.recycler) }
@@ -415,7 +414,6 @@ class FreeAlarmsHandler(
     override fun getDrawables(): MainDrawables = supervisor.drawables
     override fun getFragmentManager(): FragmentManager = mtofaCallback.getFM()
     override fun getItemViewHolder(adapterPos: Int): ViewHolder? = recycler.findViewHolderForAdapterPosition(adapterPos)
-    override fun routineStateBackup(state: IntArray) = supervisor.stateSaver.updateRVSavedState(state)
 
     override fun showAdd(){
         if (rlmCallback.isBusy()){
@@ -486,7 +484,6 @@ sealed interface AideCallback{
     //FAH creates an aide and puts inside variable
     fun createMeasurements(recycler: RecyclerView.Recycler, master: RecyclerView.LayoutManager)
     fun getItemViewHolder(adapterPos: Int): ViewHolder?
-    fun routineStateBackup(state: IntArray)
 }
 
 /**
@@ -507,11 +504,14 @@ interface RLMCallback{
     fun setNotifyUpdate(flag: Int)
     fun isBusy(): Boolean
     fun setRVState(state: IntArray)
+    fun getRVState(): IntArray
 }
 
 interface FA_to_M_Callback{
     fun showAdd()
     fun createBrandNewRecycler(afterError: Boolean)
+    fun onMainExiting()
+    fun clearOrFill(fill: Boolean)
 }
 
 /**

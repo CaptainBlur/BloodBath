@@ -5,10 +5,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Rect
+import android.media.AudioManager
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -33,9 +37,11 @@ import com.vova9110.bloodbath.alarmsUI.slU
 import io.reactivex.rxjava3.observers.DisposableObserver
 import io.reactivex.rxjava3.subjects.AsyncSubject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity(), M_to_FA_Callback {
     private val sl = SplitLogger()
@@ -49,6 +55,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        slU.en()
 
 //        Date firstDate = new Date();
 //        Date secDate = firstDate;
@@ -61,24 +68,15 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback {
         _vm = vm
         supervisor = _vm.supervisor
 
-        //passing views that need custom inflation
-        val inflaterJob = lifecycleScope.launch {
-            this@MainActivity.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                val rootView = this@MainActivity.window.decorView.rootView.findViewById<ConstraintLayout>(R.id.constraint_layout)
-                LayoutInflater.from(this@MainActivity).inflate(R.layout.recycler_view, rootView, true)
-                slU.f("RV inflated")
-            }
-        }
-//        _vm.updateRVSavedState(faCallback.getRVState())
-//        slU.i(mMainViewModel.savedState.)
+        val rootView = this@MainActivity.window.decorView.rootView.findViewById<ConstraintLayout>(R.id.constraint_layout)
+        LayoutInflater.from(this@MainActivity).inflate(R.layout.recycler_view, rootView, true)
+        slU.f("RV inflated")
 
-        slU.en()
         //creating oneShot listener for MainActivity view's layout
         val targetWaiter: AsyncSubject<View> = AsyncSubject.create()
         targetWaiter.subscribe(object : DisposableObserver<View>() {
             override fun onNext(t: View) = run {
                 supervisor.onMainActivityReady(this@MainActivity, t)
-                inflaterJob.cancel()
 
                 val rect= Rect()
                 t.getWindowVisibleDisplayFrame(rect)
@@ -94,6 +92,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback {
         view.viewTreeObserver.addOnGlobalLayoutListener { onTargetReady(view) }
 
         prepareReceiver()
+        prepareViews()
     }
 
 
@@ -136,6 +135,12 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback {
         registerReceiver(receiver, filter)
     }
 
+    private fun prepareViews(){
+        val utilityButton = findViewById<Button>(R.id.buttonFill)
+        utilityButton.setOnClickListener { faCallback.clearOrFill(true) }
+        utilityButton.setOnLongClickListener { faCallback.clearOrFill(false); true }
+    }
+
     fun transmitError(code: Int){
         when(code){
             ErrorHandlerImpl.RV_ERROR_CODE -> Toast.makeText(this, "RV ERROR!!!", Toast.LENGTH_LONG).show()
@@ -168,6 +173,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback {
 
     override fun onStop() {
         ex()
+        if (this::faCallback.isInitialized) faCallback.onMainExiting()
         super.onStop()
     }
 
