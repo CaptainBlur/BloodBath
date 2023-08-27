@@ -6,7 +6,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+    <com.foxstoncold.youralarm.alarmsUI.AdjustableCompoundButton
         android:id="@+id/rv_time_window"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -24,7 +24,7 @@
 
     <!--    All consequent sizes are taken for convenient xml representation in Editor.
         Their sizes are adjustable-->
-    <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
+    <com.foxstoncold.youralarm.alarmsUI.AdjustableImageView
         android:id="@+id/rv_pref_frame"
         android:layout_width="1021px"
         android:layout_height="652px"
@@ -37,7 +37,7 @@
 
 
     <!--This view contains all views that are not exposed to changes of the pref's height-->
-    <com.vova9110.bloodbath.alarmsUI.AdjustableConstraintLayout
+    <com.foxstoncold.youralarm.alarmsUI.AdjustableConstraintLayout
         android:id="@+id/pref_consistent_views_layout"
         android:layout_width="1021px"
         android:layout_height="624px"
@@ -49,7 +49,7 @@
 
 
         <!--This view has only size adjustments declared here. The others are based on alarm's state-->
-        <com.vova9110.bloodbath.alarmsUI.AdjustableTextView
+        <com.foxstoncold.youralarm.alarmsUI.AdjustableTextView
             android:id="@+id/rv_pref_time_window"
             android:layout_width="wrap_content"
             android:layout_height="138px"
@@ -71,7 +71,7 @@
             app:width_toGlobal_multiplier="@fraction/rv_pref_time_width" />
 
 
-        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+        <com.foxstoncold.youralarm.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_power"
             android:layout_width="294px"
             android:layout_height="98px"
@@ -82,7 +82,7 @@
             app:layout_constraintTop_toBottomOf="@+id/rv_pref_time_window"
             app:width_toGlobal_multiplier="@fraction/rv_pref_power_width" />
 
-        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+        <com.foxstoncold.youralarm.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_music"
             style="@style/App.RecyclerViewItem.TierOne"
 
@@ -90,7 +90,7 @@
             app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowOne_bias"
             tools:ignore="MissingConstraints" />
 
-        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+        <com.foxstoncold.youralarm.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_vibration"
             style="@style/App.RecyclerViewItem.TierOne"
 
@@ -98,7 +98,7 @@
             app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowOne_bias"
             tools:ignore="MissingConstraints" />
 
-        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+        <com.foxstoncold.youralarm.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_preliminary"
             style="@style/App.RecyclerViewItem.TierOne"
 
@@ -106,7 +106,7 @@
             app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowTwo_bias"
             tools:ignore="MissingConstraints" />
 
-        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+        <com.foxstoncold.youralarm.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_activeness"
             style="@style/App.RecyclerViewItem.TierOne"
 
@@ -114,7 +114,7 @@
             app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowTwo_bias"
             tools:ignore="MissingConstraints" />
 
-        <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
+        <com.foxstoncold.youralarm.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_repeat"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -128,7 +128,7 @@
             tools:ignore="MissingConstraints" />
 
 
-    </com.vova9110.bloodbath.alarmsUI.AdjustableConstraintLayout>
+    </com.foxstoncold.youralarm.alarmsUI.AdjustableConstraintLayout>
 
     <LinearLayout
         android:id="@+id/rv_pref_weekdays_container"

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg id="svg5" width="21.2" height="8.5171" version="1.1" viewBox="0 0 21.2 8.5171" xmlns="http://www.w3.org/2000/svg">
+<rect id="rect1149" transform="matrix(.99998 0 0 .99998 .014102 .0036523)" width="21.2" height="8.5171" ry=".071468" fill="#fff"/>
+<g id="unlit_group" transform="matrix(3.7795 0 0 3.7795 -1.3851 -.73904)">
+<path id="frame_unlit" d="m0.83008 0.25c-0.22288 0-0.40625 0.18142-0.40625 0.4043v1.3359c0 0.22288 0.18337 0.40625 0.40625 0.40625h4.6914c0.22288 0 0.4043-0.18337 0.4043-0.40625v-1.3359c0-0.22288-0.18142-0.4043-0.4043-0.4043zm0 0.21094h4.6914c0.10849 0 0.19336 0.084871 0.19336 0.19336v1.3359c0 0.10849-0.084871 0.19531-0.19336 0.19531h-4.6914c-0.10849 0-0.19531-0.086824-0.19531-0.19531v-1.3359c0-0.10849 0.086824-0.19336 0.19531-0.19336z" color="#000000" fill="#00f" style="-inkscape-stroke:none;paint-order:stroke fill markers"/>
+<path id="path14177" d="m0.82917 0.35493h4.6917a0.3 0.3 45 0 1 0.3 0.3v1.336a0.3 0.3 135 0 1-0.3 0.3h-4.6917a0.3 0.3 45 0 1-0.3-0.3v-1.336a0.3 0.3 135 0 1 0.3-0.3z" color="#000000" fill="#fff" stroke-width=".21167" style="-inkscape-stroke:none;paint-order:stroke fill markers"/>
+</g>
+<g id="lit_group" transform="matrix(3.7795 0 0 3.7795 -1.3859 -.73781)">
+<g id="g9" fill="#0f0">
+<rect id="strip_three" x="1.4233" y=".19743" width="1.0583" height="2.2522"/>
+<rect id="strip_two" x=".37249" y=".79343" width="5.6055" height="1.0583"/>
+<rect id="strip_one" x="3.8684" y=".19742" width="1.0583" height="2.2522"/>
+</g>
+<path id="path6559" d="m0.82917 0.35493h4.6917a0.3 0.3 45 0 1 0.3 0.3v1.336a0.3 0.3 135 0 1-0.3 0.3h-4.6917a0.3 0.3 45 0 1-0.3-0.3v-1.336a0.3 0.3 135 0 1 0.3-0.3z" color="#000000" fill="#fff" stroke-width=".3175" style="-inkscape-stroke:none;paint-order:stroke fill markers"/>
+<path id="path13617" d="m3.175 0.19623v2.2534" fill="#0f0"/>
+</g>
+</svg>

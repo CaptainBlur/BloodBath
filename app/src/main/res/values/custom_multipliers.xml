@@ -43,7 +43,7 @@
     <item name="rv_pref_tierOne_width" type="fraction">10.18%</item>
 
     <item name="rv_pref_tierOne_rowOne_bias" type="integer">0.415</item>
-    <item name="rv_pref_tierOne_rowTwo_bias" type="integer">0.69</item>
+    <item name="rv_pref_tierOne_rowTwo_bias" type="integer">0.715</item>
     <item name="rv_pref_tierOne_columnOne_bias" type="integer">0.72</item>
     <item name="rv_pref_tierOne_columnTwo_bias" type="integer">0.93</item>
 
@@ -55,4 +55,7 @@
     <item name="rv_pref_time_text_lit_multiplier" type="fraction">80%</item>
 
     <item name="rv_pref_weekday_text_height_toWidth" type="fraction">47.5%</item>
+
+
+    <item name="preferences_fragment_width" type="dimen">277dp</item>
 </resources>

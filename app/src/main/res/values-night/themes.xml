@@ -1,9 +1,9 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Theme.BloodBath" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.YourAlarm" parent="Theme.MaterialComponents.DayNight.NoActionBar">
     </style>
 
-    <style name="ThemeOverlay.BloodBath.FullscreenContainer" parent="">
+    <style name="ThemeOverlay.YourAlarm.FullscreenContainer" parent="">
         <item name="fullscreenBackgroundColor">@color/white</item>
         <item name="fullscreenTextColor">@color/black</item>
     </style>

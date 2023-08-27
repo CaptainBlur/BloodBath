@@ -20,7 +20,7 @@
         android:layout_height="wrap_content"
         android:text="Fill or clear DB" />
 
-    <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
+    <com.foxstoncold.youralarm.alarmsUI.AdjustableImageView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:height_toGlobal_multiplier="50%"

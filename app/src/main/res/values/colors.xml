@@ -18,11 +18,15 @@
     <color name="mild_presenceSoft">#FFECDB</color>
     <color name="mild_presenceDim">#EBE1D8</color>
 
+    <color name="mild_surfaceOne">#FFF8F2</color>
+    <color name="mild_surface">#FFFCFA</color>
+
     <color name="mild_greyscalePresence">#F2ECE6</color>
     <color name="mild_greyscaleLight">#D9D3CE</color>
     <color name="mild_greyscaleDark">#B3ADAA</color>
 
 <!--This core value is actually taken from Material3 colors generator as a value of onPrimaryContainer color-->
+    <color name="mild_neutral">#989391</color>
     <color name="mild_shady">#301700</color>
     <color name="mild_shadyDist">#572B00</color>
 

@@ -18,7 +18,7 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:text="Preliminary" />
 
-    <view class="com.vova9110.bloodbath.alarmScreenBackground.CustomImageView"
+    <view class="com.foxstoncold.youralarm.alarmScreenBackground.CustomImageView"
         android:id="@+id/alarm_start_view"
         android:layout_width="110dp"
         android:layout_height="110dp"

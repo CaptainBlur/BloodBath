@@ -1,107 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/constraint_layout"
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_drawer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
     tools:context=".MainActivity">
 
-    <com.vova9110.bloodbath.alarmsUI.AdjustableCompoundButton
-        android:id="@+id/testView"
-        android:layout_width="200px"
-        android:layout_height="150px"
-        android:foregroundGravity="center"
-
-        android:fontFamily="@font/avenir_next_medium"
-        android:text=""
-        android:textSize="95px"
-        android:gravity="center_horizontal"
-
-        android:layout_marginTop="50dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
-
-    <Button
-        android:id="@+id/button2"
-        android:layout_width="180dp"
-        android:layout_height="wrap_content"
-        android:text="start detection"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <Button
-        android:id="@+id/button3"
-        android:layout_width="180dp"
-        android:layout_height="wrap_content"
-        android:text="start activity"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/button2" />
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/main_constraint_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
 
 
-    <com.vova9110.bloodbath.alarmsUI.AdjustableImageView
-        android:id="@+id/rv_top_cap"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:src="@drawable/rv_cap"
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="150dp"
+            android:orientation="vertical"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
-        app:height_toLocal_width_multiplier="@fraction/rv_top_padding"
-        app:width_toGlobal_multiplier="100%"
-        tools:ignore="MissingConstraints" />
+            <ImageView
+                android:id="@+id/testView"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:src="@drawable/ic_warning_rhombus"
+
+                android:visibility="visible"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+
+            <ImageView
+                android:id="@+id/testView2"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:src="@drawable/ic_warning_rhombus"
+
+                android:visibility="visible"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+
+            <ImageView
+                android:id="@+id/testView3"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:src="@drawable/ic_warning_rhombus"
+
+                android:visibility="visible"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+
+            <ImageView
+                android:id="@+id/testView4"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:src="@drawable/ic_warning_rhombus"
+
+                android:visibility="visible"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+
+            <ImageView
+                android:id="@+id/testView5"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:src="@drawable/ic_warning_rhombus"
+
+                android:visibility="visible"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/settings_button_back"
+            style="@style/App.Button.PreferencesFrame"
+            android:src="@drawable/external_button_corner"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/settings_button_icon"
+            style="@style/App.Button.PreferencesIcon"
+            android:elevation="2dp"
+            android:layout_marginBottom="1.5dp"
+
+            android:src="@drawable/ic_preferences"
+            app:layout_constraintBottom_toBottomOf="@+id/settings_button_back"
+            app:layout_constraintEnd_toEndOf="@+id/settings_button_back" />
+
+        <com.foxstoncold.youralarm.alarmsUI.AdjustableImageView
+            android:id="@+id/rv_top_cap"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:src="@drawable/rv_cap"
+
+            app:height_toLocal_width_multiplier="@fraction/rv_top_padding"
+            app:width_toGlobal_multiplier="100%"
+            tools:ignore="MissingConstraints" />
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="16dp"
+            android:contentDescription="@string/add_task"
+            android:src="@drawable/ic_baseline_add_24"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <Button
+            android:id="@+id/buttonFill"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:layout_marginEnd="10dp"
+            android:text="Fill or clear DB"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        android:contentDescription="@string/add_task"
-        android:src="@drawable/ic_baseline_add_24"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <Button
-        android:id="@+id/buttonRepeat"
-        style="@style/Widget.MaterialComponents.Button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="15dp"
-        android:checkable="true"
-        android:text="Repeat"
-        android:textAllCaps="false"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/button2" />
-
-    <Button
-        android:id="@+id/buttonActiv"
-        style="@style/Widget.MaterialComponents.Button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="30dp"
-        android:checkable="true"
-        android:text="Activ"
-        android:textAllCaps="false"
-        app:layout_constraintBottom_toBottomOf="@+id/buttonRepeat"
-        app:layout_constraintStart_toEndOf="@+id/buttonRepeat" />
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/main_fragment_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:elevation="2px" />
 
 
-    <Button
-        android:id="@+id/buttonPower"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="power"
-        app:layout_constraintBottom_toBottomOf="@+id/buttonActiv"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/buttonActiv" />
-
-    <Button
-        android:id="@+id/buttonFill"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Fill or clear DB"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/buttonRepeat" />
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

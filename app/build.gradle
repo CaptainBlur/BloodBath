@@ -10,7 +10,7 @@ android {
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.vova9110.bloodbath"
+        applicationId "com.foxstoncold.youralarm"
         minSdk 27
         targetSdk 33
         versionCode 1
@@ -35,7 +35,7 @@ android {
     buildFeatures {
         viewBinding true
     }
-    namespace 'com.vova9110.bloodbath'
+    namespace 'com.foxstoncold.youralarm'
 }
 
 dependencies {
@@ -45,6 +45,7 @@ dependencies {
     implementation "androidx.room:room-runtime:$rootProject.roomVersion"
     implementation "androidx.room:room-ktx:$rootProject.roomVersion"
     implementation files('lib/renderscript-toolkit-release.aar')
+    implementation 'androidx.preference:preference-ktx:1.2.0'
     testImplementation 'org.junit.jupiter:junit-jupiter'
     androidTestImplementation 'org.mockito:mockito-android:4.9.0'
     kapt "androidx.room:room-compiler:$rootProject.roomVersion"
@@ -52,6 +53,8 @@ dependencies {
     androidTestImplementation "androidx.room:room-testing:$rootProject.roomVersion"
 
     //Other
+
+    kapt "com.android.databinding:compiler:$android_plugin_version"
     implementation 'com.github.wendykierp:JTransforms:3.1'
     annotationProcessor 'com.google.dagger:dagger-compiler:2.43.2'
     implementation 'com.google.dagger:dagger:2.43.2'
@@ -61,6 +64,7 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10'
     implementation 'pl.droidsonroids.gif:android-gif-drawable:1.2.25'
     implementation 'com.caverock:androidsvg-aar:1.4'
+    implementation "com.github.skydoves:balloon:1.5.4"
 
     // Lifecycle components
     implementation "androidx.lifecycle:lifecycle-viewmodel:$rootProject.lifecycleVersion"
