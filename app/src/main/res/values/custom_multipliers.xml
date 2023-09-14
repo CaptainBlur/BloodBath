@@ -57,5 +57,7 @@
     <item name="rv_pref_weekday_text_height_toWidth" type="fraction">47.5%</item>
 
 
-    <item name="preferences_fragment_width" type="dimen">277dp</item>
+    <item name="preferences_fragment_width" type="dimen">281dp</item>
+
+    <item name="main_digitClock_translationDistance" type="dimen">58dp</item>
 </resources>

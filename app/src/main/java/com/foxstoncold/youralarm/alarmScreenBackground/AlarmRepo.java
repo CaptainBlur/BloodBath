@@ -57,7 +57,7 @@ public class AlarmRepo {
         if (result==null) return new LinkedList<Alarm>();
         return result;
     }
-    protected List<Alarm> getActives(){
+    public List<Alarm> getActives(){
         Callable<List<Alarm>> callable = alarmDao::getActives;
         Future<List<Alarm>> future = executor.submit(callable);
         List<Alarm> result = null;

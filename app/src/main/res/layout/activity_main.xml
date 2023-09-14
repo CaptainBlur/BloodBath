@@ -15,86 +15,233 @@
 
 
         <LinearLayout
+            android:id="@+id/linearLayout"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="150dp"
+            android:layout_marginTop="20dp"
             android:orientation="vertical"
+            android:visibility="visible"
             app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.34"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
 
             <ImageView
                 android:id="@+id/testView"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:src="@drawable/ic_warning_rhombus"
-
+                style="@style/App.Button.TestView"
                 android:visibility="visible"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+                />
 
             <ImageView
                 android:id="@+id/testView2"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:src="@drawable/ic_warning_rhombus"
-
+                style="@style/App.Button.TestView"
                 android:visibility="visible"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+                />
 
             <ImageView
                 android:id="@+id/testView3"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:src="@drawable/ic_warning_rhombus"
-
+                style="@style/App.Button.TestView"
                 android:visibility="visible"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+                />
 
             <ImageView
                 android:id="@+id/testView4"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:src="@drawable/ic_warning_rhombus"
-
-                android:visibility="visible"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+                style="@style/App.Button.TestView"
+                />
 
             <ImageView
                 android:id="@+id/testView5"
-                android:layout_width="50dp"
-                android:layout_height="50dp"
-                android:src="@drawable/ic_warning_rhombus"
-
-                android:visibility="visible"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@+id/buttonFill" />
+                style="@style/App.Button.TestView"
+                />
         </LinearLayout>
 
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/main_displayClock_textInfo"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_marginStart="-4dp"
+
+            android:layout_marginTop="-6dp"
+            app:layout_constraintBottom_toTopOf="@+id/rv_top_cap"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="@+id/main_digits_substitutes"
+            app:layout_constraintTop_toBottomOf="@id/main_digits_substitutes">
+
+            <TextView
+                android:id="@+id/main_displayClock_timeTextInfo_stringOne"
+                style="@style/App.TextView.DisplayClock.TimeInfoString"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:alpha="1f"
+                tools:text="eight and"
+                tools:visibility="gone" />
+
+            <TextView
+                android:id="@+id/main_displayClock_timeTextInfo_stringTwo"
+                style="@style/App.TextView.DisplayClock.TimeInfoString"
+
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/main_displayClock_timeTextInfo_stringOne"
+                tools:alpha="1f"
+                tools:text="a half hours"
+                tools:visibility="gone" />
+
+            <TextView
+                android:id="@+id/main_displayClock_timeTextInfo_stringThree"
+                style="@style/App.TextView.DisplayClock.TimeInfoString"
+
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/main_displayClock_timeTextInfo_stringTwo"
+                tools:alpha="1f"
+                tools:text="to sleep"
+                tools:visibility="gone" />
+
+
+            <TextView
+                android:id="@+id/main_displayClock_subTextInfo_stringOne_dub"
+                style="@style/App.TextView.DisplayClock.SubInfoString"
+
+                android:layout_marginTop="10dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/main_displayClock_subTextInfo_stringTwo_dub"
+                style="@style/App.TextView.DisplayClock.SubInfoString"
+
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="@id/main_displayClock_subTextInfo_stringOne"
+                android:visibility="invisible"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/main_displayClock_subTextInfo_stringOne"
+                style="@style/App.TextView.DisplayClock.SubInfoString"
+
+                android:layout_marginTop="10dp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:alpha="1f"
+                tools:text="Dismiss Main"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/main_displayClock_subTextInfo_stringTwo"
+                style="@style/App.TextView.DisplayClock.SubInfoString"
+
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="@+id/main_displayClock_subTextInfo_stringOne"
+                android:visibility="invisible"
+                tools:alpha="1f"
+                tools:text="Dismiss Preliminary"
+                tools:visibility="visible" />
+
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <LinearLayout
+            android:id="@+id/main_digits"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp"
+
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toTopOf="@id/rv_top_cap"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+
+            <TextView
+                android:id="@+id/main_displayClock_digitOne"
+                style="@style/App.TextView.DisplayClock.Digit"
+                android:text="1" />
+
+            <TextView
+                android:id="@+id/main_displayClock_digitTwo"
+                style="@style/App.TextView.DisplayClock.Digit"
+                android:text="2" />
+
+            <TextView
+                android:id="@+id/main_displayClock_digitSeparator"
+                style="@style/App.TextView.DisplayClock.Digit"
+                android:layout_marginHorizontal="3dp"
+                android:text=":" />
+
+            <TextView
+                android:id="@+id/main_displayClock_digitThree"
+                style="@style/App.TextView.DisplayClock.Digit"
+                android:text="3" />
+
+            <TextView
+                android:id="@+id/main_displayClock_digitFour"
+                style="@style/App.TextView.DisplayClock.Digit"
+                android:text="4" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/main_digits_substitutes"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/main_digitClock_translationDistance"
+
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="@+id/main_digits"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            tools:visibility="invisible">
+
+
+            <TextView
+                android:id="@+id/main_displayClock_digitOne_substitute"
+                style="@style/App.TextView.DisplayClock.DigitSubstitute"
+                android:text="1"
+                tools:alpha="1f" />
+
+            <TextView
+                android:id="@+id/main_displayClock_digitTwo_substitute"
+                style="@style/App.TextView.DisplayClock.DigitSubstitute"
+                android:text="2"
+                tools:alpha="1f" />
+
+            <TextView
+                android:id="@+id/main_displayClock_digitSeparator_substitute"
+                style="@style/App.TextView.DisplayClock.DigitSubstitute"
+                android:layout_marginHorizontal="3dp"
+                android:text=":"
+                tools:alpha="1f" />
+
+            <TextView
+                android:id="@+id/main_displayClock_digitThree_substitute"
+                style="@style/App.TextView.DisplayClock.DigitSubstitute"
+                android:text="3"
+                tools:alpha="1f" />
+
+            <TextView
+                android:id="@+id/main_displayClock_digitFour_substitute"
+                style="@style/App.TextView.DisplayClock.DigitSubstitute"
+                android:text="4"
+                tools:alpha="1f" />
+        </LinearLayout>
+
+
         <ImageView
-            android:id="@+id/settings_button_back"
+            android:id="@+id/main_settings_button_back"
             style="@style/App.Button.PreferencesFrame"
             android:src="@drawable/external_button_corner"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 
         <ImageView
-            android:id="@+id/settings_button_icon"
+            android:id="@+id/main_settings_button_icon"
             style="@style/App.Button.PreferencesIcon"
             android:elevation="2dp"
             android:layout_marginBottom="1.5dp"
 
             android:src="@drawable/ic_preferences"
-            app:layout_constraintBottom_toBottomOf="@+id/settings_button_back"
-            app:layout_constraintEnd_toEndOf="@+id/settings_button_back" />
+            app:layout_constraintBottom_toBottomOf="@+id/main_settings_button_back"
+            app:layout_constraintEnd_toEndOf="@+id/main_settings_button_back" />
 
         <com.foxstoncold.youralarm.alarmsUI.AdjustableImageView
             android:id="@+id/rv_top_cap"
@@ -104,7 +251,13 @@
 
             app:height_toLocal_width_multiplier="@fraction/rv_top_padding"
             app:width_toGlobal_multiplier="100%"
-            tools:ignore="MissingConstraints" />
+
+            tools:ignore="MissingConstraints"
+            tools:layout_marginBottom="300dp"
+            tools:layout_constraintBottom_toBottomOf="parent"
+            tools:layout_constraintEnd_toEndOf="parent"
+            tools:layout_constraintStart_toStartOf="parent"
+            />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab"
@@ -125,6 +278,7 @@
             android:text="Fill or clear DB"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
+
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

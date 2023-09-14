@@ -605,4 +605,9 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
     public void requestParentUpdate(){
         hCallback.updateParent();
     }
+
+    public void animatePowerChange(boolean enabled){
+        if (enabled) setChecked(true);
+        else setUnchecked(true);
+    }
 }

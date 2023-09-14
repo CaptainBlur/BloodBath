@@ -26,7 +26,8 @@ interface StateSaver{
 
     fun checkRVReloadRequest(): Boolean
     fun dropRVReloadRequest()
-    fun updateRVSavedState(state: IntArray)
+    fun updateRVSavedState(states: IntArray)
+    fun updateSFSavedState(states: BooleanArray)
 }
 
 class MainViewModel(private val app: Application) : AndroidViewModel(
@@ -63,7 +64,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(
         val RVSetJson = getPrefs().getString("rv_saved", Gson().toJson(listOf(-1,0,-1).toIntArray()))
         val RVSet = Gson().fromJson(RVSetJson, IntArray::class.java)
 
-        _savedState = MutableStateFlow(SavedUiState(RVReload, RVSet))
+        val SFSetJson = getPrefs().getString("sf_saved", Gson().toJson(BooleanArray(1)))
+        val SFSet = Gson().fromJson(SFSetJson, BooleanArray::class.java)
+
+        _savedState = MutableStateFlow(SavedUiState(RVReload, RVSet, SFSet))
         state = _savedState.asStateFlow()
         dropRVReloadRequest()
         slU.i(state.value)
@@ -101,18 +105,34 @@ class MainViewModel(private val app: Application) : AndroidViewModel(
     }
 
     @SuppressLint("ApplySharedPref")
-    override fun updateRVSavedState(state: IntArray){
+    override fun updateRVSavedState(states: IntArray){
             _savedState.update { current ->
                 val editor = getPrefs().edit()
-                val rvSetJson = Gson().toJson(state)
+                val rvSetJson = Gson().toJson(states)
 
                 editor.putString("rv_saved", rvSetJson)
                 //Executing in async mode may cause data didn't saved before app's killed
                 editor.commit()
-                current.copy(RVSet = state)
+                current.copy(RVSet = states)
             }
     }
+    @SuppressLint("ApplySharedPref")
+    override fun updateSFSavedState(states: BooleanArray){
+        _savedState.update { current ->
+            val editor = getPrefs().edit()
+            val sfSetJson = Gson().toJson(states)
 
+            editor.putString("sf_saved", sfSetJson)
+            //Executing in async mode may cause data didn't saved before app's killed
+            editor.commit()
+            current.copy(SFSet = states)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        slU.w("cleared")
+    }
 
     private fun reassureRepo() = (app as MyApp).component.repo.reassureAll(app)
 
@@ -228,10 +248,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(
 }
 
 /**
- * This container i like a 'all you need to know' class for
- * all UI elements to setup saved state.
- * It even contains the info about neediness of applying saved state
+ * This container is like a 'all you need to know' class for
+ * all UI elements stored together.
  */
 data class SavedUiState(
     var reloadRV: Boolean,
-    var RVSet: IntArray)
+    var RVSet: IntArray,
+    var SFSet: BooleanArray)

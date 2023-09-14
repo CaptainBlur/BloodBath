@@ -19,10 +19,12 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
+import com.foxstoncold.youralarm.M_to_SF_Callback
 import com.foxstoncold.youralarm.MainActivity
 import com.foxstoncold.youralarm.MainViewModel
 import com.foxstoncold.youralarm.MyApp
 import com.foxstoncold.youralarm.R
+import com.foxstoncold.youralarm.StateSaver
 import com.foxstoncold.youralarm.alarmScreenBackground.ActivenessDetectionService
 import com.foxstoncold.youralarm.database.Alarm
 import com.google.android.material.imageview.ShapeableImageView
@@ -34,15 +36,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 
-class SettingsFragment(): Fragment(R.layout.fragment_settings) {
+class SettingsFragment: Fragment(R.layout.fragment_settings) {
+    lateinit var maCallback: M_to_SF_Callback
+    lateinit var stateSaver: StateSaver
 
-    val Number.toPx get() = TypedValue.applyDimension(
-        TypedValue.COMPLEX_UNIT_DIP,
-        this.toFloat(),
-        Resources.getSystem().displayMetrics)
-
-    var onBuilt: ()-> Unit = { sl.w("on built action expected") }
-
+    private fun checkMACallback(): Boolean{
+        return if (this::maCallback.isInitialized) true
+        else{
+            slU.w("initialized MACallback expected!")
+            false
+        }
+    }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -53,7 +57,16 @@ class SettingsFragment(): Fragment(R.layout.fragment_settings) {
     }
 
     private fun setupSettingsList(view: View){
-        val settingsFactory = ExpandableListFactory(view.findViewById(R.id.settings_list) as ExpandableListView, view.context)
+        val settingsFactory = ExpandableListFactory(view.findViewById(R.id.settings_list) as ExpandableListView, view.context).apply {
+            if (checkMACallback()) {
+                stateSaver = maCallback.getStateSaver()
+
+                initialGroupStates = stateSaver.state.value.SFSet
+                onGroupChanged = {
+                    stateSaver.updateSFSavedState(it)
+                }
+            }
+        }
         val interlayer = InterfaceUtils.SPInterlayer(view.context, MainViewModel.USER_SETTINGS_SP)
 
         val mainGroup = settingsFactory.GroupItemContainer().apply{
@@ -226,7 +239,7 @@ class SettingsFragment(): Fragment(R.layout.fragment_settings) {
             addToStorage()
         }
 
-        var serviceBound = false;
+        var serviceBound = false
         var ads: ActivenessDetectionService? = null
         val connection = object: ServiceConnection{
             override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -248,7 +261,7 @@ class SettingsFragment(): Fragment(R.layout.fragment_settings) {
                     "2. It counts your steps when you stand up and take a walk around.<br>" +
                     "3. Adjust your target amount of steps by launching this test version of the Detector.<br>." +
                     "4. <i>Shower detection</i> can be used instead of <i>Steps</i>.<br>" +
-                    "You don't have to switch anything, just go to the bathroom, lay down the phone and turn on the shower. The sound will be detected in 5 seconds<br>" +
+                    "You don't have to switch anything, just go to the bathroom, lay down the phone aside a running shower. The sound will be detected in 5 seconds<br>" +
                     "(don't forget to enable the feature in the setting below)"
 
             var info = Alarm(-1,-1).getInfo(view.context)
@@ -395,7 +408,7 @@ class SettingsFragment(): Fragment(R.layout.fragment_settings) {
             hintText = "After this time, if you were not active, the alarming sound will be on again.<br>" +
                     "1. By the half of that time you will hear a Warning notification popped up.<br>" +
                     "2. For the first time, you will be given an option to remain silence for another minute (maybe, you'll have to expand 'Snoozed' notification).<br>" +
-                    "3. The real amount of <i>Snoozed time</i> will be halved every time you pushed it to the state of alarming.<br>" +
+                    "3. The effective amount of <i>Snoozed time</i> will be halved every time you push it to the state of alarming.<br>" +
                     "4. Value of <u>90 sec</u> is recommended"
 
             editTextStartTextGetter = { interlayer.sp.getInt("timeOut", 90).toString() }
@@ -406,8 +419,7 @@ class SettingsFragment(): Fragment(R.layout.fragment_settings) {
         }
 
         settingsFactory.AsyncBuild {
-            it.expandGroup(0)
-            onBuilt()
+            if (checkMACallback()) maCallback.onSettingsReady()
         }
         
 //        val testableGroup = settingsFactory.GroupItemContainer().apply{

@@ -109,7 +109,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     }
 
 
-    public RowLayoutManager(AideCallback cb, ErrorHandlerImpl er){
+    public RowLayoutManager(@NonNull AideCallback cb, ErrorHandlerImpl er){
         super();
         SplitLoggerUI.en();
         this.er = er;
@@ -518,6 +518,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         }
 
         if (!initialPassed) initialPassed=true;
+
+        saveRVState();
 
         int prp = (prefRowPos==0) ? -1 : prefRowPos;
         slU.f("Anchor row: " + mAnchorRowPos + " , top baseline: " + mTopBaseline + " , top bound: " + mTopBound +
@@ -1062,6 +1064,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                     break;
                 }
             }
+
+            saveRVState();
     }
 
     @Override
@@ -1083,6 +1087,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
     @Override
     public void onScrollStateChanged (int state){
+        saveRVState();
         if (state == RecyclerView.SCROLL_STATE_IDLE && mViewCache.size()!=0){//Чисто лог выводим
             slU.f("Row " + mAnchorRowPos + ", Top baseline: " + mTopBaseline + ", Top bound:" + mTopBound + ", Bottom baseline: " + mBottomBaseline + ", Bottom bound:" + mBottomBound + ", first cache: " + mViewCache.keyAt(0) + ", last cache: " + mViewCache.keyAt(mViewCache.size() - 1));
         }
@@ -1189,21 +1194,38 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         return new RLMReturnData();
     }
 
+    //Externally called method to set values in a decided moment
     @Override
     public void setRVState(@NotNull int[] state) {
         slU.frp(state);
         savedState = state;
     }
 
-    @NonNull
-    @Override
-    public int[] getRVState() {
+    //Internal method to save complex state when any action is over
+    private void saveRVState() {
         int[] s = new int[3];
         s[0] = mTopBaseline;
+        //Effective pref visibility
         s[1] = (prefVisibility && !prefScrapped && !STSTop && !STSBottom) ? 1 : 0;
         s[2] = prefParentPos;
-        slU.frp(s);
-        return s;
+
+        aideCallback.saveRVState(s);
+    }
+
+    @Override
+    public int manipulatePrefPowerState(boolean enabled) {
+        if (!prefVisibility){
+            slU.s("Cannot manipulate pref since it's not presented");
+            return -1;
+        }
+
+        ChildViewHolder holder = (ChildViewHolder) aideCallback.getItemViewHolder(prefPos);
+        if (holder==null){
+            slU.w("CVH is not found");
+            return -1;
+        }
+        holder.animatePowerChange(enabled);
+        return prefParentPos;
     }
 
     /**
@@ -1434,10 +1456,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             return super.animateAdd(holder);
         }
 
+        //Effectively the last group in the entire sequence
         @Override
         public void onAddGroupFinished(RecyclerView.ViewHolder holder) {
             clearChanges();
             if (FLAG_ANIMATE==TIME_CHANGE_ANIMATION) ((ChildViewHolder) holder).requestParentUpdate();
+
             setBusy(false);
         }
 

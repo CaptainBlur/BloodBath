@@ -10,9 +10,14 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import com.foxstoncold.youralarm.M_to_FA_Callback
 import com.foxstoncold.youralarm.R
 import com.foxstoncold.youralarm.SplitLogger
+import com.foxstoncold.youralarm.SplitLoggerUI.UILogger.s
+import com.foxstoncold.youralarm.alarmScreenBackground.AlarmExecutionDispatch
 import com.foxstoncold.youralarm.alarmsUI.recyclerView.AlarmListAdapter
 import com.foxstoncold.youralarm.alarmsUI.recyclerView.RowLayoutManager
 import com.foxstoncold.youralarm.database.Alarm
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.*
 import kotlin.math.roundToInt
 
@@ -69,6 +74,7 @@ class FreeAlarmsHandler(
         recycler.itemAnimator = lm.itemAnimator
 
         val savedState = if (!afterError) supervisor.stateSaver.state.value.RVSet else arrayOf(-1,0,0).toIntArray()
+        slU.i(savedState)
         rlmCallback.setRVState(savedState)
 
         if (savedState[1]==1) recycler.post { notifyBaseClick(savedState[2]) }
@@ -77,7 +83,49 @@ class FreeAlarmsHandler(
 
     init {
         initRecycler(false)
+        informFirstActive()
     }
+    private fun informFirstActive() {
+        val actives = repo.actives
+        if (actives.isNotEmpty()) {
+            val first = actives[0]
+            var time = first.triggerTime!!.time
+
+            if (first.preliminary && !first.preliminaryFired) {
+                time += first.preliminaryTime * 60 * 1000
+            }
+
+            mtofaCallback.passNewFirstActiveDate(Date(time))
+        } else mtofaCallback.passNewFirstActiveDate(null)
+    }
+    private fun informSubInfo(alarm: Alarm = Alarm(), prefOpen: Boolean = false, prefClose: Boolean = false){
+
+        if (prefOpen){
+            val effectivelyEnabled =
+                alarm.state == Alarm.STATE_PREPARE_SNOOZE ||
+                alarm.state == Alarm.STATE_SNOOZE ||
+                alarm.state == Alarm.STATE_FIRE ||
+                alarm.state == Alarm.STATE_PRELIMINARY ||
+                alarm.state == Alarm.STATE_PREPARE
+
+            if (effectivelyEnabled){
+
+                var actualTime = alarm.triggerTime!!.time
+                var preliminary = false
+
+                if (alarm.preliminary && !alarm.preliminaryFired) {
+                    actualTime += alarm.preliminaryTime * 60 * 1000
+                    preliminary = true
+                }
+
+                mtofaCallback.showSubInfo(alarm.id, preliminary, Date(actualTime))
+            }
+            else mtofaCallback.hideSubInfo()
+        }
+
+        if (prefClose) mtofaCallback.hideSubInfo()
+    }
+
     override fun createBrandNewRecycler(afterError: Boolean){
         val parentVG = mtofaCallback.getParentVG()
         parentVG.removeView(recycler)
@@ -93,7 +141,53 @@ class FreeAlarmsHandler(
         slU.i("New RV created")
     }
 
-    override fun onMainExiting() = supervisor.stateSaver.updateRVSavedState(rlmCallback.getRVState())
+    override fun saveRVState(state: IntArray) {
+        CoroutineScope(Dispatchers.Default).launch {
+            supervisor.stateSaver.updateRVSavedState(state)
+        }
+    }
+    override fun externalDismiss(alarmID: String, preliminaryOnly: Boolean) {
+        slU.i("external dismiss action requested. id: $alarmID; complete: ${!preliminaryOnly}")
+
+        val actives = repo.actives
+        if (actives.isEmpty()){
+            transmitError(NullPointerException("external dismiss failed: no actives"))
+            return
+        }
+
+        var alarm: Alarm? = null
+        for (active in repo.actives) if (active.id == alarmID) alarm = active
+        if (alarm == null){
+            transmitError(IllegalArgumentException("external dismiss failed: ID doesn't match"))
+            return
+        }
+
+        if (!preliminaryOnly) AlarmExecutionDispatch.helpExternalDismissMain(context, alarm, repo)
+        else AlarmExecutionDispatch.helpExternalDismissPreliminary(context, alarm, repo)
+
+        for (any in repo.all) if (any.id == alarmID) alarm = any
+
+        val parentPos = rlmCallback.manipulatePrefPowerState(alarm!!.enabled)
+
+        try {
+            rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_PARENT)
+
+            bufferList.clear()
+            bufferList.addAll(adapter.currentList)
+
+            bufferList[parentPos] = alarm
+
+            adapter.submitList(bufferList)
+
+            informSubInfo(alarm, prefOpen = true)
+            informFirstActive()
+
+            adapter.notifyItemChanged(alarm.parentPos)
+        } catch (e: Exception) {
+            transmitError(e)
+        }
+    }
+
     override fun internalErrorHandling(ex: Exception) {
         slU.s("Resetting RV", ex)
         createBrandNewRecycler(true)
@@ -144,6 +238,8 @@ class FreeAlarmsHandler(
         val pref = parent.createPref(parentPos, addAlarmPos)
         bufferList.add(prefPos, pref)
 
+        informSubInfo(parent, prefOpen = true)
+
         adapter.submitList(bufferList)
         if (notifyAdapter) adapter.notifyItemInserted(prefPos)
     }
@@ -157,6 +253,8 @@ class FreeAlarmsHandler(
         for (i in bufferList.indices) if (bufferList[i].prefFlag) prefIndex=i
         bufferList.removeAt(prefIndex)
 //        bufferList.forEach { if (it.prefFlag) prefIndex=bufferList.indexOf(it) }.also { bufferList.removeAt(prefIndex) }
+
+        informSubInfo(prefClose = true)
 
         adapter.submitList(bufferList)
         adapter.notifyItemRemoved(prefIndex)
@@ -178,6 +276,7 @@ class FreeAlarmsHandler(
         val pref = parent.createPref(parentPos, addAlarmPos)
         bufferList.add(prefPos, pref)
 
+        informSubInfo(parent, prefOpen = true)
 
         adapter.submitList(bufferList)
         adapter.notifyItemRemoved(exPrefIndex)
@@ -213,7 +312,7 @@ class FreeAlarmsHandler(
             for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) oldPrefPos = i
             bufferList.removeAt(oldPrefPos)
 
-            //removing old parent from anywhere
+            //removing old parent from everywhere
             val parent = bufferList[oldParentPos]
             repo.deleteOne(parent, context)
 
@@ -233,6 +332,9 @@ class FreeAlarmsHandler(
             val addAlarmPos = bufferList.indexOfFirst { it.addFlag }
             val newPref = parent.createPref(newParentPos, addAlarmPos)
             bufferList.add(newPrefPos, newPref)
+
+            informSubInfo(newPref, prefOpen = true)
+            informFirstActive()
 
             adapter.submitList(bufferList)
             adapter.notifyItemRemoved(oldPrefPos)
@@ -267,6 +369,8 @@ class FreeAlarmsHandler(
             bufferList.remove(current)
             repo.deleteOne(current, context)
 
+            informFirstActive()
+
             adapter.submitList(bufferList)
             if (prefRemoved) recycler.post { adapter.notifyItemRemoved(prefPos) }
             recycler.post { adapter.notifyItemRemoved(currentPos) }
@@ -294,6 +398,9 @@ class FreeAlarmsHandler(
             repo.insert(alarm, context)
             bufferList.sortWith(comp)
             val currentPos: Int = bufferList.indexOf(alarm)
+
+            informSubInfo(alarm, prefOpen = true)
+            informFirstActive()
 
             var prefPos = -1
             for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) prefPos = i
@@ -332,12 +439,17 @@ class FreeAlarmsHandler(
 
             repo.update(alarm, true, context)
             adapter.submitList(bufferList)
+
+            informSubInfo(alarm, prefOpen = true)
+            informFirstActive()
+
             adapter.notifyItemChanged(alarm.parentPos)
         } catch (e: Exception) {
             transmitError(e)
         }
     }
 
+    //Using by CVH as a part of some animation stuff
     override fun updateParent() {
         rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_PARENT)
         recycler.requestLayout()
@@ -431,7 +543,7 @@ class FreeAlarmsHandler(
             RowLayoutManager.HIDE_N_LAYOUT_PREF -> removeNPassPrefToAdapter(returned.parentPos, returned.prefPos)
         }
 
-        addAlarmParentVisibility = false;
+        addAlarmParentVisibility = false
     }
 
     override fun getAddAlarmParentVisibility(): Boolean {
@@ -483,6 +595,7 @@ sealed interface AideCallback{
     //FAH creates an aide and puts inside variable
     fun createMeasurements(recycler: RecyclerView.Recycler, master: RecyclerView.LayoutManager)
     fun getItemViewHolder(adapterPos: Int): ViewHolder?
+    fun saveRVState(state: IntArray)
 }
 
 /**
@@ -503,14 +616,14 @@ interface RLMCallback{
     fun setNotifyUpdate(flag: Int)
     fun isBusy(): Boolean
     fun setRVState(state: IntArray)
-    fun getRVState(): IntArray
+    fun manipulatePrefPowerState(enabled: Boolean): Int
 }
 
 interface FA_to_M_Callback{
     fun showAdd()
     fun createBrandNewRecycler(afterError: Boolean)
-    fun onMainExiting()
     fun clearOrFill(fill: Boolean)
+    fun externalDismiss(alarmID: String, preliminaryOnly: Boolean)
 }
 
 /**

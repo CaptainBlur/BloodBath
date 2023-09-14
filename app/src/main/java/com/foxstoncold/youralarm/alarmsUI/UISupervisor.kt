@@ -26,6 +26,7 @@ class UISupervisor(val app: Application) {
     val callbacks: HashMap<String, Any?> = HashMap()
 
     fun onMainActivityReady(ma: MainActivity, view: View){
+
         slU.i("MA is ready. Start distributing")
         mainActivity = ma
         callbacks["mtofaCallback"] = mainActivity

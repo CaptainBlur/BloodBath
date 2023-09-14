@@ -47,7 +47,7 @@ import kotlinx.coroutines.withContext
 class ExpandableListFactory(private val expandableListView: ExpandableListView,
                             private val context: Context){
 
-    val Number.toPx get() = TypedValue.applyDimension(
+    private val Number.toPx get() = TypedValue.applyDimension(
         TypedValue.COMPLEX_UNIT_DIP,
         this.toFloat(),
         Resources.getSystem().displayMetrics)
@@ -57,6 +57,10 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
     private val childContainersStorage = HashMap<GroupItemContainer, ArrayList<ChildItemContainer>>()
     private val childContainersBunch = ArrayList<ChildItemContainer>()
     private val childViewsStorage = HashMap<GroupItemContainer, ArrayList<View>>()
+
+    var onGroupChanged: (BooleanArray)->Unit = {slU.i("on group changed action expected")}
+    var initialGroupStates = BooleanArray(1)
+    private val groupStates = ArrayList<Boolean>()
 
     inner class GroupItemContainer{
         var titleDrawable = AppCompatResources.getDrawable(context, R.drawable.ic_clock_alarm)!!
@@ -71,6 +75,7 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
             groupContainers.add(this)
             childContainersStorage[this] = ArrayList()
             childViewsStorage[this] = ArrayList()
+            groupStates.add(false)
         }
 
         fun expand() = expandableListView.expandGroup(groupContainers.indexOf(this))
@@ -155,7 +160,6 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                     setAdapter(adapter)
                     setGroupIndicator(VectorDrawable())
                     setOnGroupClickListener { parent, v, groupPosition, id ->
-                        v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
 
                         val container = groupContainers[groupPosition]
                         if (container.enabled) {
@@ -164,9 +168,15 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                             else parent.expandGroup(groupPosition)
                         }
 
+                        groupStates[groupPosition] = parent.isGroupExpanded(groupPosition)
+                        onGroupChanged(groupStates.toBooleanArray())
                         true
                     }
 
+                    for ((i, expanded) in initialGroupStates.withIndex()){
+                        if (expanded) expandGroup(i)
+                        groupStates[i] = expanded
+                    }
                     slU.fr("exp. listView passed")
                     onBuilt(this)
                 }
@@ -236,6 +246,7 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
 
         when (container.type) {
 
+            //little switch
             0f -> {
                 findViewById<Group>(R.id.settings_child_group_zero).visibility =
                     View.VISIBLE
@@ -269,6 +280,7 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                 }
             }
 
+            //big switch
             0.1f -> {
                 val switch = findViewById<MaterialSwitch>(R.id.settings_child_switch_m3).apply{
                     visibility = View.VISIBLE
@@ -301,19 +313,20 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                 }
             }
 
+            //start and stop testing
             0.2f -> {
                 findViewById<ImageView>(R.id.settings_child_indicator).visibility = View.INVISIBLE
 
                 val stopButton = findViewById<ImageView>(R.id.settings_child_stop).apply {
                     visibility = View.INVISIBLE
                     setOnClickListener {
-                        it.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+//                        it.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                         container.testStopButtonCallback(it) }
                 }
                 val playButton = findViewById<ImageView>(R.id.settings_child_play).apply {
                     visibility = View.VISIBLE
                     setOnClickListener {
-                        it.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
+//                        it.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
                         container.testPlayButtonCallback(it, stopButton) }
                 }
 
@@ -329,6 +342,7 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                 }
             }
 
+            //simple dropDown
             1.0f -> {
                 findViewById<Group>(R.id.settings_child_group_two).visibility = View.VISIBLE
 
@@ -377,6 +391,7 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
 
             }
 
+            //simple editText
             1.1f -> {
                 findViewById<Group>(R.id.settings_child_group_three).visibility =
                     View.VISIBLE
@@ -476,6 +491,8 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                 switch.thumbTintList = ColorStateList(states, colors)
             }
 
+            //dropDown and editText
+            //INCOMPLETE!!
             1.2f -> {
                 findViewById<Group>(R.id.settings_child_group_four).visibility =
                     View.VISIBLE
@@ -551,10 +568,9 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                         }
                     }
                 }
-
-
             }
 
+            //slider
             2f -> {
                 findViewById<Group>(R.id.settings_child_group_five).visibility =
                     View.VISIBLE

@@ -69,29 +69,11 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
 
             //Covers both (fire and preliminary) state alarms
             if (state == targetStateDismiss){
-                if (alarm.snoozed) helpDismiss(context, id, repo)
-
-                resetTmp(alarm)
-
-                //Instance is ^on^ on arrival, we just need to set tT
-                if (alarm.smartGetRepeatable()) alarm.calculateTriggerTime(true)
-                else {
-                    alarm.enabled = false
-                    alarm.triggerTime = null
-                }
-
-                defineNewState(context, alarm, repo)
+                helpExternalDismissMain(context, alarm, repo)
             }
             //Only to disable preliminary state and schedule firing
             else{
-                /*
-                Since after helping method it goes to the ^prepare^ setter,
-                we have to cancel ^preliminary^ firing PI, cause setter doesn't
-                */
-                BU.cancelPI(context, id, Alarm.STATE_PRELIMINARY)
-
-                processPreliminary(alarm)
-                defineNewState(context, alarm, repo)
+                helpExternalDismissPreliminary(context, alarm, repo)
             }
         }
     }
@@ -158,7 +140,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
                     else {
                         alarm.lastTriggerTime = alarm.triggerTime?.clone() as Date
                         //resetting temporary states, since we don't want them to affect the next state (or the firing time)
-                        resetTmp(alarm)
+                        resetTmpStates(alarm)
 
                         if (alarm.smartGetRepeatable()) alarm.calculateTriggerTime()
                         else{
@@ -344,7 +326,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             BU.createBroadcast(context, alarm.id)
         }
 
-        private fun resetTmp(alarm: Alarm){
+        private fun resetTmpStates(alarm: Alarm){
             alarm.snoozed = false
             alarm.preliminaryFired = false
         }
@@ -413,7 +395,7 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             else{
                 sl.i("^No need for activeness detection. Preparing for exit")
 
-                resetTmp(alarm)
+                resetTmpStates(alarm)
                 processRepeatable(alarm)
                 defineNewState(context, alarm, repo)
             }
@@ -461,6 +443,32 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
 
             stopService(context)
             context.sendBroadcast(Intent(FiringControlService.ACTION_KILL))
+        }
+        @JvmStatic
+        fun helpExternalDismissMain(context: Context, alarm: Alarm, repo: AlarmRepo){
+            if (alarm.snoozed) helpDismiss(context, alarm.id, repo)
+
+            resetTmpStates(alarm)
+
+            //Instance is ^on^ on arrival, we just need to set tT
+            if (alarm.smartGetRepeatable()) alarm.calculateTriggerTime(true)
+            else {
+                alarm.enabled = false
+                alarm.triggerTime = null
+            }
+
+            defineNewState(context, alarm, repo)
+        }
+        @JvmStatic
+        fun helpExternalDismissPreliminary(context: Context, alarm: Alarm, repo: AlarmRepo){
+            /*
+            Since after helping method it goes to the ^prepare^ setter (through defineNewState),
+            we have to cancel ^preliminary^ firing PI, cause setter implies that is already done
+            */
+            BU.cancelPI(context, alarm.id, Alarm.STATE_PRELIMINARY)
+
+            processPreliminary(alarm)
+            defineNewState(context, alarm, repo)
         }
 
         //In case the KILL call didn't reach the activity in previous function

@@ -42,8 +42,10 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
      * Standard week (monday first, sunday last)
      */
     var weekdays = BooleanArray(7)
-    //Now we have this value set as one for all enabled alarms, but soon it's
-    //about to get individual
+    /*
+    * Now we have this value set as one for all enabled alarms, but soon it's
+    * about to get individual. Value in minutes
+    */
     var preliminaryTime = -1
     fun setPreliminaryTime(context: Context){
         val prefs = context.getSharedPreferences(MainViewModel.USER_SETTINGS_SP, Context.MODE_PRIVATE)

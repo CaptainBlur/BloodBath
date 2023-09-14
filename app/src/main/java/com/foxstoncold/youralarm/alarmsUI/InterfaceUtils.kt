@@ -1,20 +1,25 @@
 package com.foxstoncold.youralarm.alarmsUI
 
 import android.Manifest
+import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.TimeInterpolator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Resources
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
+import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewPropertyAnimator
 import android.view.animation.LinearInterpolator
 
 class InterfaceUtils {
+
+
     class SPInterlayer(context: Context, prefName: String){
         val sp = context.getSharedPreferences(prefName, Context.MODE_PRIVATE)
         private val edit = sp.edit()
@@ -228,6 +233,11 @@ class InterfaceUtils {
     }
 
     companion object{
+        fun Number.toPx() = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            this.toFloat(),
+            Resources.getSystem().displayMetrics)
+
         fun checkNoisePermission(c: Context): Boolean = c.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
         fun checkActivityPermission(c: Context): Boolean{
@@ -245,7 +255,7 @@ class InterfaceUtils {
             return one && two
         }
 
-        fun startAlphaAnimation(view: View, toValue: Float, duration: Long, interpolator: TimeInterpolator = LinearInterpolator(), listener: AnimatorListenerAdapter? = null){
+        fun startAlphaAnimation(view: View, toValue: Float, duration: Long, interpolator: TimeInterpolator = LinearInterpolator(), listener: Animator.AnimatorListener? = null){
             val animator: ViewPropertyAnimator = view.animate()
 
             animator

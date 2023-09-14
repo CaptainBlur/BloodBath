@@ -385,7 +385,7 @@ class MainDrawables(private val context: Context, private val ratios: RatiosReso
     private fun comprisePrefFrameAnimation(): Pair<Pair<AnimationDrawable, AnimationDrawable>, Pair<AnimationDrawable, AnimationDrawable>>{
         assert(prefPowerAnimation_duration!=0)
         val frames = prefPowerAnimation_duration/prefPowerAnimation_frameTime
-        val grad = getColorGradient(R.color.mild_greyscalePresence, R.color.mild_presenceBright, frames)
+        val grad = getColorGradient(R.color.mild_greyscalePresence, R.color.mild_pitchSub, frames)
 
         val checkedCenterDrawable = AnimationDrawable().apply { isOneShot = true }
         val uncheckedCenterDrawable = AnimationDrawable().apply { isOneShot = true }
