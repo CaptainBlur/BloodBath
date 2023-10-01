@@ -4,51 +4,159 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/white"
     tools:context=".alarmScreenBackground.AlarmActivity">
+
+    <LinearLayout
+        android:id="@+id/alarm_digits"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+
+        android:layout_marginBottom="4dp"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toTopOf="@+id/alarm_info_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible">
+
+
+        <TextView
+            android:id="@+id/alarm_displayClock_digitOne"
+            style="@style/App.TextView.DisplayClock.DigitSubstitute"
+            android:text="1"
+            tools:alpha="1f" />
+
+        <TextView
+            android:id="@+id/alarm_displayClock_digitTwo"
+            style="@style/App.TextView.DisplayClock.DigitSubstitute"
+            android:text="2"
+            tools:alpha="1f" />
+
+        <TextView
+            android:id="@+id/alarm_displayClock_digitSeparator"
+            style="@style/App.TextView.DisplayClock.DigitSubstitute"
+            android:layout_marginHorizontal="3dp"
+            android:gravity="bottom"
+            android:text=":"
+            tools:alpha="1f" />
+
+        <TextView
+            android:id="@+id/alarm_displayClock_digitThree"
+            style="@style/App.TextView.DisplayClock.DigitSubstitute"
+            android:text="3"
+            tools:alpha="1f" />
+
+        <TextView
+            android:id="@+id/alarm_displayClock_digitFour"
+            style="@style/App.TextView.DisplayClock.DigitSubstitute"
+            android:text="4"
+            tools:alpha="1f" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/alarm_info_view"
         android:layout_width="wrap_content"
-        android:layout_height="35dp"
-        android:layout_marginTop="200dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="41dp"
+        android:fontFamily="@font/lato_regular"
         android:gravity="clip_vertical"
         android:textSize="22sp"
+        app:layout_constraintBottom_toTopOf="@+id/alarm_dismiss_view"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        tools:text="Preliminary" />
+        tools:text="Preliminary"
+        />
 
-    <view class="com.foxstoncold.youralarm.alarmScreenBackground.CustomImageView"
-        android:id="@+id/alarm_start_view"
-        android:layout_width="110dp"
-        android:layout_height="110dp"
-        android:layout_marginBottom="30dp"
-        app:layout_constraintBottom_toTopOf="@+id/alarm_delay_view"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:srcCompat="@drawable/alarm_draggable_dummy"
-        app:tint="#FBC02D" />
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/alarm_dismiss_filler"
+        android:alpha="0"
+        android:layout_height="42dp"
+        android:layout_width="87dp"
+        android:layout_marginBottom="-11dp"
+        app:layout_constraintBottom_toBottomOf="@+id/alarm_dismiss_view"
+        app:layout_constraintEnd_toEndOf="@+id/alarm_dismiss_view"
+        app:layout_constraintStart_toStartOf="@+id/alarm_dismiss_view"
+        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.SnoozeImageView.InnerSide"
+
+        tools:background="@color/purple_500"
+        tools:alpha="1"
+        />
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/alarm_dismiss_bracket"
+        android:layout_width="78dp"
+        android:layout_height="60dp"
+        android:layout_marginBottom="4.5dp"
+        android:background="@color/white"
+        app:layout_constraintBottom_toBottomOf="@id/alarm_dismiss_filler"
+        app:layout_constraintEnd_toEndOf="@+id/alarm_dismiss_view"
+        app:layout_constraintStart_toStartOf="@+id/alarm_dismiss_view"
+        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.SnoozeImageView.OuterSide"
+        />
 
     <ImageView
         android:id="@+id/alarm_dismiss_view"
-        android:layout_width="110dp"
-        android:layout_height="110dp"
-        android:layout_marginBottom="140dp"
-        app:layout_constraintBottom_toTopOf="@+id/alarm_start_view"
+        android:layout_width="@dimen/alarm_dismiss_view_side"
+        android:layout_height="@dimen/alarm_dismiss_view_side"
+        tools:srcCompat="@drawable/ic_waking_up"
+        android:layout_marginBottom="178dp"
+        app:layout_constraintBottom_toTopOf="@+id/alarm_draggable_view"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:srcCompat="@drawable/alarm_draggable_dummy"
-        app:tint="#E64A19" />
+        app:layout_constraintStart_toStartOf="parent"/>
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/alarm_snooze_filler"
+        android:alpha="0"
+        android:layout_height="38dp"
+        android:layout_width="0dp"
+        android:layout_marginBottom="-9dp"
+        app:layout_constraintBottom_toBottomOf="@+id/alarm_snooze_view"
+        app:layout_constraintEnd_toEndOf="@+id/alarm_snooze_view"
+        app:layout_constraintStart_toStartOf="@+id/alarm_snooze_view"
+        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.SnoozeImageView.InnerSide"
+
+        tools:background="@color/purple_500"
+        tools:alpha="1"
+        tools:layout_width="100dp"
+        />
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/alarm_snooze_bracket"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:layout_marginBottom="4.5dp"
+        android:background="@color/white"
+        app:layout_constraintBottom_toBottomOf="@id/alarm_snooze_filler"
+        app:layout_constraintEnd_toEndOf="@+id/alarm_snooze_view"
+        app:layout_constraintStart_toStartOf="@+id/alarm_snooze_view"
+        app:shapeAppearanceOverlay="@style/ShapeAppearanceOverlay.App.SnoozeImageView.OuterSide"
+
+        tools:layout_width="92dp"
+        />
 
     <TextView
-        android:id="@+id/alarm_delay_view"
+        android:id="@+id/alarm_snooze_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="20dp"
-        android:background="@color/purple_200"
-        android:text="snooze"
-        android:textSize="24sp"
+        android:layout_marginBottom="36dp"
+        android:textSize="25sp"
+        android:fontFamily="@font/lato_regular"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+
+        android:text="snooze"/>
+
+    <ImageView
+        android:id="@+id/alarm_draggable_view"
+        android:layout_width="@dimen/alarm_draggable_view_side"
+        android:layout_height="@dimen/alarm_draggable_view_side"
+        android:layout_marginBottom="54dp"
+        app:layout_constraintBottom_toTopOf="@+id/alarm_snooze_view"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+
+        tools:srcCompat="@drawable/alarm_draggable_dummy"
+        tools:tint="#FBC02D"
+        />
 </androidx.constraintlayout.widget.ConstraintLayout>

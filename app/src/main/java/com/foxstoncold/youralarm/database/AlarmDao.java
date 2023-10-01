@@ -1,5 +1,6 @@
 package com.foxstoncold.youralarm.database;
 
+import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
@@ -28,6 +29,12 @@ public interface AlarmDao {
     @Query("SELECT * FROM alarms_table ORDER BY hour AND minute")
     List<Alarm> getAll();
 
+    @Query("SELECT * FROM alarms_table ORDER BY hour AND minute")
+    LiveData<List<Alarm>> getAllLD();
+
     @Query("SELECT * FROM alarms_table WHERE enabled ORDER BY triggerTime ASC")
     List<Alarm> getActives ();
+
+    @Query("SELECT * FROM alarms_table WHERE enabled ORDER BY triggerTime ASC")
+    LiveData<List<Alarm>> getActivesLD ();
 }

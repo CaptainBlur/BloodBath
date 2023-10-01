@@ -7,27 +7,22 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.res.ColorStateList
-import android.content.res.Resources
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.util.TypedValue
 import android.view.View
 import android.widget.ExpandableListView
-import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import com.foxstoncold.youralarm.M_to_SF_Callback
-import com.foxstoncold.youralarm.MainActivity
 import com.foxstoncold.youralarm.MainViewModel
 import com.foxstoncold.youralarm.MyApp
 import com.foxstoncold.youralarm.R
 import com.foxstoncold.youralarm.StateSaver
 import com.foxstoncold.youralarm.alarmScreenBackground.ActivenessDetectionService
 import com.foxstoncold.youralarm.database.Alarm
-import com.google.android.material.imageview.ShapeableImageView
 import com.google.android.material.switchmaterial.SwitchMaterial
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,31 +35,25 @@ class SettingsFragment: Fragment(R.layout.fragment_settings) {
     lateinit var maCallback: M_to_SF_Callback
     lateinit var stateSaver: StateSaver
 
-    private fun checkMACallback(): Boolean{
-        return if (this::maCallback.isInitialized) true
-        else{
-            slU.w("initialized MACallback expected!")
-            false
-        }
-    }
+    private fun checkMACallback(): Boolean = this::maCallback.isInitialized
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        slU.i("fragment created")
 
         setupSettingsList(view)
     }
 
     private fun setupSettingsList(view: View){
-        val settingsFactory = ExpandableListFactory(view.findViewById(R.id.settings_list) as ExpandableListView, view.context).apply {
-            if (checkMACallback()) {
-                stateSaver = maCallback.getStateSaver()
+        if (!checkMACallback()) return
+        slU.i("fragment created")
 
-                initialGroupStates = stateSaver.state.value.SFSet
-                onGroupChanged = {
-                    stateSaver.updateSFSavedState(it)
-                }
+        val settingsFactory = ExpandableListFactory(view.findViewById(R.id.settings_list) as ExpandableListView, view.context).apply {
+            stateSaver = maCallback.getStateSaver()
+
+            initialGroupStates = stateSaver.state.value.SFSet
+            onGroupChanged = {
+                stateSaver.updateSFSavedState(it)
             }
         }
         val interlayer = InterfaceUtils.SPInterlayer(view.context, MainViewModel.USER_SETTINGS_SP)
@@ -203,7 +192,7 @@ class SettingsFragment: Fragment(R.layout.fragment_settings) {
 
         val activenessGroup = settingsFactory.GroupItemContainer().apply{
             titleText = "Activeness\ndetection"
-            setTitleDrawable(R.drawable.ic_activeness)
+            setTitleDrawable(R.drawable.ic_activeness_bold)
             addToGroupStorage()
         }
 
@@ -348,15 +337,28 @@ class SettingsFragment: Fragment(R.layout.fragment_settings) {
             val noiseSet: (Boolean)->Unit = { interlayer.setElement("noiseDetection", it) }
             var permission = InterfaceUtils.checkNoisePermission(view.context)
             val resultLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted->
-                if (isGranted) refreshView()
+                if (isGranted) {
+                    permission = InterfaceUtils.checkNoisePermission(view.context)
+                    refreshView()
+                }
             }
             switchStartStateGetter = {
+                val switch = it as SwitchMaterial
+
+                if (permission){
+                    switch.trackTintList = enabledTrackTintList
+                    switch.thumbTintList = enabledThumbTintList
+                }
+                else{
+                    switch.trackTintList = disabledTrackTintList
+                    switch.thumbTintList = disabledThumbTintList
+                }
+
                 noiseGet()
             }
             switchWarningStartStateGetter = {
                 noiseGet() && !permission
             }
-            switchUseCheckedListenerOnStart = true
 
             switchOnCheckedListener = { switch, warning, isChecked ->
                 noiseSet(isChecked)
@@ -366,7 +368,7 @@ class SettingsFragment: Fragment(R.layout.fragment_settings) {
                     resultLauncher.launch(Manifest.permission.RECORD_AUDIO)
                     warning.visibility = View.VISIBLE
                 }
-                else warning.visibility = View.INVISIBLE
+                else if (isChecked) warning.visibility = View.INVISIBLE
 
                 with (switch as SwitchMaterial){
                     if (permission){

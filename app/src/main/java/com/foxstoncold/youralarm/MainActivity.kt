@@ -8,6 +8,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Rect
+import android.media.RingtoneManager
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.SpannableStringBuilder
@@ -25,17 +28,21 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver.OnGlobalLayoutListener
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.ActivityResultCallback
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.animation.doOnCancel
 import androidx.core.text.toSpanned
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.commit
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
+import androidx.lifecycle.LifecycleOwner
 import com.foxstoncold.youralarm.SplitLogger.Companion.ex
+import com.foxstoncold.youralarm.alarmScreenBackground.FiringControlService
 import com.foxstoncold.youralarm.alarmsUI.AdjustableImageView
 import com.foxstoncold.youralarm.alarmsUI.AdjustableRecyclerView
 import com.foxstoncold.youralarm.alarmsUI.ErrorHandlerImpl
@@ -46,7 +53,6 @@ import com.foxstoncold.youralarm.alarmsUI.SettingsFragment
 import com.foxstoncold.youralarm.alarmsUI.UISupervisor
 import com.foxstoncold.youralarm.alarmsUI.slU
 import com.foxstoncold.youralarm.databinding.ActivityMainBinding
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import io.reactivex.rxjava3.observers.DisposableObserver
 import io.reactivex.rxjava3.subjects.AsyncSubject
 import kotlinx.coroutines.CoroutineScope
@@ -61,6 +67,9 @@ import java.util.Timer
 import java.util.TimerTask
 import kotlin.math.abs
 
+typealias Contractor = InterfaceUtils.Contractor
+
+
 class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
     private val sl = SplitLogger()
     private lateinit var binding: ActivityMainBinding
@@ -71,6 +80,19 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
     //Because Android will most likely use onResume method multiple times during initialization
     private var onResumePermitted = false
     private val displayClock = DisplayClockController()
+
+    private lateinit var ringtonePickerResultLauncher: ActivityResultLauncher<Int>
+    private lateinit var ringtonePickerResultContract: ActivityResultContract<Int, Uri?>
+    private lateinit var ringtonePickerRequestData: RPRequestData
+    private lateinit var ringtonePickerResultCallback: ActivityResultCallback<Uri?>
+
+    data class RPRequestData(val requestingAlarmID: String, val settledUri: Uri?, val callback: RPResultCallback)
+    interface RPResultCallback{
+        /**
+         * If there weren't a valid result, and empty Uri will be returned. Null is for 'None' option chosen
+         */
+        fun onResultReceived(path: Uri?)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,10 +170,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
 
         prepareReceiver()
         prepareViews()
-
-        findViewById<FloatingActionButton>(R.id.fab).setOnClickListener {
-            addOrHideFragment()
-        }
+        prepareRingtonePickerLauncher()
     }
 
 
@@ -182,7 +201,8 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                 if(intent.action.equals(RELOAD_RV_REQUEST)){
                     _vm.dropRVReloadRequest()
                     if (this@MainActivity::faCallback.isInitialized){
-                        faCallback.createBrandNewRecycler(false).also { slU.f("reloading pref") }
+//                        faCallback.createBrandNewRecycler(false).also { slU.f("reloading pref") }
+                        restartActivity()
                     }
                 }
             }
@@ -191,7 +211,8 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
             addAction(RELOAD_RV_REQUEST)
         }
 
-        registerReceiver(receiver, filter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) registerReceiver(receiver, filter, RECEIVER_EXPORTED)
+        else registerReceiver(receiver, filter)
     }
 
     private fun prepareViews(){
@@ -248,6 +269,15 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
 //        }
 
 
+        binding.fab.setOnClickListener{
+            val intent = Intent(this@MainActivity, FiringControlService::class.java).apply {
+                action = FiringControlService.ACTION_TEST
+            }
+            CoroutineScope(Dispatchers.Default).launch {
+//                delay(2000)
+                applicationContext.startForegroundService(intent)
+            }
+        }
 
         binding.testView.setOnClickListener{
             CoroutineScope(Dispatchers.Main).launch {
@@ -257,6 +287,12 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                     "0"
                 )
             }
+        }
+        binding.testView.setOnLongClickListener{
+
+//            activityResult.launch(intent)
+
+            true
         }
         val date = Date()
         date.time += (1000 * 60 * 5) - (1000 * 60 * 30)
@@ -287,39 +323,46 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
         }
     }
 
+    private fun prepareRingtonePickerLauncher(){
+        ringtonePickerResultContract = object: ActivityResultContract<Int, Uri?>(){
+
+            override fun createIntent(context: Context, input: Int): Intent {
+                slU.i("requesting alarm sound picker for: ${ringtonePickerRequestData.requestingAlarmID}")
+
+                return Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Alarm sound")
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, ringtonePickerRequestData.settledUri)
+                }
+            }
+
+            override fun parseResult(resultCode: Int, intent: Intent?): Uri? {
+                if (resultCode != RESULT_OK || intent == null) {
+                    return Uri.parse("")
+                }
+                return intent.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+
+        }
+
+        ringtonePickerResultCallback = ActivityResultCallback {
+            ringtonePickerRequestData.callback.onResultReceived(it)
+        }
+
+        ringtonePickerResultLauncher = registerForActivityResult(ringtonePickerResultContract, ringtonePickerResultCallback)
+    }
+
+    override fun launchRingtonePicker(data: RPRequestData) {
+        ringtonePickerRequestData = data
+        ringtonePickerResultLauncher.launch(0)
+    }
+
     private inner class DisplayClockController{
         private var digitsTimer: Timer? = null
 
         private val stringStartToEndMargin = -(14f.toPx())
         private val stringTopToBottomMargin = -(7f.toPx())
-
-        private inner class Contractor(private val lowestVal: Float, private val highestVal: Float) {
-            private val divisionVal = 1f / (highestVal - lowestVal)
-            init {
-                assert(lowestVal >= 0f && lowestVal < highestVal && lowestVal <= 1f)
-                assert(highestVal >= 0f && highestVal > lowestVal && highestVal <= 1f)
-            }
-
-            fun contract(fraction: Float): Float{
-                if (fraction < lowestVal) return 0f
-                else if (fraction > highestVal) return 1f
-
-                //creating new scale by increasing division value
-                val newScale = fraction * divisionVal
-                //normalizing to 1 (high) and 0 (low)
-                val normHigh = newScale / (divisionVal * highestVal)
-                val normLow = newScale - (divisionVal * lowestVal)
-                //mixing and normalizing to high
-                val end = ((normHigh + normLow) / normHigh) - 1
-
-//                    slU.i("$fraction  $divisionVal    $newScale  $normHigh  $normLow  $end")
-                return end
-            }
-
-            fun contractReversed(fraction: Float): Float{
-                return contract(abs(fraction - 1))
-            }
-        }
 
         private val refreshPeriod = 2000L
         private val separatorAnimationDuration = 200
@@ -368,7 +411,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
             }
 
 
-
+            showInfoStrings(firstActiveDate)
             if (digitsTimer!=null) return
             //timer executes in background Thread
             digitsTimer = Timer("digitsTimer").apply {
@@ -526,7 +569,9 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
 
             val oldAnimator = oldView.animate().apply{
                 duration = 2100
-                translationY(translationDistance)
+                try{
+                    translationY(translationDistance)
+                } catch (_: Exception) {}
 
                 setUpdateListener {
                     oldView.alpha = fadingC.contractReversed(it.animatedFraction)
@@ -539,7 +584,9 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
 
             val newAnimator = newView.animate().apply{
                 duration = 2400
-                translationY(translationDistance)
+                try{
+                    translationY(translationDistance)
+                } catch (_: Exception) {}
                 interpolator = FastOutSlowInInterpolator()
 
                 setUpdateListener {
@@ -587,16 +634,20 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
             }
 
             CoroutineScope(Dispatchers.Main).launch {
-                newView.text = newVal
-                oldAnimator.start()
-                newAnimator.start()
+                try {
+                    newView.text = newVal
+                    oldAnimator.start()
+                    newAnimator.start()
+                } catch (e: Exception){
+                    slU.s("animation launching exception", e)
+                }
             }
         }
 
         var firstActiveDate: Date? = null
             set(value) {
                 field = value
-//                slU.f("setting first active")
+                slU.f("setting first active")
                 showInfoStrings(value)
             }
         /**
@@ -640,7 +691,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                 val min = (time % hInMilli) / minInMilli
 
                 val cutOff = (hInMilli * 10).toLong() + (minInMilli * 30)
-                if (time > cutOff || date.before(Date())) return@launch
+                if (time > cutOff || date.before(Date())) showInfoStrings(null, pronto)
 //                slU.i("$hour  $min")
 
                 val comprised = compriseStrings(hour.toInt(), min.toInt())
@@ -772,65 +823,107 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                 else infoStringHeight
 
             val shrinkDuration = 980L
+            val expandOverlap = 280L
             val expandDuration = 1650L
-            val c = Contractor(0.52f, 0.95f)
+            val c = Contractor(0.48f, 0.95f)
 
-            //casting is mandatory
+            //casting to String is mandatory
             if (stringOne.text.toString() == comprised[0].toString() &&
                 stringTwo.text.toString() == comprised[1].toString()) return
 
 
-            //setting new texts and scheduling animations
-            fun prepareNext(){
+            //first, shrinking all the lines
+            ValueAnimator.ofInt(height, 0).apply {
+                duration = shrinkDuration
+                addUpdateListener {
+                    val value = it.animatedValue as Int
+                    stringOne.bottom = value
+                    stringTwo.bottom = value + stringTwo.top
+                    stringThree.bottom = value + stringThree.top
 
-                //final showing animations
-                fun launchAnimations(){
-                    val showingSecond = comprised[1].isNotEmpty()
-
-                    stringTwo.x = if (showingSecond) stringOne.right.toFloat() + stringStartToEndMargin else stringOne.right.toFloat()
-                    stringTwo.y = if (showingSecond) stringOne.bottom.toFloat() + stringTopToBottomMargin else 0f
-
-                    stringThree.x = stringTwo.right.toFloat() + stringTwo.x + stringStartToEndMargin
-                    stringThree.y = if (showingSecond) stringTwo.bottom.toFloat() + (stringTopToBottomMargin * 2) else stringTwo.top.toFloat() + stringTopToBottomMargin
-
-                    ValueAnimator.ofInt(0, height).apply {
-                        duration = expandDuration
-                        addUpdateListener {
-                            val value = it.animatedValue as Int
-                            stringOne.bottom = value
-                            stringTwo.bottom = value + stringTwo.top
-                            stringThree.bottom = value + stringThree.top
-
-                            val result = c.contract(it.animatedFraction)
-                            stringOne.alpha = result
-                            stringTwo.alpha = result
-                            stringThree.alpha = result
-                        }
-
-
-                        addListener(object: AnimatorListener{
-                            override fun onAnimationStart(animation: Animator) = Unit
-
-                            override fun onAnimationEnd(animation: Animator) = Unit
-
-                            override fun onAnimationCancel(animation: Animator){
-                                stringOne.alpha = 1f
-                                stringTwo.alpha = 1f
-                                stringThree.alpha = 1f
-
-                                stringOne.height = height
-                                stringTwo.height = height
-                                stringThree.height = height
-                            }
-
-                            override fun onAnimationRepeat(animation: Animator) = Unit
-                        })
-
-                        start()
-                    }
+                    val result = c.contractReversed(it.animatedFraction)
+                    stringOne.alpha = result
+                    stringTwo.alpha = result
+                    stringThree.alpha = result
                 }
 
-                CoroutineScope(Dispatchers.Main).launch {
+
+                addListener(object: AnimatorListener{
+                    override fun onAnimationStart(animation: Animator) = Unit
+
+                    override fun onAnimationEnd(animation: Animator) = Unit
+
+                    override fun onAnimationCancel(animation: Animator){
+                        stringOne.alpha = 1f
+                        stringTwo.alpha = 1f
+                        stringThree.alpha = 1f
+
+                        stringOne.height = height
+                        stringTwo.height = height
+                        stringThree.height = height
+                    }
+
+                    override fun onAnimationRepeat(animation: Animator) = Unit
+                })
+
+                withContext(Dispatchers.Main) {
+                    start()
+                }
+            }
+
+            //for final animations
+            fun launchAnimations(){
+                val showingSecond = comprised[1].isNotEmpty()
+
+                stringTwo.x = if (showingSecond) stringOne.right.toFloat() + stringStartToEndMargin else stringOne.right.toFloat()
+                stringTwo.y = if (showingSecond) stringOne.bottom.toFloat() + stringTopToBottomMargin else 0f
+
+                stringThree.x = stringTwo.right.toFloat() + stringTwo.x + stringStartToEndMargin
+                stringThree.y = if (showingSecond) stringTwo.bottom.toFloat() + (stringTopToBottomMargin * 2) else stringTwo.top.toFloat() + stringTopToBottomMargin
+
+                ValueAnimator.ofInt(0, height).apply {
+                    duration = expandDuration
+
+                    addUpdateListener {
+                        val value = it.animatedValue as Int
+                        stringOne.bottom = value
+                        stringTwo.bottom = value + stringTwo.top
+                        stringThree.bottom = value + stringThree.top
+
+                        val result = c.contract(it.animatedFraction)
+                        stringOne.alpha = result
+                        stringTwo.alpha = result
+                        stringThree.alpha = result
+                    }
+
+
+                    addListener(object: AnimatorListener{
+                        override fun onAnimationStart(animation: Animator) = Unit
+
+                        override fun onAnimationEnd(animation: Animator) = Unit
+
+                        override fun onAnimationCancel(animation: Animator){
+                            stringOne.alpha = 1f
+                            stringTwo.alpha = 1f
+                            stringThree.alpha = 1f
+
+                            stringOne.height = height
+                            stringTwo.height = height
+                            stringThree.height = height
+                        }
+
+                        override fun onAnimationRepeat(animation: Animator) = Unit
+                    })
+
+                    start()
+                }
+            }
+
+            //incorporates delay
+            CoroutineScope(Dispatchers.Default).launch {
+                delay(shrinkDuration - expandOverlap)
+
+                withContext(Dispatchers.Main){
                     stringOne.apply {
                         alpha = 1f
                         text = comprised[0]
@@ -852,47 +945,6 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                     )
                 }
             }
-
-            //first, shrinking all the lines
-            ValueAnimator.ofInt(height, 0).apply {
-                duration = shrinkDuration
-                addUpdateListener {
-                    val value = it.animatedValue as Int
-                    stringOne.bottom = value
-                    stringTwo.bottom = value + stringTwo.top
-                    stringThree.bottom = value + stringThree.top
-
-                    val result = c.contractReversed(it.animatedFraction)
-                    stringOne.alpha = result
-                    stringTwo.alpha = result
-                    stringThree.alpha = result
-                }
-
-
-                addListener(object: AnimatorListener{
-                    override fun onAnimationStart(animation: Animator) = Unit
-
-                    override fun onAnimationEnd(animation: Animator){
-                        prepareNext()
-                    }
-
-                    override fun onAnimationCancel(animation: Animator){
-                        stringOne.alpha = 1f
-                        stringTwo.alpha = 1f
-                        stringThree.alpha = 1f
-
-                        stringOne.height = height
-                        stringTwo.height = height
-                        stringThree.height = height
-                    }
-
-                    override fun onAnimationRepeat(animation: Animator) = Unit
-                })
-
-                withContext(Dispatchers.Main) {
-                    start()
-                }
-            }
         }
         private fun compriseStrings(hour: Int, min: Int): Array<Spanned>{
 
@@ -912,7 +964,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                     else "half"
                 }
             }).apply {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
                     setSpan(
                         TypefaceSpan(this@MainActivity.resources.getFont(R.font.lato_regular_italic)),
                         0,
@@ -933,7 +985,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
 
             val secStringText = SpannableStringBuilder(if (min in 30 .. 59 && hour >= 1) "a half" else "").apply {
                 if (isNotEmpty()){
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
                         setSpan(
                             TypefaceSpan(this@MainActivity.resources.getFont(R.font.lato_regular_italic)),
                             2,
@@ -1064,7 +1116,10 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
             val time = firingDate.time - date.time
 
             val cutOff = (hInMilli * 10).toLong() + (minInMilli * 30)
-            if (time > cutOff || date.before(Date())) return
+            if (time > cutOff || date.before(Date())){
+                hideSubInfoStrings()
+                return
+            }
 
             fun showStrings() {
                 val preliminaryStringTopMargin = 8f.toPx()
@@ -1084,7 +1139,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                 val secondSpannable = SpannableString(dismissText + "Preliminary")
                 val dubSpannable = SpannableString(dismissText)
 
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     firstSpannable.setSpan(
                         TypefaceSpan(this@MainActivity.resources.getFont(R.font.lato_regular_italic)),
                         dismissText.length,
@@ -1219,8 +1274,6 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                     else{
                         stringTwo.text = secondSpannable
                         stringTwoDub.text = dubSpannable
-                        stringTwo.visibility = View.INVISIBLE
-                        stringTwoDub.visibility = View.INVISIBLE
 
                         ValueAnimator.ofFloat(secondBottomY, secondTopY).apply {
                             duration = preliminaryMoveDuration
@@ -1239,17 +1292,23 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                                 override fun onAnimationEnd(animation: Animator){
                                     stringTwo.text = ""
                                     stringTwoDub.text = ""
+
+                                    stringTwo.visibility = View.INVISIBLE
+                                    stringTwoDub.visibility = View.INVISIBLE
                                 }
 
                                 override fun onAnimationCancel(animation: Animator){
                                     stringTwo.text = ""
                                     stringTwoDub.text = ""
 
+                                    stringTwo.alpha = 0f
+                                    stringTwoDub.alpha = 0f
+
                                     stringTwo.y = secondTopY
                                     stringTwoDub.y = secondTopY
 
-                                    stringTwo.alpha = 1f
-                                    stringTwoDub.alpha = 1f
+                                    stringTwo.visibility = View.INVISIBLE
+                                    stringTwoDub.visibility = View.INVISIBLE
                                 }
 
                                 override fun onAnimationRepeat(animation: Animator) = Unit
@@ -1400,7 +1459,8 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
             displayClock.prepareDisplayClock()
 
             if (_vm.checkRVReloadRequest() && this::faCallback.isInitialized) {
-                faCallback.createBrandNewRecycler(false).also { slU.f("reloading pref") }
+                restartActivity()
+//                faCallback.createBrandNewRecycler(false).also { slU.f("reloading pref") }
             }
 
             if (_vm.checkFiringError()) transmitError(ErrorHandlerImpl.FIRING_ERROR_CODE)
@@ -1416,9 +1476,16 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
         super.onStop()
     }
 
+    override fun restartActivity(){
+        finish()
+        startActivity(Intent(applicationContext, this::class.java))
+    }
+
+    override fun getLifecycleOwner(): LifecycleOwner = this
+
     /*
-    All below methods belong to intercom connections
-     */
+        All below methods belong to intercom connections
+         */
     override fun onSettingsReady(){
         binding.mainSettingsButtonBack.apply{
             visibility = View.VISIBLE
@@ -1436,6 +1503,7 @@ class MainActivity : AppCompatActivity(), M_to_FA_Callback, M_to_SF_Callback {
                     with(displayClock){
                         setupDigits(true)
                         prepareDisplayClock()
+//                        binding.fab.callOnClick()
                     }
 
                 }
@@ -1497,6 +1565,9 @@ interface M_to_FA_Callback{
     fun passNewFirstActiveDate(date: Date?)
     fun showSubInfo(alarmIdReference: String, preliminaryActive: Boolean, firingDate: Date)
     fun hideSubInfo()
+    fun launchRingtonePicker(data: MainActivity.RPRequestData)
+    fun restartActivity()
+    fun getLifecycleOwner(): LifecycleOwner
 }
 interface M_to_SF_Callback{
     fun onSettingsReady()

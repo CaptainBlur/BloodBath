@@ -1,6 +1,9 @@
 package com.foxstoncold.youralarm.alarmsUI
 
+import android.content.Context
 import android.graphics.Rect
+import android.media.RingtoneManager
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Toast
@@ -8,10 +11,12 @@ import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import com.foxstoncold.youralarm.M_to_FA_Callback
+import com.foxstoncold.youralarm.MainActivity
 import com.foxstoncold.youralarm.R
 import com.foxstoncold.youralarm.SplitLogger
 import com.foxstoncold.youralarm.SplitLoggerUI.UILogger.s
 import com.foxstoncold.youralarm.alarmScreenBackground.AlarmExecutionDispatch
+import com.foxstoncold.youralarm.alarmScreenBackground.AlarmRepo
 import com.foxstoncold.youralarm.alarmsUI.recyclerView.AlarmListAdapter
 import com.foxstoncold.youralarm.alarmsUI.recyclerView.RowLayoutManager
 import com.foxstoncold.youralarm.database.Alarm
@@ -34,6 +39,7 @@ class FreeAlarmsHandler(
     private val mtofaCallback: M_to_FA_Callback by supervisor.callbacks
     private val context = supervisor.app.applicationContext
     private val repo = supervisor.repo
+    private val dcInfoController = DigitClockInfoController(repo, mtofaCallback)
 
     private var recycler = targetView as AdjustableRecyclerView
     private lateinit var adapter: AlarmListAdapter
@@ -50,18 +56,33 @@ class FreeAlarmsHandler(
 
 
     private fun pollForList(): AlarmListAdapter {
-
         var list: MutableList<Alarm> = repo.all.toMutableList()
-        if (list.isEmpty()) {
-            list = MutableList(1) { addAlarm }
-        }
+
+        if (list.size < 3) list = initAlarmsList()
         else list.add(addAlarm)
+
         list.sortWith(comp)
 
         return AlarmListAdapter(
             this,
             list
         )
+    }
+    private fun initAlarmsList(): MutableList<Alarm>{
+        val list = MutableList(3) {
+            when(it){
+                0-> Alarm(5, 45)
+                1-> Alarm(9, 36)
+                2-> Alarm(11,0)
+                else -> Alarm(0, 0)
+            }
+        }
+
+        repo.deleteAll(context)
+        for (alarm in list) repo.insert(alarm, context)
+
+        list.add(addAlarm)
+        return list
     }
     private fun initRecycler(afterError: Boolean) {
         adapter = pollForList()
@@ -74,56 +95,13 @@ class FreeAlarmsHandler(
         recycler.itemAnimator = lm.itemAnimator
 
         val savedState = if (!afterError) supervisor.stateSaver.state.value.RVSet else arrayOf(-1,0,0).toIntArray()
-        slU.i(savedState)
         rlmCallback.setRVState(savedState)
 
         if (savedState[1]==1) recycler.post { notifyBaseClick(savedState[2]) }
-
     }
 
     init {
         initRecycler(false)
-        informFirstActive()
-    }
-    private fun informFirstActive() {
-        val actives = repo.actives
-        if (actives.isNotEmpty()) {
-            val first = actives[0]
-            var time = first.triggerTime!!.time
-
-            if (first.preliminary && !first.preliminaryFired) {
-                time += first.preliminaryTime * 60 * 1000
-            }
-
-            mtofaCallback.passNewFirstActiveDate(Date(time))
-        } else mtofaCallback.passNewFirstActiveDate(null)
-    }
-    private fun informSubInfo(alarm: Alarm = Alarm(), prefOpen: Boolean = false, prefClose: Boolean = false){
-
-        if (prefOpen){
-            val effectivelyEnabled =
-                alarm.state == Alarm.STATE_PREPARE_SNOOZE ||
-                alarm.state == Alarm.STATE_SNOOZE ||
-                alarm.state == Alarm.STATE_FIRE ||
-                alarm.state == Alarm.STATE_PRELIMINARY ||
-                alarm.state == Alarm.STATE_PREPARE
-
-            if (effectivelyEnabled){
-
-                var actualTime = alarm.triggerTime!!.time
-                var preliminary = false
-
-                if (alarm.preliminary && !alarm.preliminaryFired) {
-                    actualTime += alarm.preliminaryTime * 60 * 1000
-                    preliminary = true
-                }
-
-                mtofaCallback.showSubInfo(alarm.id, preliminary, Date(actualTime))
-            }
-            else mtofaCallback.hideSubInfo()
-        }
-
-        if (prefClose) mtofaCallback.hideSubInfo()
     }
 
     override fun createBrandNewRecycler(afterError: Boolean){
@@ -138,6 +116,7 @@ class FreeAlarmsHandler(
         }
 
         initRecycler(afterError)
+        dcInfoController.informPrefClosed()
         slU.i("New RV created")
     }
 
@@ -179,9 +158,6 @@ class FreeAlarmsHandler(
 
             adapter.submitList(bufferList)
 
-            informSubInfo(alarm, prefOpen = true)
-            informFirstActive()
-
             adapter.notifyItemChanged(alarm.parentPos)
         } catch (e: Exception) {
             transmitError(e)
@@ -190,8 +166,11 @@ class FreeAlarmsHandler(
 
     override fun internalErrorHandling(ex: Exception) {
         slU.s("Resetting RV", ex)
-        createBrandNewRecycler(true)
+//        createBrandNewRecycler(true)
+        mtofaCallback.restartActivity()
     }
+
+    override fun getContextForInflater(): Context = context
 
     override fun notifyBaseClick(prefParentPos: Int) {
         if (rlmCallback.isBusy()){
@@ -238,7 +217,8 @@ class FreeAlarmsHandler(
         val pref = parent.createPref(parentPos, addAlarmPos)
         bufferList.add(prefPos, pref)
 
-        informSubInfo(parent, prefOpen = true)
+        dcInfoController.informPrefOpened(parent.id)
+
 
         adapter.submitList(bufferList)
         if (notifyAdapter) adapter.notifyItemInserted(prefPos)
@@ -254,7 +234,7 @@ class FreeAlarmsHandler(
         bufferList.removeAt(prefIndex)
 //        bufferList.forEach { if (it.prefFlag) prefIndex=bufferList.indexOf(it) }.also { bufferList.removeAt(prefIndex) }
 
-        informSubInfo(prefClose = true)
+        dcInfoController.informPrefClosed()
 
         adapter.submitList(bufferList)
         adapter.notifyItemRemoved(prefIndex)
@@ -276,7 +256,7 @@ class FreeAlarmsHandler(
         val pref = parent.createPref(parentPos, addAlarmPos)
         bufferList.add(prefPos, pref)
 
-        informSubInfo(parent, prefOpen = true)
+        dcInfoController.informPrefOpened(parent.id)
 
         adapter.submitList(bufferList)
         adapter.notifyItemRemoved(exPrefIndex)
@@ -316,8 +296,9 @@ class FreeAlarmsHandler(
             val parent = bufferList[oldParentPos]
             repo.deleteOne(parent, context)
 
-            //creating and passing new parent
+            //passing altered parent
             with(parent){
+                radioWake(this, newHour, newMinute)
                 hour = newHour
                 minute = newMinute
             }
@@ -333,8 +314,7 @@ class FreeAlarmsHandler(
             val newPref = parent.createPref(newParentPos, addAlarmPos)
             bufferList.add(newPrefPos, newPref)
 
-            informSubInfo(newPref, prefOpen = true)
-            informFirstActive()
+            dcInfoController.informPrefOpened(parent.id)
 
             adapter.submitList(bufferList)
             adapter.notifyItemRemoved(oldPrefPos)
@@ -357,6 +337,14 @@ class FreeAlarmsHandler(
             bufferList.addAll(adapter.currentList)
             val current = bufferList[adapterPos]
 
+
+            //Damn insects
+            if (bufferList.size <=4 ||
+                bufferList.size <=5 && rlmCallback.isPrefPresented()){
+                Toast.makeText(context, "Sorry, but due to technical issues, you can't go below three entities", Toast.LENGTH_LONG).show()
+                return
+            }
+
             //We implement this shitshow because it won't work in the Kotlin way, idk why
             var prefPos = -1
             for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) prefPos = i
@@ -369,7 +357,7 @@ class FreeAlarmsHandler(
             bufferList.remove(current)
             repo.deleteOne(current, context)
 
-            informFirstActive()
+            dcInfoController.informPrefClosed(current.id)
 
             adapter.submitList(bufferList)
             if (prefRemoved) recycler.post { adapter.notifyItemRemoved(prefPos) }
@@ -398,9 +386,6 @@ class FreeAlarmsHandler(
             repo.insert(alarm, context)
             bufferList.sortWith(comp)
             val currentPos: Int = bufferList.indexOf(alarm)
-
-            informSubInfo(alarm, prefOpen = true)
-            informFirstActive()
 
             var prefPos = -1
             for (i in 0 until bufferList.size) if (bufferList[i].prefFlag) prefPos = i
@@ -440,16 +425,13 @@ class FreeAlarmsHandler(
             repo.update(alarm, true, context)
             adapter.submitList(bufferList)
 
-            informSubInfo(alarm, prefOpen = true)
-            informFirstActive()
-
             adapter.notifyItemChanged(alarm.parentPos)
         } catch (e: Exception) {
             transmitError(e)
         }
     }
 
-    //Using by CVH as a part of some animation stuff
+    //Using by CVH as a part of parent view updating sequence
     override fun updateParent() {
         rlmCallback.setNotifyUpdate(RowLayoutManager.UPDATE_PARENT)
         recycler.requestLayout()
@@ -469,6 +451,12 @@ class FreeAlarmsHandler(
         }
         repo.insert(alarm2, context)
     }
+    private fun radioWake(prevOne: Alarm, newHour: Int, newMinute: Int) {
+        if (prevOne.hour == 9 && newHour == 9 && prevOne.minute == 35 && newMinute == 36) {
+            slU.s("RADIO WAKE")
+            prevOne.soundPath = Uri.parse("android.resource://com.foxstoncold.youralarm/${R.raw.meeting}")
+        }
+    }
     fun deleteUsual(){
         repo.deleteOne(alarm1, context)
         repo.deleteOne(alarm2, context)
@@ -478,19 +466,20 @@ class FreeAlarmsHandler(
         repo.deleteAll(context)
         bufferList = LinkedList<Alarm>()
 
-        if (fill){
-            var r = 0
-            for (i in 0..27) {
-                if (i%3==0) r++
-                val alarm = Alarm(r, i)
-                bufferList.add(alarm)
-                repo.insert(alarm, context)
+        val toVal: Short = if (fill) 27 else 2
 
-            }
-            bufferList.add(addAlarm)
-            adapter.submitList(bufferList)
+        var r = 0
+        for (i in 0..toVal) {
+            if (i%3==0) r++
+            val alarm = Alarm(r, i)
+            bufferList.add(alarm)
+            repo.insert(alarm, context)
+
         }
-        createBrandNewRecycler(false)
+        bufferList.add(addAlarm)
+        adapter.submitList(bufferList)
+
+        mtofaCallback.restartActivity()
     }
 
     override fun getMeasurements(): MeasurementsAide? = this.measurements.also { it?.setNewRV(this.recycler) }
@@ -523,7 +512,10 @@ class FreeAlarmsHandler(
 
     override fun getRatios(): RatiosResolver = supervisor.ratios
     override fun getDrawables(): MainDrawables = supervisor.drawables
+
     override fun getFragmentManager(): FragmentManager = mtofaCallback.getFM()
+    override fun launchRingtonePicker(data: MainActivity.RPRequestData) = mtofaCallback.launchRingtonePicker(data)
+
     override fun getItemViewHolder(adapterPos: Int): ViewHolder? = recycler.findViewHolderForAdapterPosition(adapterPos)
 
     override fun showAdd(){
@@ -561,6 +553,7 @@ class FreeAlarmsHandler(
  * Second ones on the other hand belong directly to the inner elements of pref window
  */
 sealed interface FAHCallback{
+    fun getContextForInflater(): Context
     fun notifyBaseClick(prefParentPos: Int)
     fun getAddAlarmParentVisibility(): Boolean
     fun addItem(alarm: Alarm)
@@ -583,6 +576,7 @@ sealed interface FAHCallback{
     //Using by VH to retrieve Fragment Manager for showing Time Picker
     fun getFragmentManager(): FragmentManager
 
+    fun launchRingtonePicker(data: MainActivity.RPRequestData)
 }
 
 /**
@@ -614,6 +608,7 @@ interface RLMCallback{
      * but in RLM we yet don't have a usual set of data to calculate it in a normal way
      */
     fun setNotifyUpdate(flag: Int)
+    fun isPrefPresented(): Boolean
     fun isBusy(): Boolean
     fun setRVState(state: IntArray)
     fun manipulatePrefPowerState(enabled: Boolean): Int
@@ -654,8 +649,7 @@ class RLMReturnData(){
 data class MeasurementsAide(
     private val handler: FreeAlarmsHandler,
     private val recycler: RecyclerView.Recycler,
-    private var recyclerView: RecyclerView,
-){
+    private var recyclerView: RecyclerView, ){
 
     private val master: RowLayoutManager = recyclerView.layoutManager!! as RowLayoutManager
     private val sample: View = recycler.getViewForPosition(0)
@@ -788,6 +782,87 @@ data class MeasurementsAide(
                 mBaseVerticalPadding
 
     fun getPrefTopOffsetShift(): Int = measuredPrefHeight - prefTopIndent + prefBottomPadding
+}
+
+class DigitClockInfoController(private val repo: AlarmRepo, private val maCallback: M_to_FA_Callback){
+    private var nowShowingID: String? = null
+
+    init {
+        repo.activesLD.observe(maCallback.getLifecycleOwner()) {
+            if (it.isEmpty()) maCallback.passNewFirstActiveDate(null)
+            else {
+                val first = it[0]
+                var time = first.triggerTime!!.time
+
+                if (first.preliminary && !first.preliminaryFired) {
+                    time += first.preliminaryTime * 60 * 1000
+                }
+                slU.w(Date(time))
+
+                maCallback.passNewFirstActiveDate(Date(time))
+            }
+        }
+
+        repo.allLD.observe(maCallback.getLifecycleOwner()) { list ->
+            slU.s("check one")
+            if (nowShowingID == null) {
+                maCallback.hideSubInfo()
+                return@observe
+            }
+            slU.s("check two")
+
+            checkListForSubInfo(list)
+        }
+    }
+    private fun checkListForSubInfo(list: MutableList<Alarm>){
+        val alarm = list.find { it.id == nowShowingID }
+        if (alarm == null) {
+            maCallback.hideSubInfo()
+            return
+        }
+
+
+        val effectivelyEnabled =
+            alarm.state == Alarm.STATE_PREPARE_SNOOZE ||
+                    alarm.state == Alarm.STATE_SNOOZE ||
+                    alarm.state == Alarm.STATE_FIRE ||
+                    alarm.state == Alarm.STATE_PRELIMINARY ||
+                    alarm.state == Alarm.STATE_PREPARE
+        slU.s(alarm.state)
+
+        if (effectivelyEnabled) {
+            var actualTime = alarm.triggerTime!!.time
+            var preliminary = false
+
+            if (alarm.preliminary && !alarm.preliminaryFired) {
+                actualTime += alarm.preliminaryTime * 60 * 1000
+                preliminary = true
+            }
+            maCallback.showSubInfo(alarm.id, preliminary, Date(actualTime))
+            slU.s(Date(actualTime))
+        }
+        else maCallback.hideSubInfo()
+    }
+    fun informPrefOpened(id: String) {
+        nowShowingID = id
+        checkListForSubInfo(repo.all)
+    }
+
+    fun informPrefClosed(id: String) {
+        if (nowShowingID == id){
+            nowShowingID = null
+            maCallback.hideSubInfo()
+            slU.s("HIDE")
+
+        }
+    }
+
+    fun informPrefClosed() {
+        nowShowingID = null
+        maCallback.hideSubInfo()
+        slU.s("HIDE")
+
+    }
 
 }
 

@@ -1,17 +1,14 @@
 package com.foxstoncold.youralarm.alarmScreenBackground
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
@@ -20,7 +17,6 @@ import android.media.MediaRecorder
 import android.os.*
 import android.util.SparseIntArray
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import androidx.core.util.keyIterator
 import com.foxstoncold.youralarm.MainViewModel
 import com.foxstoncold.youralarm.R
@@ -38,7 +34,6 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.floor
 import kotlin.math.pow
-import kotlin.math.roundToInt
 
 
 class ActivenessDetectionService: Service() {
@@ -145,16 +140,42 @@ class Controller(val stopService: (Boolean)->Unit,
     private lateinit var detectEventListener: SensorEventListener
 
     private lateinit var recorder: AudioRecord
-    private var player: MediaPlayer? = null
+    private val alarming = Alarming(info)
     private val compDis: CompositeDisposable = CompositeDisposable()
     //Dedicated flag to keep showing endless progress bar when activeness haven't been committed
     private var firstStep = true
-    //Need to indicate user that we found out them cheating
-    private var again = false
     private var delayAvailable = true
     //Informing receiving observables about the end of detection
     private var stopped = false
 
+    private inner class Alarming(info: SubInfo){
+        private var player: MediaPlayer? = BackgroundUtils.returnPlayer(context, info)
+        private val vibrator: Vibrator? = if (info.vibrate) context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator else null
+
+        fun start(){
+            player?.start()
+
+            val timings: LongArray = longArrayOf(450, 50, 50, 50, 50, 150, 120, 50, 50, 50, 50, 200)
+            val amplitudes: IntArray =
+                intArrayOf(0, 27, 45, 68, 104, 145, 0, 52, 79, 134, 198, 255)
+
+            vibrator?.vibrate(VibrationEffect.createWaveform(timings, amplitudes, 0))
+        }
+        fun pause(){
+            if (player!=null && player!!.isPlaying) player!!.pause()
+        }
+        fun stop(){
+            player?.stop()
+            vibrator?.cancel()
+        }
+        fun kill(){
+            player?.stop()
+            player?.release()
+            player = null
+
+            vibrator?.cancel()
+        }
+    }
 
     private companion object {
         const val FLAG_WARNING = -2
@@ -182,7 +203,6 @@ class Controller(val stopService: (Boolean)->Unit,
             stopService(testMode)
         }
 
-        player = BackgroundUtils.returnPlayer(context, info)
         sl.f("Controller: initialized. Test mode: $testMode, output: $fileOutput")
 
         //Dispatching all terminal messages to the endSubj,
@@ -192,7 +212,7 @@ class Controller(val stopService: (Boolean)->Unit,
             sl.i("end signal received: $it. Exiting after delay")
             stopped = true
             handleInforming(NOT_END, it)
-            player!!.stop()
+            alarming.stop()
             sManager.unregisterListener(countEventListener)
 
             handler.postDelayed({
@@ -213,7 +233,7 @@ class Controller(val stopService: (Boolean)->Unit,
                     when (t) {
                         FLAG_WARNING -> handleInforming(NOT_WARNING, progressCache)
 
-                        FLAG_OUT -> handleInforming(NOT_TIME_OUT, progressCache).also { player?.start() }
+                        FLAG_OUT -> handleInforming(NOT_TIME_OUT, progressCache).also { alarming.start() }
                         //informing of progress
                         else -> {
                             firstStep = false
@@ -245,12 +265,12 @@ class Controller(val stopService: (Boolean)->Unit,
             if (audioManager.getStreamVolume(streamType) != volIndex){
                 sl.fst("vol mismatch (${audioManager.getStreamVolume(streamType)} against $volIndex)")
 
-                player!!.pause()
+                alarming.pause()
                 audioManager.setStreamVolume(streamType, volIndex, AudioManager.FLAG_SHOW_UI)
                 /* AudioManager won't allow us to programmatically set volume below some threshold,
                 so here we adjust to avoid pointless looping */
                 volIndex = audioManager.getStreamVolume(streamType)
-                player!!.start()
+                alarming.start()
             }
         }
     }
@@ -259,13 +279,13 @@ class Controller(val stopService: (Boolean)->Unit,
     fun makeDelay(){
         sl.fr("delay requested")
         handleInforming(NOT_REMIND_DELAYED)
-        player?.pause()
+        alarming.pause()
         delayAvailable = false
 
         val timer = Observable.timer(1L, TimeUnit.MINUTES)
         delayDis = timer.subscribe {
             sl.fr("delay expired")
-            player?.start()
+            alarming.start()
             handleInforming(NOT_TIME_OUT)
         }
         compDis.add(delayDis)
@@ -375,7 +395,7 @@ class Controller(val stopService: (Boolean)->Unit,
                     when (value) {
                         FLAG_STEPS_ENDED -> {
                             setContentText("Ended by steps")
-                            setSmallIcon(R.drawable.ic_activeness, 1)
+                            setSmallIcon(R.drawable.ic_activeness_bold, 1)
                             sl.fr("steps ended")
                         }
                         FLAG_SOUND_ENDED -> {
@@ -481,7 +501,7 @@ class Controller(val stopService: (Boolean)->Unit,
                 setupRemovable(false, contSubj, endSubject)
                 timerSet = false
                 if (this@Controller::delayDis.isInitialized) delayDis.dispose()
-                if (player?.isPlaying == true) player?.pause()
+                alarming.pause()
             }
 
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -679,11 +699,7 @@ class Controller(val stopService: (Boolean)->Unit,
             recorder.release()
         }
         compDis.dispose()
-
-        player?.stop()
-        player?.release()
-        player = null
-
+        alarming.kill()
         sManager.unregisterListener(countEventListener)
         if (this::detectEventListener.isInitialized) sManager.unregisterListener(detectEventListener)
     }

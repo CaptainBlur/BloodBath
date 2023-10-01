@@ -19,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMCallback {
@@ -31,6 +32,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     private final RowLayoutManagerAnimator animator;
     private int mVisibleRows;//Значение отрисованных строк всгда на 1 больше
     private int mExtendedVisibleRows;//Сама строка настроек в счёт не входит
+    //Available rows of items including addAlarm, but not pref
     private int mAvailableRows;
     private int mAnchorRowPos;//У первой строки всегда как минимум виден нижний отступ
     private int mLastVisibleRow;
@@ -104,6 +106,9 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         return busy;
     }
 
+    @Override
+    public boolean isPrefPresented() { return prefVisibility; }
+
     private void setBusy(boolean busy) {
         this.busy = busy;
     }
@@ -139,8 +144,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
 
         if (getChildCount()==0 && 0 != state.getItemCount()) {
+            mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0) mAvailableRows++;
             //Рассчитать максимальное количество строк, основываясь на высоте RV
-            mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++;
             mVisibleRows = getHeight() / aide.getDecoratedTimeHeight() + 1;
             mExtendedVisibleRows = (getHeight() - aide.getMeasuredPrefHeight() + aide.getHorizontalPadding()) / aide.getDecoratedTimeHeight() + 1;
 
@@ -181,6 +186,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         //this offset can't be far away from startRow, because it still has to be visible
         //for us to tap on it and close pref
         int startOffset = savedBaseline - (startRowPos-1) * aide.getDecoratedTimeHeight();
+        if (startOffset < 0) startOffset = 0;
 
         /*
         In every each layout method this value relatively counts from the start of RV
@@ -243,7 +249,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     /**
      * Use this method to define distribution of surrounding by sides of pref,
      * and lay them out, returning topOffset for further layout of pref and motherRow.
-     * Also it calculates Bounds
+     * Also it calculates Bounds and topBaseline
      * */
     private int layoutSurroundingRows(){
         /*
@@ -252,11 +258,20 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
          */
         int motherRow = prefRowPos-1;
 
-        //ExtendedVisible value is always a one digit less than we prefer to layout,
-        //so that's why we only rely on that when counting rows around [mother]
+        /*
+        ExtendedVisible value is always a one digit less than we prefer to layout,
+        so that's why we only rely on that when counting rows around [mother]
+        */
+        //this amount is meant to be equally distributed around mother
         short noRemainder = (short) ((mExtendedVisibleRows) /2);
+        //this one will be added below pref
         short remainder = (short) ((mExtendedVisibleRows) %2);
 
+        /*
+        Strict rules about edge row positions:
+        - only valid numbers in range of amount of available rows
+        - can be the same with motherRow if there's not enough to layout above or below
+         */
         int startRowPos = motherRow - noRemainder;
         int endRowPos = motherRow + noRemainder + remainder;
 
@@ -265,27 +280,30 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
         startRowPos += botOverflow - topOverflow;
         endRowPos += botOverflow - topOverflow;
 
+        startRowPos = Math.max(startRowPos, 1);
+        endRowPos = Math.min(endRowPos, mAvailableRows);
 
         int leftOffset = aide.getHorizontalPadding();
         //All above rows should be hidden, and topOffset will be relative to the current scroll position
-        int topOffset = getRealPaddingTop() - (noRemainder - botOverflow) * aide.getDecoratedTimeHeight();
+        //and be greater than zero
+        int topOffset = getRealPaddingTop() - (motherRow - startRowPos) * aide.getDecoratedTimeHeight();
+        if (mAvailableRows < 2){
+            slU.fr("not laying out surrounding. Insufficient amount of rows");
+            return topOffset;
+        }
+        /*
+        Since topOffset is relative to scroll position, our bounds and baselines are bound to rows heights
+         */
         mTopBound = (startRowPos-1) * aide.getDecoratedTimeHeight();
-        mTopBaseline = (motherRow-1) * aide.getDecoratedTimeHeight();
+        mTopBaseline = (motherRow - 1) * aide.getDecoratedTimeHeight();
         //Pref can actually overlap with timeWindows, but Bounds should be placed on the edges
         mBottomBound = (endRowPos-1) * aide.getDecoratedTimeHeight() + aide.getPrefTopOffsetShift() + getPaddingBottom() +
                 ((startRowPos==1 || motherRow==1) ? getRealPaddingTop() : getPaddingTop());
 
-        if (startRowPos > 1){
-            mTopBound+=aide.getPrefTopIndent();
-            mBottomBound+=aide.getPrefTopIndent();
-        }
-
+        //small alteration to make an end bottom padding shorter
         if (endRowPos==mAvailableRows && endRowPos!=motherRow){
             mBottomBound -= aide.getVerticalPadding() - aide.getPrefBottomPadding();
         }
-        //In that condition we have small problems calculating proper offset
-        if (endRowPos==motherRow) topOffset -= aide.getDecoratedTimeHeight();
-
         int rowCount = startRowPos;
         detachAndScrapAttachedViews(recycler);
         mViewCache.clear();
@@ -464,6 +482,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
         else if (FLAG_NOTIFY == HIDE_PREF | FLAG_NOTIFY == UPDATE_DATASET ) {
 
+            animator.addItemDeleteChanges();
+
             if (prefVisibility) {
                 slU.fr("Removing visible pref");
                 prefVisibility = prefScrapped = STSTop = STSBottom = false;
@@ -474,7 +494,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             mViewCache.clear();
 
             //Recalculating mAvailableRows
-            if (FLAG_NOTIFY == UPDATE_DATASET ){ mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0 || mAvailableRows < 3) mAvailableRows++; }
+            if (FLAG_NOTIFY == UPDATE_DATASET ){ mAvailableRows = getItemCount() / 3; if (getItemCount() % 3 !=0) mAvailableRows++; }
 
             layoutStraight(mTopBaseline);
 
@@ -510,6 +530,8 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
         if (mBottomBaseline >= mBottomBound){
             int offset = mBottomBaseline - mBottomBound + 1;
+            //if there's not enough space to shift by bottom, we shift top to zero
+            if ((mTopBaseline - offset) < 0) offset = mTopBaseline;
             slU.fst("shifting for: " + offset);
 
             offsetChildrenVertical(offset);
@@ -1120,7 +1142,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             prefPos = ((prefRowPos-1) * 3); if (prefPos>getItemCount()) prefPos = getItemCount();//Позиция вьюшки настроек в адаптере
             slU.f( "prefParentPos:" + this.prefParentPos + ", prefRowPos:" + prefRowPos + ", prefPos:" + prefPos);
 
-            //We have to recycle this one just in case RV will want to reuse it and put in place of pref
+            //We have to recycle the view that was previously taking place of pref just in case RV will want to reuse it and put in place of pref
             if (prefRowPos <= mAvailableRows) removeAndRecycleView(recycler.getViewForPosition(prefPos), recycler);
 
             FLAG_NOTIFY = LAYOUT_PREF;
@@ -1229,9 +1251,12 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
     }
 
     /**
-     * Since it gets a bit tricky when working with DefaultItemAnimator,
-     * we have to embed a very special behavior for each (or almost) use case.
+     * FUCKING RECYCLERVIEW DOES EVERYTHING IT WANTS FOR IT'S OWN REASONS.
+     * indicates of starts and ends of different animation groups due to weather on the Moon;
+     * sometimes even gives me no access to the ViewHolder after animation is ended;
+     * leaving duplicate views sometimes
      */
+    // TODO: 9/17/23 make your own fucking recyclerView with transparent work process
     private class RowLayoutManagerAnimator extends HomieDefaultItemAnimator {
         private final boolean LOG_CALLS = false;
         private LinkedList<ChangesExecutor> factory;
@@ -1266,9 +1291,23 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             //whole Add group is only pref
             setAddDuration(newAddDuration);
 
+            AtomicBoolean fadingStarted = new AtomicBoolean(false);
             //parent's fading during Move
-            factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, prefParentPos, (vh) ->
-                    ((ChildViewHolder) vh).startTimeWindowAlphaAnimation(fadeDuration, 0f)));
+            factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, prefParentPos, (vh) ->{
+                ((ChildViewHolder) vh).startTimeWindowAlphaAnimation(fadeDuration, 0f);
+                fadingStarted.set(true);
+            }));
+            factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, true, (vh) ->{
+                if (!fadingStarted.get()) ((ChildViewHolder) vh).startTimeWindowAlphaAnimation(fadeDuration, 0f);
+                fadingStarted.set(true);
+            }));
+            factory.add(new ChangesExecutor(ChangesExecutor.FLAG_ADD, true, (vh) ->{
+                ChildViewHolder viewHold = (ChildViewHolder) aideCallback.getItemViewHolder(prefParentPos);
+                if (viewHold != null){
+                    viewHold.setTimeWindowVisibility(0f);
+                    viewHold.requestParentUpdate();
+                }
+            }));
 
             slU.fr("a.b.c. are set up for ^layoutPref^");
         }
@@ -1292,18 +1331,24 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
             //launching pref's fading before new dataset is passed
             ChildViewHolder prefView = (ChildViewHolder) aideCallback.getItemViewHolder(prefPos);
-            assert prefView != null;
-            prefView.hidePrefNLaunchHandler(150);
+            if (prefView != null) prefView.hidePrefNLaunchHandler(150);
+
+            AtomicBoolean alphaChanged = new AtomicBoolean(false);
 
             //starting ex-parent's Add animation along with Move group
             factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, vh->{
-                assert (interceptedVH1!=null);
-                animateAddImpl(interceptedVH1);
+                if (interceptedVH1!=null) animateAddImpl(interceptedVH1);
                 //making the rest's appearance instant
                 setAddDuration(0);
+
                 //In case of adding previously blanked add parent,
                 //we need to pull it back to normal
-                interceptedVH1.setTimeWindowVisibility(1f);
+                if (interceptedVH1!=null) interceptedVH1.setTimeWindowVisibility(1f);
+                alphaChanged.set(true);
+            }));
+            factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, true, vh->{
+                if (!alphaChanged.get() && interceptedVH1!=null) interceptedVH1.setTimeWindowVisibility(1f);
+                alphaChanged.set(true);
             }));
 
             slU.fr("a.b.c. are set up for ^hidePref^");
@@ -1327,8 +1372,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
 
                 //starting ex-parent's Add animation along with Move group
                 factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, vh -> {
-                    assert (interceptedVH1 != null);
-                    animateAddImpl(interceptedVH1);
+                    if (interceptedVH1 != null) animateAddImpl(interceptedVH1);
                 }));
 
                 slU.fr("a.b.c. are set up for ^HLP^, same row");
@@ -1337,8 +1381,7 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
             else if (!prefScrapped) {
                 factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, false, vh -> {
                     ChildViewHolder newParentHolder = (ChildViewHolder) aideCallback.getItemViewHolder(prefParentPos);
-                    assert newParentHolder != null;
-                    newParentHolder.startTimeWindowAlphaAnimation(getMoveDuration(), 0f);
+                    if (newParentHolder!=null) newParentHolder.startTimeWindowAlphaAnimation(getMoveDuration(), 0f);
 
                     /*
                     This gets a little tricky since Animator will start Add animation
@@ -1381,6 +1424,15 @@ public class RowLayoutManager extends RecyclerView.LayoutManager implements RLMC
                 ((ChildViewHolder) vh).startTimeWindowAlphaAnimation(getMoveDuration(), 0f);
 
                 if (!interceptedVHList1.isEmpty()) for (ChildViewHolder holder : interceptedVHList1) animateAddImpl(holder);
+            }));
+        }
+
+        public void addItemDeleteChanges(){
+            factory = new LinkedList<>();
+            interceptedVH1=null;
+
+            factory.add(new ChangesExecutor(ChangesExecutor.FLAG_MOVE, true, vh ->{
+                setBusy(false);
             }));
         }
 

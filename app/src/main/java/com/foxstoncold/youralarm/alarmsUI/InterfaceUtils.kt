@@ -2,20 +2,19 @@ package com.foxstoncold.youralarm.alarmsUI
 
 import android.Manifest
 import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
 import android.animation.TimeInterpolator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.os.Build
-import android.os.VibrationEffect
-import android.os.Vibrator
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewPropertyAnimator
 import android.view.animation.LinearInterpolator
+import kotlin.math.abs
+import kotlin.math.max
 
 class InterfaceUtils {
 
@@ -43,6 +42,35 @@ class InterfaceUtils {
     }
 
 
+    class Contractor(private val lowestVal: Float, private val highestVal: Float) {
+        private val divisionVal = 1f / (highestVal - lowestVal)
+        init {
+            assert(lowestVal >= 0f && lowestVal < highestVal && lowestVal <= 1f)
+            assert(highestVal >= 0f && highestVal > lowestVal && highestVal <= 1f)
+        }
+
+        fun contract(fraction: Float): Float{
+            if (fraction < lowestVal) return 0f
+            else if (fraction > highestVal) return 1f
+
+            //creating new scale by increasing division value
+            val newScale = fraction * divisionVal
+            //normalizing to 1 (high) and 0 (low)
+            val normHigh = newScale / (divisionVal * highestVal)
+            val normLow = newScale - (divisionVal * lowestVal)
+            //mixing and normalizing to high
+            val end = ((normHigh + normLow) / normHigh) - 1
+
+//                    slU.i("$fraction  $divisionVal    $newScale  $normHigh  $normLow  $end")
+            return end
+        }
+
+        fun contractReversed(fraction: Float): Float{
+            return contract(abs(fraction - 1))
+        }
+    }
+
+
     class DragViewDriver(
         private val xNegativeMax: Int = 0,
         private val xPositiveMax: Int = 0,
@@ -59,8 +87,7 @@ class InterfaceUtils {
         private val attachmentAnimationTime: Int = 0,
         private val relativelyTrimAnimationTime: Boolean = false,
         private val attachmentAnimationInterpolator: TimeInterpolator = LinearInterpolator(),
-    )
-    {
+    ){
         private val xNegativeEnabled = xNegativeMax<0
         private val xPositiveEnabled = xPositiveMax>0
         private val yNegativeEnabled = yNegativeMax<0
@@ -90,6 +117,8 @@ class InterfaceUtils {
         fun addMovableViews(vararg mViews: View){
             for (view in mViews) movableViews.add(view)
         }
+        var onViewAttachmentStarted: (BooleanArray, BooleanArray)-> Unit = { _, _ ->}
+        var onViewAttached: (BooleanArray, BooleanArray)-> Unit = { _, _ ->}
 
         fun recheckIncompleteAnimations(){
 
@@ -119,6 +148,16 @@ class InterfaceUtils {
                 .y(moveY)
                 .x(moveX)
                 .setDuration(0)
+                .setListener(object: Animator.AnimatorListener{
+                    override fun onAnimationStart(animation: Animator) = Unit
+
+                    override fun onAnimationEnd(animation: Animator) = Unit
+
+                    override fun onAnimationCancel(animation: Animator) = Unit
+
+                    override fun onAnimationRepeat(animation: Animator) = Unit
+
+                })
                 .start()
 
             return Pair(moveX, moveY)
@@ -133,32 +172,40 @@ class InterfaceUtils {
             var attachY = moveCoordinates.second
             var alignmentY = false
 
-            val animationTime = if (attachmentAnimationTime > 0) attachmentAnimationTime.toLong() else 0L
-
+            val sideArray = BooleanArray(4)
+            val alignmentArray = BooleanArray(4)
 
             if (xPositiveAttachment && relX>=0){
-                val overlapX = relX / xPositiveMax
-                if (!prevAlignment.first) attachX = if (overlapX < xPositiveStartThreshold) startRelativeCoordinates.first else xPositiveMax + startRelativeCoordinates.first.also { alignmentX = true }
-                if (prevAlignment.first) attachX = if (overlapX > xPositiveEndThreshold) xPositiveMax + startRelativeCoordinates.first.also { alignmentX = true } else startRelativeCoordinates.first
+                val relFractionX = relX / xPositiveMax
+                if (!prevAlignment.first) attachX = if (relFractionX < xPositiveStartThreshold) startRelativeCoordinates.first else xPositiveMax + startRelativeCoordinates.first.also { alignmentX = true }
+                if (prevAlignment.first) attachX = if (relFractionX > xPositiveEndThreshold) xPositiveMax + startRelativeCoordinates.first.also { alignmentX = true } else startRelativeCoordinates.first
+                sideArray[0] = true
+                alignmentArray[0] = alignmentX
 //                sl.i("$relX  $overlapX")
             }
             if (xNegativeAttachment && relX<=0){
-                val overlapX = -(relX / xNegativeMax)
-                if (!prevAlignment.first) attachX = if (overlapX > xNegativeStartThreshold) startRelativeCoordinates.first else xNegativeMax + startRelativeCoordinates.first.also { alignmentX = true }
-                if (prevAlignment.first) attachX = if (overlapX < xNegativeEndThreshold) xNegativeMax + startRelativeCoordinates.first.also { alignmentX = true } else startRelativeCoordinates.first
+                val relFractionX = -(relX / xNegativeMax)
+                if (!prevAlignment.first) attachX = if (relFractionX > xNegativeStartThreshold) startRelativeCoordinates.first else xNegativeMax + startRelativeCoordinates.first.also { alignmentX = true }
+                if (prevAlignment.first) attachX = if (relFractionX < xNegativeEndThreshold) xNegativeMax + startRelativeCoordinates.first.also { alignmentX = true } else startRelativeCoordinates.first
+                sideArray[1] = true
+                alignmentArray[1] = alignmentX
 //                sl.i("$relX  $overlapX")
             }
             if (yPositiveAttachment && relY>=0){
-                val overlapY = relY / yPositiveMax
-                if (!prevAlignment.second) attachY = if (overlapY < yPositiveStartThreshold) startRelativeCoordinates.second else yPositiveMax + startRelativeCoordinates.second.also { alignmentY = true }
-                if (prevAlignment.second) attachY = if (overlapY > yPositiveEndThreshold) yPositiveMax + startRelativeCoordinates.second.also { alignmentY = true } else startRelativeCoordinates.second
+                val relFractionY = relY / yPositiveMax
+                if (!prevAlignment.second) attachY = if (relFractionY < yPositiveStartThreshold) startRelativeCoordinates.second else yPositiveMax + startRelativeCoordinates.second.also { alignmentY = true }
+                if (prevAlignment.second) attachY = if (relFractionY > yPositiveEndThreshold) yPositiveMax + startRelativeCoordinates.second.also { alignmentY = true } else startRelativeCoordinates.second
+                sideArray[2] = true
+                alignmentArray[2] = alignmentY
 //                sl.i("$relX  $overlapX")
             }
             if (yNegativeAttachment && relY<=0){
-                val overlapY = -(relY / yNegativeMax)
-                if (!prevAlignment.second) attachY = if (overlapY > yNegativeStartThreshold) startRelativeCoordinates.second else yNegativeMax + startRelativeCoordinates.second.also { alignmentY = true }
-                if (prevAlignment.second) attachY = if (overlapY < yNegativeEndThreshold) yNegativeMax + startRelativeCoordinates.second.also { alignmentY = true } else startRelativeCoordinates.second
-//                sl.i("$relX  $overlapX")
+                val relFractionY = -(relY / yNegativeMax)
+                if (!prevAlignment.second) attachY = if (relFractionY > yNegativeStartThreshold) startRelativeCoordinates.second else yNegativeMax + startRelativeCoordinates.second.also { alignmentY = true }
+                if (prevAlignment.second) attachY = if (relFractionY < yNegativeEndThreshold) yNegativeMax + startRelativeCoordinates.second.also { alignmentY = true } else startRelativeCoordinates.second
+                sideArray[3] = true
+                alignmentArray[3] = alignmentY
+//                sl.i("$relY  $relFractionY")
             }
 //            if (xNegativeAttachment && relX<=0){
 //                val overlapX = relX / xPositiveMax
@@ -173,16 +220,39 @@ class InterfaceUtils {
 //                attachY = if (overlapY > yNegativeThreshold) startRelativeCoordinates.second else yNegativeMax + startRelativeCoordinates.second
 //            }
 
+            var animationTime = if (attachmentAnimationTime > 0) attachmentAnimationTime.toLong() else 0L
+            if (relativelyTrimAnimationTime){
+                val completeTime = animationTime
 
+                //todo make it through Pythagorean theorem along with X axis
+                val yDistance = abs(attachY - moveCoordinates.second)
+                val yTimeFraction = yDistance / max(-yNegativeMax, yPositiveMax).toFloat()
+                animationTime = (completeTime * yTimeFraction).toLong()
 
-            sl.i("$prevAlignment; $alignmentX  $alignmentY")
+//                sl.i("frac: $relFractionY, dist: $yDistance, timeFraction: $yTimeFraction, time: $yEffectiveTime")
+//                sl.i(yDistance)
+//                sl.i(relFractionY)
+            }
+
+//            sl.i("$prevAlignment; $alignmentX  $alignmentY")
             view.animate()
-//                .setUpdateListener { sl.i(it.animatedFraction) }
                 .x(attachX)
                 .y(attachY)
                 .setDuration(animationTime)
                 .setInterpolator(attachmentAnimationInterpolator)
+                .setListener(object: Animator.AnimatorListener{
+                    override fun onAnimationStart(animation: Animator) = Unit
+
+                    override fun onAnimationEnd(animation: Animator) = onViewAttached(sideArray, alignmentArray)
+
+                    override fun onAnimationCancel(animation: Animator) = Unit
+
+                    override fun onAnimationRepeat(animation: Animator) = Unit
+
+                })
                 .start()
+
+            onViewAttachmentStarted(sideArray, alignmentArray)
             return Pair(alignmentX, alignmentY)
         }
 

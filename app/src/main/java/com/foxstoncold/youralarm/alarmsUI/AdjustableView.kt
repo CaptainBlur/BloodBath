@@ -13,6 +13,7 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.recyclerview.widget.RecyclerView
 import com.foxstoncold.youralarm.R
+import java.lang.RuntimeException
 import kotlin.math.roundToInt
 
 interface AdjustableView{
@@ -27,6 +28,13 @@ interface AdjustableView{
     fun adjust(context: Context, view: View, globalRect: Rect, logging: Boolean): Rect{
         if (logging)
             context.resources.getResourceEntryName(view.id)?.let { slU.fr("adjusting View with id: *$it*") }
+
+        try {
+            obtained.length()
+        } catch (e: RuntimeException){
+            slU.s("error adjusting", e)
+            return Rect()
+        }
 
         val mWlH = obtained.getFraction(R.styleable.AdjustableView_width_toLocal_height_multiplier, 1,1, -1f)
         val mWgW = obtained.getFraction(R.styleable.AdjustableView_width_toGlobal_multiplier, 1,1, -1f)

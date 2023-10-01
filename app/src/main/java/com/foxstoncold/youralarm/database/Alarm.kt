@@ -1,6 +1,8 @@
 package com.foxstoncold.youralarm.database
 
 import android.content.Context
+import android.media.RingtoneManager
+import android.net.Uri
 import androidx.room.Entity
 import androidx.room.Ignore
 import com.foxstoncold.youralarm.MainViewModel
@@ -65,6 +67,7 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
             false
         } else repeatable
     }
+    var soundPath: Uri? = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
     var vibrate = true
     var preliminary = false
     var detection = false
@@ -76,11 +79,12 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
     //This one for copying pref's internals inside CVH
     @Ignore
     private constructor(hour: Int, minute: Int, enabled: Boolean,
-            parentPos: Int, weekdays: BooleanArray, repeatable: Boolean, vibrate: Boolean,
+            parentPos: Int, weekdays: BooleanArray, repeatable: Boolean, soundPath: Uri?, vibrate: Boolean,
             detection: Boolean, preliminary: Boolean) : this(hour, minute, enabled){
         this.parentPos = parentPos
         this.weekdays = weekdays
         this.repeatable = repeatable
+        this.soundPath = soundPath
         this.vibrate = vibrate
         this.detection = detection
         this.preliminary = preliminary
@@ -92,9 +96,9 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
     */
     @Ignore
     private constructor(hour: Int, minute: Int, enabled: Boolean,
-                parentPos: Int, weekdays: BooleanArray, repeatable: Boolean, vibrate: Boolean,
+                parentPos: Int, weekdays: BooleanArray, repeatable: Boolean, soundPath: Uri?, vibrate: Boolean,
                 detection: Boolean, preliminary: Boolean, addAlarmPos: Int):
-            this(hour, minute, enabled, parentPos, weekdays, repeatable, vibrate, detection, preliminary){
+            this(hour, minute, enabled, parentPos, weekdays, repeatable, soundPath, vibrate, detection, preliminary){
 
         setPrefBelongsToAdd(parentPos, addAlarmPos)
         this.prefFlag = true
@@ -105,9 +109,9 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
     }
 
     //Not including any dynamically assignable variables
-    fun clone(): Alarm = Alarm(hour, minute, enabled, parentPos, weekdays, repeatable, vibrate, detection, preliminary)
+    fun clone(): Alarm = Alarm(hour, minute, enabled, parentPos, weekdays, repeatable, soundPath, vibrate, detection, preliminary)
     fun createPref(parentPos: Int, addAlarmPos: Int): Alarm =
-        Alarm(hour, minute, enabled, parentPos, weekdays, repeatable, vibrate, detection, preliminary, addAlarmPos)
+        Alarm(hour, minute, enabled, parentPos, weekdays, repeatable, soundPath, vibrate, detection, preliminary, addAlarmPos)
 
 
 
@@ -200,7 +204,9 @@ data class Alarm(var hour: Int, var minute: Int, var enabled: Boolean = false, v
             snoozed,
             preliminary && !preliminaryFired,
             preliminaryTime,
-            null,
+            preliminary,
+            detection,
+            soundPath,
             vibrate,
             prefs.getBoolean("volumeLock", false),
             prefs.getInt("volume", 1),

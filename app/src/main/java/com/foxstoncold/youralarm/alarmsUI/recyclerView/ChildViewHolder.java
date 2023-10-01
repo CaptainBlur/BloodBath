@@ -5,13 +5,19 @@ import static com.google.android.material.timepicker.TimeFormat.CLOCK_24H;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.TimeInterpolator;
+import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Rect;
 import android.graphics.drawable.AnimationDrawable;
+import android.media.RingtoneManager;
+import android.net.Uri;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -20,11 +26,13 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 
+import androidx.activity.result.contract.ActivityResultContract;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.foxstoncold.youralarm.MainActivity;
 import com.foxstoncold.youralarm.alarmsUI.InterfaceUtils;
 import com.google.android.material.timepicker.MaterialTimePicker;
 import com.foxstoncold.youralarm.MainViewModel;
@@ -67,7 +75,7 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
     private boolean[] savedWeekdays;
 
 
-    private ChildViewHolder(View view, FAHCallback c, Rect rect) {
+    ChildViewHolder(View view, FAHCallback c, Rect rect) {
         super(view);
         this.view = view;
         this.hCallback = c;
@@ -92,7 +100,6 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
         prefMusic = view.findViewById(R.id.rv_pref_music);
         prefMusic.makeAdjustments(globalRect);
-        prefMusic.setForeground(drawables.get_neutral_drawable(MainDrawables.rv_pref_music));
 
         prefVibration = view.findViewById(R.id.rv_pref_vibration);
         prefVibration.makeAdjustments(globalRect);
@@ -125,7 +132,6 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
         prefPower.setChecked(true);
 
         setupAnimatedDrawables(false, startAnimation);
-
     }
     private void setChecked(boolean startAnimation){
         slU.fr("Pref set ON");
@@ -142,7 +148,7 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
     }
 
 
-    private void setupAnimatedDrawables(boolean checked, boolean startAnimation){
+    private void setupAnimatedDrawables(boolean checked, boolean startAnimation) throws NullPointerException{
 
         AnimationDrawable frameDrawable = null;
         AnimationDrawable powerDrawable = (AnimationDrawable)
@@ -168,8 +174,13 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
                 prefFrame.setRotationY(0);
             }
         }
-//        assert frameDrawable != null;
 
+        if (frameDrawable==null){
+            slU.s("got no frameDrawable from dr. storage");
+            boolean side = hCallback.getPrefAlignment()==1 || hCallback.getPrefAlignment()==-1;
+
+            frameDrawable = (AnimationDrawable) drawables.get_pref_frame_directly(side, checked);
+        }
 
         if (startAnimation){
             prefFrame.setImageDrawable(frameDrawable);
@@ -229,6 +240,7 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
         updateRepeatContainerAppearance();
 
         prefRepeat.setOnClickListener(v ->{
+            v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
             AdjustableCompoundButton current = (AdjustableCompoundButton) v;
             current.setChecked(current.isChecked());
 
@@ -309,6 +321,7 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
             final int arrayPos = i;
             currentButton.setOnClickListener((v)->{
+                v.performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE);
                 SpecialCompoundButton current = (SpecialCompoundButton) v;
 
                 current.setState(arrayPos, current.isChecked());
@@ -359,7 +372,6 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
         prefFrame.setVisibility(View.VISIBLE);
         prefWeekdays.setVisibility(View.VISIBLE);
     }
-
 
     public void bind(Alarm current){
         prefWeekdays.removeAllViews();
@@ -431,6 +443,7 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
             prefPower.setVisibility(View.VISIBLE);
             prefPower.setOnClickListener((v) -> {
+                v.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
                 boolean checked = ((CompoundButton) v).isChecked();
 
                 if (checked) setUnchecked(true);
@@ -458,7 +471,8 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
         }
 
         prefTime.setText(String.format(Locale.ENGLISH, "%02d:%02d",h, m));
-        prefTime.setOnClickListener((v0) -> {
+        prefTime.setOnClickListener((v) -> {
+            v.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
             MaterialTimePicker picker = new MaterialTimePicker.Builder()
                     .setHour(h)
                     .setMinute(m)
@@ -483,10 +497,37 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
         savedWeekdays = current.getWeekdays();
         setupRepeatContainer(alarm);
 
+        prefMusic.setChecked(current.getSoundPath() != null);
+        if (prefMusic.isChecked()) prefMusic.setForeground(drawables.get_checked_drawable(MainDrawables.rv_pref_music));
+        else prefMusic.setForeground(drawables.get_unchecked_drawable(MainDrawables.rv_pref_music));
+        prefMusic.setOnClickListener(v ->{
+            v.performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE);
+            AdjustableCompoundButton view = (AdjustableCompoundButton) v;
+
+            MainActivity.RPRequestData requestData = new MainActivity.RPRequestData(alarm.getId(), alarm.getSoundPath(), (path)-> {
+                if (path != null && path.toString().equals("")) return;
+
+                if (path!=null){
+                    slU.i("sound path set to: " + path);
+                    view.setForeground(drawables.get_checked_drawable(MainDrawables.rv_pref_music));
+                }
+                else {
+                    slU.i("sound path set to null");
+                    view.setForeground(drawables.get_unchecked_drawable(MainDrawables.rv_pref_music));
+                }
+
+                alarm.setSoundPath(path);
+                hCallback.updateInternalProperties(alarm);
+            });
+            hCallback.launchRingtonePicker(requestData);
+
+        });
+
         prefVibration.setChecked(current.getVibrate());
         if (prefVibration.isChecked()) prefVibration.setForeground(drawables.get_checked_drawable(MainDrawables.rv_pref_vibration));
         else prefVibration.setForeground(drawables.get_unchecked_drawable(MainDrawables.rv_pref_vibration));
         prefVibration.setOnClickListener(v ->{
+            v.performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE);
             AdjustableCompoundButton view = (AdjustableCompoundButton) v;
             view.setChecked(view.isChecked());
 
@@ -502,6 +543,7 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
         if (prefPreliminary.isChecked()) prefPreliminary.setForeground(drawables.get_checked_drawable(MainDrawables.rv_pref_preliminary));
         else prefPreliminary.setForeground(drawables.get_unchecked_drawable(MainDrawables.rv_pref_preliminary));
         prefPreliminary.setOnClickListener(v ->{
+            v.performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE);
             AdjustableCompoundButton view = (AdjustableCompoundButton) v;
             view.setChecked(view.isChecked());
 
@@ -523,6 +565,8 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
 
             if (InterfaceUtils.Companion.checkActivityPermission(v.getContext()) &&
                     InterfaceUtils.Companion.checkStepSensors(v.getContext())) {
+
+                v.performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE);
                 view.setChecked(view.isChecked());
 
                 if (view.isChecked())
@@ -534,18 +578,12 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
                 alarm.setDetection(view.isChecked());
                 hCallback.updateInternalProperties(alarm);
             }
-            else view.setChecked(false);
+            else{
+                view.setChecked(false);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                    view.performHapticFeedback(HapticFeedbackConstants.REJECT);
+            }
         });
-    }
-
-    static ChildViewHolder create(ViewGroup parent, FAHCallback hCallback) {
-        //В данном случае, когда мы указиваем родительскую ViewGroup в качестве источника LayoutParams, эти самые LP передаются в View при наполнении
-        //Конкретно - это те, которые указаны в материнской LinearLayout, ширина и высота всей разметки.
-        //Если не передать эти LP, то RLM подхватит LP по умолчанию
-        Rect rect = new Rect(parent.getLeft(), parent.getTop(), parent.getRight(), parent.getBottom());
-        View itemView = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.recycler_view_item, parent, false);
-                return new ChildViewHolder(itemView, hCallback, rect);
     }
 
     @Override
@@ -570,7 +608,7 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
         hCallback.notifyBaseClick(getAdapterPosition());
         /*
         Instead of asking the handler about 'parent's duty' of a current view,
-        we lay it down to RLM along with telling us all about animation stuff
+        we lay it down to RLM along with telling us all about the visibility
          */
         switch (hCallback.getTimeWindowState(getAdapterPosition())) {
             case (1) -> timeWindow.setBackground(drawables.get_checked_drawable(MainDrawables.rv_time_window));
@@ -607,7 +645,9 @@ public class ChildViewHolder extends RecyclerView.ViewHolder implements View.OnC
     }
 
     public void animatePowerChange(boolean enabled){
-        if (enabled) setChecked(true);
-        else setUnchecked(true);
+        if (enabled == prefPower.isChecked()) {
+            if (enabled) setChecked(true);
+            else setUnchecked(true);
+        }
     }
 }

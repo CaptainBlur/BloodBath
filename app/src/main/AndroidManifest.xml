@@ -58,9 +58,7 @@
             android:windowSoftInputMode="stateAlwaysHidden"
             android:screenOrientation="portrait"
             tools:ignore="NonResizeableActivity" />
-        <activity
-            android:name=".NewTaskActivity"
-            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:screenOrientation="portrait"

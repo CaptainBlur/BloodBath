@@ -20,6 +20,9 @@
         <item name="layout_constraintTop_toTopOf">parent</item>
         />
     </style>
+    <style name="App.RecyclerViewItem.TierTwo" parent="App.RecyclerViewItem.TierOne">
+        <item name="width_toGlobal_multiplier">@fraction/rv_pref_tierTwo_width</item>
+    </style>
 
     <style name="App.Button.TestView" parent="">
         <item name="android:layout_width">50dp</item>
@@ -88,6 +91,14 @@
 
     </style>
 
+    <style name="ThemeOverlay.App.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <!--    Color for buttons in the bottom and specifier for a background-->
+        <item name="colorPrimary">@color/mild_pitchSub</item>
+        <!--    Color for colon separator in time Display-->
+        <item name="colorOnSurface">@color/black</item>
+
+    </style>
+
 
     <style name="Widget.App.Chip" parent="Widget.Material3.MaterialTimePicker.Display">
         <item name="android:textColor">@color/time_picker_chip_text</item>
@@ -105,10 +116,15 @@
         <item name="cornerSize">20dp</item>
     </style>
 
-    <style name="ShapeAppearanceOverlay.App.SettingsFragment" parent="">
+    <style name="ShapeAppearanceOverlay.App.SnoozeImageView.InnerSide" parent="">
         <item name="cornerFamily">cut</item>
-        <item name="cornerSizeBottomRight">20dp</item>
-
+        <item name="cornerSizeBottomLeft">10dp</item>
+        <item name="cornerSizeBottomRight">10dp</item>
+    </style>
+    <style name="ShapeAppearanceOverlay.App.SnoozeImageView.OuterSide" parent="ShapeAppearanceOverlay.App.SnoozeImageView.InnerSide">
+        <item name="cornerFamily">cut</item>
+        <item name="cornerSizeBottomLeft">8dp</item>
+        <item name="cornerSizeBottomRight">8dp</item>
     </style>
 
 </resources>

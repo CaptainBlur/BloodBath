@@ -100,7 +100,7 @@
 
         <com.foxstoncold.youralarm.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_preliminary"
-            style="@style/App.RecyclerViewItem.TierOne"
+            style="@style/App.RecyclerViewItem.TierTwo"
 
             app:layout_constraintHorizontal_bias="@integer/rv_pref_tierOne_columnOne_bias"
             app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowTwo_bias"
@@ -108,7 +108,7 @@
 
         <com.foxstoncold.youralarm.alarmsUI.AdjustableCompoundButton
             android:id="@+id/rv_pref_activeness"
-            style="@style/App.RecyclerViewItem.TierOne"
+            style="@style/App.RecyclerViewItem.TierTwo"
 
             app:layout_constraintHorizontal_bias="@integer/rv_pref_tierOne_columnTwo_bias"
             app:layout_constraintVertical_bias="@integer/rv_pref_tierOne_rowTwo_bias"

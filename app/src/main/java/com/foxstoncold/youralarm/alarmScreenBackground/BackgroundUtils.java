@@ -104,6 +104,8 @@ public class BackgroundUtils {
     }
 
     static protected MediaPlayer returnPlayer(Context context, SubInfo info) throws IOException {
+        if (info.getSoundPath() == null) return null;
+
         AudioAttributes attributes = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ALARM)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)

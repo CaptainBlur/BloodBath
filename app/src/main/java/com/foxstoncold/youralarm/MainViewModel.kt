@@ -129,11 +129,6 @@ class MainViewModel(private val app: Application) : AndroidViewModel(
         }
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        slU.w("cleared")
-    }
-
     private fun reassureRepo() = (app as MyApp).component.repo.reassureAll(app)
 
     fun checkFiringError(): Boolean{

@@ -361,6 +361,11 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             sl.i("^Snooze^")
 
             val alarm = repo.getOne(id)
+            if (alarm == null){
+                sl.s("no entity with such ID")
+                stopService(context)
+                return
+            }
             alarm.triggerTime = getPlusDateMins(alarm.getInfo(context).globalSnoozed.toShort())
             alarm.snoozed = true
             setPrepareSnooze(context, alarm, repo)
@@ -379,6 +384,11 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             sl.i("^Dismiss^")
 
             val alarm = repo.getOne(id)
+            if (alarm == null){
+                sl.s("no entity with such ID")
+                stopService(context)
+                return
+            }
             if (alarm.getInfo(context).preliminary){
                 sl.i("^Preliminary cancelled. Preparing for real firing")
 
@@ -411,6 +421,10 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
             sl.i("^After detection^")
             val repo = (context as MyApp).component.repo
             val alarm = repo.getOne(id)
+            if (alarm == null){
+                sl.s("no entity with such ID")
+                return
+            }
 
             alarm.snoozed = false
             alarm.preliminaryFired = false
@@ -427,6 +441,12 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
         fun helpMiss(context: Context, id: String, repo: AlarmRepo){
             sl.i("^Miss^")
             val alarm = repo.getOne(id)
+            if (alarm == null){
+                sl.s("no entity with such ID")
+                stopService(context)
+                context.sendBroadcast(Intent(FiringControlService.ACTION_KILL))
+                return
+            }
 
             if (alarm.getInfo(context).preliminary){
                 sl.i("^Preliminary missed. Preparing for real firing")
@@ -475,6 +495,10 @@ class AlarmExecutionDispatch: BroadcastReceiver() {
         @JvmStatic
         fun reassureStillValid(id: String, repo: AlarmRepo): Boolean {
             val alarm = repo.getOne(id)
+            if (alarm == null){
+                sl.s("no entity with such ID")
+                return true
+            }
 
             return when(alarm.state){
                 Alarm.STATE_FIRE, Alarm.STATE_PRELIMINARY, Alarm.STATE_SNOOZE -> true

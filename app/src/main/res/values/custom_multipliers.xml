@@ -41,11 +41,12 @@
 
 <!--    These are some sort of values for unified styles-->
     <item name="rv_pref_tierOne_width" type="fraction">10.18%</item>
+    <item name="rv_pref_tierTwo_width" type="fraction">11.32%</item>
 
-    <item name="rv_pref_tierOne_rowOne_bias" type="integer">0.415</item>
+    <item name="rv_pref_tierOne_rowOne_bias" type="integer">0.4</item>
     <item name="rv_pref_tierOne_rowTwo_bias" type="integer">0.715</item>
-    <item name="rv_pref_tierOne_columnOne_bias" type="integer">0.72</item>
-    <item name="rv_pref_tierOne_columnTwo_bias" type="integer">0.93</item>
+    <item name="rv_pref_tierOne_columnOne_bias" type="integer">0.71</item>
+    <item name="rv_pref_tierOne_columnTwo_bias" type="integer">0.92</item>
 
 
 
@@ -60,4 +61,9 @@
     <item name="preferences_fragment_width" type="dimen">281dp</item>
 
     <item name="main_digitClock_translationDistance" type="dimen">58dp</item>
+
+    <item name="alarm_draggable_view_side" type="dimen">98dp</item>
+    <item name="alarm_dismiss_view_side" type="dimen">60dp</item>
+    <item name="alarm_draggable_view_down_trailing_distance" type="dimen">54dp</item>
+    <item name="alarm_draggable_view_up_trailing_distance" type="dimen">178dp</item>
 </resources>

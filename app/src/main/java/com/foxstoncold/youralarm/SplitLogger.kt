@@ -3,6 +3,9 @@ package com.foxstoncold.youralarm
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.BufferedWriter
 import java.io.File
 import java.io.FileNotFoundException
@@ -17,6 +20,7 @@ import java.util.*
 import java.util.logging.*
 import java.util.logging.Formatter
 import java.util.regex.Pattern
+import kotlin.coroutines.CoroutineContext
 
 open class SplitLogger {
 
@@ -25,6 +29,9 @@ open class SplitLogger {
         @JvmStatic
         protected var initialized: Boolean = false
         private const val TAG = "SplitLogger"
+
+        @JvmStatic
+        protected val loggingScope = CoroutineScope(Dispatchers.IO)
 
         @JvmStatic
         protected val logcatHandler = object: Handler(){
@@ -323,7 +330,9 @@ open class SplitLogger {
             val tag = getTag(trace.className)[0]
 
             if (!initialized) mainLogger.logp(Level.WARNING, tag, null,"***Logger working without file output")
-            mainLogger.logp(logLevel, tag, methodName, msg, tr)
+            loggingScope.launch {
+                mainLogger.logp(logLevel, tag, methodName, msg, tr)
+            }
 //            for (trace in thread.stackTrace) mainLogger.logp(Level.INFO, tag, "", trace.toString())
 
         }
@@ -474,8 +483,8 @@ class SplitLoggerUI : SplitLogger(){
                 className = className.substringBefore(Char(0x24))
 
             //Trying to find a match in HashMap
-            if (SplitLogger.tags.containsKey(className)) return Array(2) { i ->
-                if (i == 0) SplitLogger.tags.getValue(className) else className
+            if (tags.containsKey(className)) return Array(2) { i ->
+                if (i == 0) tags.getValue(className) else className
             }
 
             val first = Pattern.compile("[A-Z][a-z]*").matcher(className)
@@ -537,7 +546,9 @@ class SplitLoggerUI : SplitLogger(){
             val tag = getTag(trace.className)[0]
 
             if (!initialized) uiLogger.logp(Level.WARNING, tag, null,"***Logger working without file output")
-            uiLogger.logp(logLevel, tag, methodName, msg, tr)
+            loggingScope.launch {
+                uiLogger.logp(logLevel, tag, methodName, msg, tr)
+            }
 //            for (trace in thread.stackTrace) mainLogger.logp(Level.INFO, tag, "", trace.toString())
 
         }

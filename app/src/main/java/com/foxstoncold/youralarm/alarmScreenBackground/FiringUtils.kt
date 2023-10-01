@@ -130,10 +130,16 @@ internal class FiringUtils(private val service: Service) {
         var volIndex = if (info.volume!=-1) info.volume else audioManager.getStreamVolume(streamType)
 
         val initialSetup = alarmingScope.launch {
+            delay(AlarmActivity.alarmingDelay)
 
             if (info.volumeLock) audioManager.setStreamVolume(streamType, volIndex, AudioManager.FLAG_SHOW_UI)
             player = BackgroundUtils.returnPlayer(service, info)
-            player!!.start()
+            try {
+                player?.start()
+            } catch (e: Exception){
+                exHandler.handleException(alarmingScope.coroutineContext, e)
+                player = null
+            }
             sl.fst("player set up")
         }
 
@@ -148,12 +154,12 @@ internal class FiringUtils(private val service: Service) {
                         sl.fst("vol mismatch (${audioManager.getStreamVolume(streamType)} against $volIndex)")
                         delay(5000)
 
-                        player!!.pause()
+                        player?.pause()
                         audioManager.setStreamVolume(streamType, volIndex, AudioManager.FLAG_SHOW_UI)
                         /* AudioManager won't allow us to programmatically set volume below some threshold,
                         so here we adjust to avoid pointless looping */
                         volIndex = audioManager.getStreamVolume(streamType)
-                        player!!.start()
+                        player?.start()
                     }
                 }
             }
@@ -167,22 +173,26 @@ internal class FiringUtils(private val service: Service) {
                 for (currVolume in maxVolume.toInt()-1 downTo  0){
                     val log1 = (ln(maxVolume - currVolume) / ln(maxVolume))
 
-                    player!!.pause()
-                    player!!.setVolume(log1, log1)
-                    player!!.start()
+                    player?.pause()
+                    player?.setVolume(log1, log1)
+                    player?.start()
                     delay(1000)
                 }
             }
 
         if (info.vibrate) {
-            vibrator = service.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            alarmingScope.launch {
+                initialSetup.join()
 
-            val timings: LongArray = longArrayOf(450, 50, 50, 50, 50, 150, 120, 50, 50, 50, 50, 200)
-            val amplitudes: IntArray =
-                intArrayOf(0, 27, 45, 68, 104, 145, 0, 52, 79, 134, 198, 255)
+                vibrator = service.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
-            vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, 0))
-            sl.fst("vibration set up")
+                val timings: LongArray = longArrayOf(450, 50, 50, 50, 50, 150, 120, 50, 50, 50, 50, 200)
+                val amplitudes: IntArray =
+                    intArrayOf(0, 27, 45, 68, 104, 145, 0, 52, 79, 134, 198, 255)
+
+                vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, 0))
+                sl.fst("vibration set up")
+            }
         }
     }
 

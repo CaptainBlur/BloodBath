@@ -13,6 +13,9 @@ data class SubInfo(
     //indicates current neediness for preliminary
     val preliminary: Boolean,
     val preliminaryTime: Int,
+    //not involved in states or time calculation. As far, only for showing info in AlarmActivity
+    val preliminaryEnabled: Boolean,
+    val activeness: Boolean,
 
     var soundPath: Uri?,
     val vibrate: Boolean = true,
@@ -42,8 +45,7 @@ data class SubInfo(
         firingHour = calendar.get(Calendar.HOUR_OF_DAY)
         firingMinute = calendar.get(Calendar.MINUTE)
 
-
-        if (soundPath ==null) soundPath = Uri.parse("android.resource://com.foxstoncold.youralarm/${R.raw.meeting}")
+//        if (soundPath == null) soundPath =
     }
 
     private constructor(parcel: Parcel) : this(
@@ -52,6 +54,8 @@ data class SubInfo(
         parcel.readInt()==1,
         parcel.readInt()==1,
         parcel.readInt(),
+        parcel.readInt()==1,
+        parcel.readInt()==1,
         Uri.parse(parcel.readString()),
         parcel.readInt()==1,
         parcel.readInt()==1,
@@ -72,6 +76,8 @@ data class SubInfo(
         parcel.writeInt(if(snoozed) 1 else 0)
         parcel.writeInt(if(preliminary) 1 else 0)
         parcel.writeInt(preliminaryTime)
+        parcel.writeBoolean(preliminaryEnabled)
+        parcel.writeBoolean(activeness)
         parcel.writeString(soundPath.toString())
         parcel.writeInt(if(vibrate) 1 else 0)
         parcel.writeInt(if(volumeLock) 1 else 0)

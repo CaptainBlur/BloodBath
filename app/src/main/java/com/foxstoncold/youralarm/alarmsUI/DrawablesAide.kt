@@ -10,7 +10,6 @@ import android.graphics.Rect
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.InsetDrawable
 import android.graphics.drawable.PictureDrawable
 import android.graphics.drawable.VectorDrawable
 import android.os.Build
@@ -33,6 +32,7 @@ class RatiosResolver(private val context: Context, globalRect: Rect){
     val prefPowerRect: Rect
     val timeWindowRect: Rect
     val individualsTierOneRect: Rect
+    val individualsTierTwoRect: Rect
     val prefRepeatRect: Rect
     val prefWeekdays: Rect
 
@@ -62,6 +62,11 @@ class RatiosResolver(private val context: Context, globalRect: Rect){
                 getFraction(R.fraction.rv_pref_tierOne_width)
         height = width
         individualsTierOneRect = Rect(0,0, width.roundToInt(), height.roundToInt())
+
+        width = globalRect.width() *
+                getFraction(R.fraction.rv_pref_tierTwo_width)
+        height = width
+        individualsTierTwoRect = Rect(0,0, width.roundToInt(), height.roundToInt())
 
 
         height = globalRect.width() *
@@ -109,6 +114,12 @@ class MainDrawables(private val context: Context, private val ratios: RatiosReso
         const val rv_pref_repeat_disabled = 416
         const val rv_pref_weekday_button = 634
         const val plus = 306
+
+        @JvmStatic
+        fun getRGB(context: Context, @ColorRes resID: Int): String{
+            val color = context.getColor(resID)
+            return "#" + Integer.toHexString(color).substring(2)
+        }
     }
 
     private fun getRGB(@ColorRes resID: Int): String{
@@ -121,7 +132,6 @@ class MainDrawables(private val context: Context, private val ratios: RatiosReso
 
         var drawableID: Int
         lateinit var drawableSVG: SVG
-        lateinit var neutralPicture: PictureDrawable
         lateinit var uncheckedPicture: PictureDrawable
         lateinit var checkedPicture: PictureDrawable
 
@@ -155,8 +165,8 @@ class MainDrawables(private val context: Context, private val ratios: RatiosReso
             documentHeight = side
             documentWidth = side
         }
-        neutralPicture = PictureDrawable(drawableSVG.renderToPicture())
-        neutralDrawables.set(drawableID, neutralPicture)
+        checkedPicture = PictureDrawable(drawableSVG.renderToPicture())
+        neutralDrawables.set(drawableID, checkedPicture)
 
 
         drawableID = rv_time_window
@@ -205,10 +215,15 @@ class MainDrawables(private val context: Context, private val ratios: RatiosReso
             documentHeight = ratios.individualsTierOneRect.height().toFloat()
         }
 
-        neutralPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+        uncheckedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+            "path#path21778 { fill:${getRGB(R.color.mild_greyscaleDark)} }"
+        )))
+        uncheckedDrawables.set(drawableID, uncheckedPicture)
+
+        checkedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
             "path#path21778 { fill:${getRGB(R.color.mild_pitchRegular)} }"
         )))
-        neutralDrawables.set(drawableID, neutralPicture)
+        checkedDrawables.set(drawableID, checkedPicture)
 
 
         drawableID = rv_pref_vibration
@@ -236,8 +251,8 @@ class MainDrawables(private val context: Context, private val ratios: RatiosReso
         drawableID = rv_pref_preliminary
         drawableSVG = SVG.getFromAsset(context.assets, "rv_pref_preliminary.svg")
         with(drawableSVG){
-            documentWidth = ratios.individualsTierOneRect.width().toFloat()
-            documentHeight = ratios.individualsTierOneRect.height().toFloat()
+            documentWidth = ratios.individualsTierTwoRect.width().toFloat()
+            documentHeight = ratios.individualsTierTwoRect.height().toFloat()
         }
 
         uncheckedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
@@ -260,8 +275,8 @@ class MainDrawables(private val context: Context, private val ratios: RatiosReso
         drawableID = rv_pref_activeness
         drawableSVG = SVG.getFromAsset(context.assets, "rv_pref_activeness.svg")
         with(drawableSVG){
-            documentWidth = ratios.individualsTierOneRect.width().toFloat()
-            documentHeight = ratios.individualsTierOneRect.height().toFloat()
+            documentWidth = ratios.individualsTierTwoRect.width().toFloat()
+            documentHeight = ratios.individualsTierTwoRect.height().toFloat()
         }
 
         uncheckedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
@@ -290,13 +305,13 @@ class MainDrawables(private val context: Context, private val ratios: RatiosReso
         )))
         uncheckedDrawables.set(drawableID, uncheckedPicture)
 
-        neutralPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
+        checkedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
             "#arrows_slim { opacity:0 }" +
                     "#unlit_top, #unlit_bot, #lit_mid { opacity:0 }" +
                     "#plates_unlit { fill:${getRGB(R.color.mild_greyscaleDark)} }" +
                     "#plates_lit { fill:${getRGB(R.color.mild_pitchRegular)} }"
         )))
-        neutralDrawables.set(drawableID, neutralPicture)
+        neutralDrawables.set(drawableID, checkedPicture)
 
         checkedPicture = PictureDrawable(drawableSVG.renderToPicture(RenderOptions.create().css(
             "#arrows_slim, #plates_unlit { opacity:0 }" +
@@ -493,6 +508,32 @@ class MainDrawables(private val context: Context, private val ratios: RatiosReso
             ?: kotlin.run {
                 slU.sp("failed to find id: ^$id^")
                 return VectorDrawable() }
+    }
+
+    fun get_pref_frame_directly(side: Boolean, checked: Boolean): Drawable{
+        val squarePair = comprisePrefFrameAnimation()
+
+        return if (!side && !checked) squarePair.first.first
+        else if (!side) squarePair.first.second
+        else if (!checked) squarePair.second.first
+        else squarePair.second.second
+    }
+    fun reloadAnimated(){
+        var drawableID = rv_pref_power
+        val pair = comprisePrefPowerAnimation()
+        uncheckedDrawables.set(drawableID, pair.first)
+        checkedDrawables.set(drawableID, pair.second)
+
+
+        drawableID = rv_pref_frame_center
+        val squarePair = comprisePrefFrameAnimation()
+        uncheckedDrawables.set(drawableID, squarePair.first.first)
+        checkedDrawables.set(drawableID, squarePair.first.second)
+
+
+        drawableID = rv_pref_frame_right
+        uncheckedDrawables.set(drawableID, squarePair.second.first)
+        checkedDrawables.set(drawableID, squarePair.second.second)
     }
 
     fun getResolvedRectangle(id: Int): Rect = when (id){

@@ -13,6 +13,7 @@ import android.os.PowerManager.WakeLock
 import com.foxstoncold.youralarm.MainActivity
 import com.foxstoncold.youralarm.MyApp
 import com.foxstoncold.youralarm.database.Alarm
+import java.util.Calendar
 
 
 /**
@@ -100,7 +101,6 @@ class FiringControlService: Service() {
         addAction(ACTION_DISMISS)
     }
 
-    @SuppressLint("SuspiciousIndentation")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent!!.action == STOP_SERVICE){
             stopService()
@@ -129,9 +129,12 @@ class FiringControlService: Service() {
     }
 
     /**
-     * Detecting interlayer call and posting core Service notification
+     * First step
+     * Posting interlayer notification if detected or do nothing
      */
     private fun checkInterlayer(intent: Intent): Boolean {
+        if (intent.action == ACTION_TEST) return false
+
         val current = repo.getOne(intent.action)
 
         return if (current.state!=Alarm.STATE_FIRE && current.state!=Alarm.STATE_SNOOZE && current.state!=Alarm.STATE_PRELIMINARY){
@@ -150,28 +153,45 @@ class FiringControlService: Service() {
     }
 
     lateinit var current: Alarm
+    /**
+     * Second step
+     * Executing all the normal intent processing logic
+     */
     private fun processIntent(intent: Intent){
+        if (intent.action != ACTION_TEST){
+            current = repo.getOne(intent.action)
+            if (current.state==Alarm.STATE_FIRE || current.state==Alarm.STATE_PRELIMINARY) AED.killFireNotification(this, current)
+            if (current.state==Alarm.STATE_SNOOZE) AED.killSnoozeNotification(this, current)
 
-        current = repo.getOne(intent.action)
-        if (current.state==Alarm.STATE_FIRE || current.state==Alarm.STATE_PRELIMINARY) AED.killFireNotification(this, current)
-        if (current.state==Alarm.STATE_SNOOZE) AED.killSnoozeNotification(this, current)
+            val globalID = BackgroundUtils.getGlobalID(applicationContext)
+            sl.f("globalID is: *$globalID* now")
 
-        val globalID = BackgroundUtils.getGlobalID(applicationContext)
-        sl.f("globalID is: *$globalID* now")
+            if (current.id != globalID) throw IllegalArgumentException("Current's ID mismatch: *${current.id}* against *${globalID}*")
 
-        if (current.id != globalID) throw IllegalArgumentException("Current's ID mismatch: *${current.id}* against *${globalID}*")
-
-        if (current.triggerTime==null) throw IllegalArgumentException("Cannot proceed without triggerTime")
-        if (current.state!=Alarm.STATE_FIRE &&
-            current.state!=Alarm.STATE_SNOOZE &&
-            current.state!=Alarm.STATE_PRELIMINARY)
+            if (current.triggerTime==null) throw IllegalArgumentException("Cannot proceed without triggerTime")
+            if (current.state!=Alarm.STATE_FIRE &&
+                current.state!=Alarm.STATE_SNOOZE &&
+                current.state!=Alarm.STATE_PRELIMINARY)
                 throw IllegalArgumentException("Cannot proceed with *${current.state}* state")
-        if (((current.state==Alarm.STATE_FIRE || current.state==Alarm.STATE_PRELIMINARY) && current.snoozed) ||
-            (current.state==Alarm.STATE_SNOOZE && !current.snoozed))
+            if (((current.state==Alarm.STATE_FIRE || current.state==Alarm.STATE_PRELIMINARY) && current.snoozed) ||
+                (current.state==Alarm.STATE_SNOOZE && !current.snoozed))
                 throw IllegalArgumentException("Cannot proceed with *${current.state}* state when alarm.snoozed is: *${current.snoozed}*")
-        if (launched) {
-            sl.s("Recursive call detected, process already began. Returning")
-            return
+            if (launched) {
+                sl.s("Recursive call detected, process already began. Returning")
+                return
+            }
+        }
+        else{
+            val cal = Calendar.getInstance()
+            current = Alarm(cal[Calendar.HOUR_OF_DAY], cal[Calendar.MINUTE])
+            current.soundPath = null
+            current.vibrate = true
+            current.state = Alarm.STATE_FIRE
+
+            current.detection = true
+            current.preliminary = true
+            current.preliminaryFired = true
+            current.snoozed = false
         }
 
         connection = object: ServiceConnection {
@@ -188,6 +208,7 @@ class FiringControlService: Service() {
         this.bindService(i, connection, 0)
 
         sl.ip("all checks has been passed")
+        sl.ip("TEST entry. Expect DB related errors")
         sl.fp("handling alarm with id: *${current.id}*")
         alarm = current
         launched = true
@@ -202,6 +223,7 @@ class FiringControlService: Service() {
         const val ACTION_SNOOZE = "snooze"
         const val ACTION_DISMISS = "dismiss"
         const val ACTION_KILL = "kill"
+        const val ACTION_TEST = "TEST"
 
         const val STOP_SERVICE = "stop"
     }

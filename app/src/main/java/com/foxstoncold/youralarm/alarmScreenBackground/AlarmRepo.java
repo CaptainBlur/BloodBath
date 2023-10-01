@@ -2,6 +2,8 @@ package com.foxstoncold.youralarm.alarmScreenBackground;
 
 import android.content.Context;
 
+import androidx.lifecycle.LiveData;
+
 import com.foxstoncold.youralarm.SplitLogger;
 import com.foxstoncold.youralarm.database.Alarm;
 import com.foxstoncold.youralarm.database.AlarmDao;
@@ -29,7 +31,12 @@ public class AlarmRepo {
 
     //This is a group of access methods, they don't perform control actions, but just provide access to the database for the Handlers and for other's needs
 
-    protected Alarm getOne(String id){
+    /**
+     *
+     * @param id
+     * @return nullable result if entity not found
+     */
+    public Alarm getOne(String id){
         int[] a = Alarm.getHM(id);
         Callable<Alarm> callable = ()-> alarmDao.getOne(a[0], a[1]);
         Future<Alarm> future = executor.submit(callable);
@@ -39,7 +46,6 @@ public class AlarmRepo {
         } catch (CancellationException | ExecutionException | InterruptedException e){
             sl.sp("EXECUTION FAILED", e);
         }
-        assert result!=null;
         return result;
     }
 
@@ -57,6 +63,19 @@ public class AlarmRepo {
         if (result==null) return new LinkedList<Alarm>();
         return result;
     }
+    public LiveData<List<Alarm>> getAllLD() {
+        Callable<LiveData<List<Alarm>>> callable = alarmDao::getAllLD;
+        Future<LiveData<List<Alarm>>> future = executor.submit(callable);
+        LiveData<List<Alarm>> result = null;
+
+        try{
+            result = future.get();
+        } catch (CancellationException | ExecutionException | InterruptedException e){
+            sl.sp("EXECUTION FAILED", e);
+        }
+
+        return result;
+    }
     public List<Alarm> getActives(){
         Callable<List<Alarm>> callable = alarmDao::getActives;
         Future<List<Alarm>> future = executor.submit(callable);
@@ -67,6 +86,19 @@ public class AlarmRepo {
             sl.sp("EXECUTION FAILED", e);
         }
         if (result != null) sl.fst( "actives count: " + result.size());
+        return result;
+    }
+    public LiveData<List<Alarm>> getActivesLD() {
+        Callable<LiveData<List<Alarm>>> callable = alarmDao::getActivesLD;
+        Future<LiveData<List<Alarm>>> future = executor.submit(callable);
+        LiveData<List<Alarm>> result = null;
+
+        try{
+            result = future.get();
+        } catch (CancellationException | ExecutionException | InterruptedException e){
+            sl.sp("EXECUTION FAILED", e);
+        }
+
         return result;
     }
 

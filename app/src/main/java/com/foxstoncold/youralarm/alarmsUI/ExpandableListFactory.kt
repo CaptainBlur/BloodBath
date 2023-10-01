@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Resources
 import android.graphics.drawable.VectorDrawable
+import android.os.Build
 import android.text.Editable
 import android.text.InputFilter
 import android.text.SpannableStringBuilder
@@ -95,10 +96,9 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
         var subSwitchVisible = false
         private val toast = Toast.makeText(context, "some behaviour expected", Toast.LENGTH_SHORT)
 
-        var switchStartStateGetter: ()->Boolean = { false }
+        var switchStartStateGetter: (View)->Boolean = { false }
         var switchWarningStartStateGetter: ()->Boolean = { false }
-        val switchStartState: Boolean
-            get() = switchStartStateGetter()
+
         var switchOnCheckedListener: (CompoundButton, ImageView, Boolean) -> Unit = { _, _, _ -> toast.show() }
         var switchWarningAvailable = false
         var switchUseCheckedListenerOnStart = false
@@ -167,6 +167,8 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                                 parent.collapseGroup(groupPosition)
                             else parent.expandGroup(groupPosition)
                         }
+                        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                            v.performHapticFeedback(HapticFeedbackConstants.REJECT)
 
                         groupStates[groupPosition] = parent.isGroupExpanded(groupPosition)
                         onGroupChanged(groupStates.toBooleanArray())
@@ -272,9 +274,10 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                 ).toIntArray()
                 switch.thumbTintList = ColorStateList(states, colors)
 
-                if (container.switchUseCheckedListenerOnStart) container.switchOnCheckedListener(switch, switchWarning, container.switchStartState)
-                switch.isChecked = container.switchStartState
+                if (container.switchUseCheckedListenerOnStart) container.switchOnCheckedListener(switch, switchWarning, container.switchStartStateGetter(switch))
+                switch.isChecked = container.switchStartStateGetter(switch)
                 switch.setOnCheckedChangeListener { buttonView, isChecked ->
+//                    slU.s("state changed")
                     buttonView.performHapticFeedback(HapticFeedbackConstants.TEXT_HANDLE_MOVE)
                     container.switchOnCheckedListener(buttonView, switchWarning, isChecked)
                 }
@@ -306,7 +309,7 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                 ).toIntArray()
                 switch.thumbTintList = ColorStateList(states, colors)
 
-                switch.isChecked = container.switchStartState
+                switch.isChecked = container.switchStartStateGetter(switch)
                 switch.setOnCheckedChangeListener { buttonView, isChecked ->
                     buttonView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                     container.switchOnCheckedListener(buttonView, switchWarning, isChecked)
@@ -411,10 +414,17 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                     filters = arrayOf(InputFilter.LengthFilter(container.editTextMaxLength))
 
                     setText(container.editTextStartValue)
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         paintSelectors(context.getColor(R.color.mild_neutral))
                     }
                 }
+
+                val switch =
+                    findViewById<SwitchMaterial>(R.id.settings_child_switch_editText).apply {
+                        if (container.subSwitchVisible) visibility =
+                            View.VISIBLE
+                        isChecked = container.switchStartStateGetter(this)
+                    }
 
                 val editText =
                     findViewById<TextInputLayout>(R.id.settings_child_editText_one).apply {
@@ -443,7 +453,7 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                             true
                         }
                         if (container.subSwitchVisible) isEnabled =
-                            container.switchStartState
+                            container.switchStartStateGetter(switch)
 
                         if (container.showHint){
                             val lp = layoutParams as ConstraintLayout.LayoutParams
@@ -453,22 +463,15 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                     }
                 findViewById<TextView>(R.id.settings_child_editText_unit).text = container.unitText
 
-                val switch =
-                    findViewById<SwitchMaterial>(R.id.settings_child_switch_editText).apply {
-                        if (container.subSwitchVisible) visibility =
-                            View.VISIBLE
-
-                        setOnCheckedChangeListener { buttonView, isChecked ->
-                            container.switchOnCheckedListener(
-                                buttonView,
-                                switchWarning,
-                                isChecked,
-                            )
-                            buttonView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            editText.isEnabled = isChecked
-                        }
-                        isChecked = container.switchStartState
-                    }
+                switch.setOnCheckedChangeListener { buttonView, isChecked ->
+                    container.switchOnCheckedListener(
+                        buttonView,
+                        switchWarning,
+                        isChecked,
+                    )
+                    buttonView.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    editText.isEnabled = isChecked
+                }
 
                 states = arrayOf(
                     intArrayOf(-android.R.attr.state_checked),
@@ -525,7 +528,7 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
 
                         setText(container.editTextStartValue)
                         setOnFocusChangeListener { v, hasFocus -> editTextTravelled = true }
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                             paintSelectors(context.getColor(R.color.mild_neutral))
                         }
                     }
@@ -640,7 +643,7 @@ class ExpandableListFactory(private val expandableListView: ExpandableListView,
                             it.length,
                             Spanned.SPAN_INCLUSIVE_EXCLUSIVE
                         )
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
                             spannable.setSpan(
                                 TypefaceSpan(context.resources.getFont(R.font.montserrat_light_italic)),
                                 it.length + 1,
